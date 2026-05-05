@@ -8,11 +8,15 @@ const VIEWPORT_WIDTH = 16;
 const VIEWPORT_HEIGHT = 10;
 
 type TextureKey = TileKind | string;
+type CharacterFacing = "south" | "north" | "east" | "west";
 
 export class PixiRoguelikeRenderer {
   readonly app = new Application();
   private readonly stageLayer = new Container();
   private readonly textures = new Map<TextureKey, Texture>();
+  private readonly characterFacing = new Map<string, CharacterFacing>();
+  private readonly characterLastPos = new Map<string, { x: number; y: number }>();
+  private readonly characterLastContentId = new Map<string, string>();
   private ready = false;
 
   async mount(container: HTMLElement): Promise<void> {
@@ -56,7 +60,7 @@ export class PixiRoguelikeRenderer {
       if (!shouldDraw || !inViewport(entity.pos.x, entity.pos.y, camera)) {
         continue;
       }
-      const key = entity.kind === "trap" ? "trap.risk-panel" : assetIdForContent(entity.contentId);
+      const key = entity.kind === "player" ? this.playerTextureKey(entity) : entity.kind === "trap" ? "trap.risk-panel" : assetIdForContent(entity.contentId);
       this.drawSprite(key, entity.pos.x - camera.x, entity.pos.y - camera.y, 1);
       if (entity.kind === "monster" && entity.stats) {
         this.drawHealthPip(entity, camera);
@@ -125,6 +129,40 @@ export class PixiRoguelikeRenderer {
     sprite.height = TILE_SIZE;
     sprite.alpha = alpha;
     this.stageLayer.addChild(sprite);
+  }
+
+  private playerTextureKey(entity: Entity): TextureKey {
+    const facing = this.updateCharacterFacing(entity);
+    const defaultKey = assetIdForContent(entity.contentId);
+    const directionalKey = defaultKey.replace(/\.(south|north|east|west)$/, `.${facing}`);
+    return this.textures.has(directionalKey) ? directionalKey : defaultKey;
+  }
+
+  private updateCharacterFacing(entity: Entity): CharacterFacing {
+    const lastPos = this.characterLastPos.get(entity.id);
+    const lastContentId = this.characterLastContentId.get(entity.id);
+    let facing = this.characterFacing.get(entity.id) ?? "south";
+    if (lastContentId && lastContentId !== entity.contentId) {
+      facing = "south";
+    } else if (lastPos) {
+      const dx = entity.pos.x - lastPos.x;
+      const dy = entity.pos.y - lastPos.y;
+      if (Math.abs(dx) + Math.abs(dy) > 1) {
+        facing = "south";
+      } else if (dx > 0) {
+        facing = "east";
+      } else if (dx < 0) {
+        facing = "west";
+      } else if (dy < 0) {
+        facing = "north";
+      } else if (dy > 0) {
+        facing = "south";
+      }
+    }
+    this.characterFacing.set(entity.id, facing);
+    this.characterLastPos.set(entity.id, { ...entity.pos });
+    this.characterLastContentId.set(entity.id, entity.contentId);
+    return facing;
   }
 
   private drawHealthPip(entity: Entity, camera: { x: number; y: number }): void {
