@@ -1,0 +1,238 @@
+{
+  "rules": {
+    "mapWidth": 56,
+    "mapHeight": 20,
+    "fovRadius": 9,
+    "maxFloor": 10,
+    "inventorySlotLimit": 16,
+    "xpThresholds": [0, 0, 20, 55, 105, 170, 250, 350, 480, 640, 830],
+    "descentHeal": 10,
+    "baseAttack": 7,
+    "attackPerLevel": 1,
+    "baseDefense": 1,
+    "defenseLevelsPerPoint": 2,
+    "levelUpMaxHp": 5,
+    "levelUpHeal": 9,
+    "monsterCountBase": 7,
+    "monsterCountFloorCap": 10,
+    "itemCountBase": 5,
+    "itemCountFloorDivisor": 2,
+    "itemCountFloorCap": 8,
+    "trapCountBase": 2,
+    "trapCountFloorDivisor": 2,
+    "trapCountMax": 6,
+    "trapAvoidBasePercent": 8,
+    "trapAvoidMinPercent": 0,
+    "trapAvoidMaxPercent": 45,
+    "coverCountBase": 2,
+    "coverCountFloorDivisor": 2,
+    "coverCountMax": 5,
+    "eventCountBase": 1,
+    "eventExtraChancePercent": 50,
+    "attackRandomBonusMax": 2,
+    "rangedMonsterRange": 3,
+    "monsterChaseRange": 7,
+    "guardedDefenseBonus": 3,
+    "moonlitMailRegenEveryTurns": 10,
+    "moonlitMailRegenAmount": 1,
+    "bleedingDamage": 1,
+    "venomedDamage": 1
+  },
+  "biomes": [
+    { "theme": "blackstone", "minFloor": 1, "nameJa": "黒石迷宮" },
+    { "theme": "crypt", "minFloor": 4, "nameJa": "墓所" },
+    { "theme": "furnace", "minFloor": 7, "nameJa": "炉心遺跡" },
+    { "theme": "black-candle", "minFloor": 10, "nameJa": "黒燭中枢" }
+  ],
+  "roles": [
+    {
+      "id": "role.oathbound",
+      "stats": { "hp": 36, "maxHp": 36, "attack": 8, "defense": 1 },
+      "inventory": [{ "contentId": "item.rusted-sword", "quantity": 1, "equipped": true }],
+      "traits": {
+        "focus": "守り手撃破と安定した近接戦",
+        "strengths": ["HPと攻撃が高く、初回プレイ向き", "ボス撃破ごとに追加報酬を得る"],
+        "traitLabels": ["ボス撃破: 追加報酬", "近接安定"],
+        "bossReward": "item.guardian-draught"
+      }
+    },
+    {
+      "id": "role.ash-scout",
+      "stats": { "hp": 30, "maxHp": 30, "attack": 7, "defense": 0 },
+      "inventory": [
+        { "contentId": "item.hunter-spear", "quantity": 1, "equipped": true },
+        { "contentId": "item.ember-dart", "quantity": 2 },
+        { "contentId": "item.glim-map", "quantity": 1 }
+      ],
+      "traits": {
+        "focus": "地図利用、罠回避、遠隔圧への対応",
+        "strengths": ["地図使用で追加探索と投げ針補充", "職業特性で罠回避と遠隔防御が少し高い"],
+        "traitLabels": ["地図使用: 探索+投げ針", "罠回避 +10%", "遠隔防御 +1"],
+        "trapAvoidPercent": 10,
+        "rangedDefense": 1,
+        "scoutRevealRadius": 4,
+        "scoutBonusItem": "item.ember-dart"
+      }
+    },
+    {
+      "id": "role.lantern-priest",
+      "stats": { "hp": 32, "maxHp": 32, "attack": 6, "defense": 1 },
+      "inventory": [
+        { "contentId": "item.oath-knife", "quantity": 1, "equipped": true },
+        { "contentId": "item.ember-tonic", "quantity": 1 },
+        { "contentId": "item.guardian-draught", "quantity": 1 },
+        { "contentId": "item.mapping-scroll", "quantity": 1 }
+      ],
+      "traits": {
+        "focus": "浄化、状態異常対策、防御的な粘り",
+        "strengths": ["浄化や治療を護りに変える", "攻撃力は低いが危険状態から立て直しやすい"],
+        "traitLabels": ["浄化: 護り8ターン", "状態異常対策"],
+        "priestGuardedTurns": 8
+      }
+    }
+  ],
+  "monsterSpawnRules": [
+    { "contentId": "monster.ash-rat", "minFloor": 1, "biomes": ["blackstone"] },
+    { "contentId": "monster.ember-moth", "minFloor": 1, "biomes": ["blackstone"] },
+    { "contentId": "monster.venom-bat", "minFloor": 1, "biomes": ["blackstone", "crypt"] },
+    { "contentId": "monster.blackshield-grub", "minFloor": 1, "biomes": ["blackstone"] },
+    { "contentId": "monster.bone-thrall", "minFloor": 1, "biomes": ["blackstone", "crypt"] },
+    { "contentId": "monster.hollow-archer", "minFloor": 3, "biomes": ["blackstone", "crypt"] },
+    { "contentId": "monster.grave-leech", "minFloor": 3, "biomes": ["blackstone", "crypt"] },
+    { "contentId": "monster.shadow-imp", "minFloor": 3, "biomes": ["blackstone"] },
+    { "contentId": "monster.moss-brute", "minFloor": 3, "biomes": ["blackstone"] },
+    { "contentId": "monster.bramble-packling", "minFloor": 3, "biomes": ["blackstone", "furnace"] },
+    { "contentId": "monster.cinder-cultist", "minFloor": 4, "biomes": ["crypt"] },
+    { "contentId": "monster.shadow-imp", "minFloor": 5, "biomes": ["crypt", "furnace", "black-candle"] },
+    { "contentId": "monster.ash-warlock", "minFloor": 8, "biomes": ["crypt", "furnace", "black-candle"] },
+    { "contentId": "monster.blackstone-sentinel", "minFloor": 7, "biomes": ["furnace", "black-candle"] },
+    { "contentId": "monster.iron-reliquary-guard", "minFloor": 7, "biomes": ["furnace", "black-candle"] }
+  ],
+  "monsterStats": {
+    "monster.ash-rat": { "hp": 5, "attack": 1, "defense": 0 },
+    "monster.ember-moth": { "hp": 4, "attack": 2, "defense": 0 },
+    "monster.venom-bat": { "hp": 5, "attack": 2, "defense": 0 },
+    "monster.blackshield-grub": { "hp": 12, "attack": 1, "defense": 3 },
+    "monster.bone-thrall": { "hp": 9, "attack": 2, "defense": 1 },
+    "monster.hollow-archer": { "hp": 8, "attack": 3, "defense": 0 },
+    "monster.cinder-cultist": { "hp": 8, "attack": 3, "defense": 0 },
+    "monster.grave-leech": { "hp": 10, "attack": 2, "defense": 1 },
+    "monster.shadow-imp": { "hp": 10, "attack": 3, "defense": 1 },
+    "monster.moss-brute": { "hp": 14, "attack": 4, "defense": 2 },
+    "monster.bramble-packling": { "hp": 11, "attack": 4, "defense": 1 },
+    "monster.ash-warlock": { "hp": 12, "attack": 5, "defense": 1 },
+    "monster.blackstone-sentinel": { "hp": 18, "attack": 5, "defense": 3, "hpPerDanger": 2 },
+    "monster.iron-reliquary-guard": { "hp": 24, "attack": 6, "defense": 4, "hpPerDanger": 2 },
+    "monster.crypt-priest": { "hp": 24, "attack": 5, "defense": 2, "hpPerDanger": 2 },
+    "monster.blackstone-colossus": { "hp": 38, "attack": 7, "defense": 5, "hpPerDanger": 2 },
+    "monster.black-candle-warden": { "hp": 54, "attack": 9, "defense": 5, "hpPerDanger": 2 }
+  },
+  "itemPools": [
+    { "floor": 1, "items": ["item.ember-tonic", "item.ember-tonic", "item.coin-pouch", "item.mapping-scroll", "item.glim-map", "item.leather-armor", "item.trapweave-cloak", "item.oath-knife", "item.ember-dart", "item.guardian-draught", "item.unmarked-vial"] },
+    { "minFloor": 2, "maxFloor": 3, "items": ["item.ember-tonic", "item.greater-tonic", "item.coin-pouch", "item.coin-pouch", "item.mapping-scroll", "item.iron-axe", "item.ward-shield", "item.tower-kite-shield", "item.hunter-spear", "item.oath-knife", "item.ember-dart", "item.ember-dart", "item.guardian-draught", "item.repulsion-scroll", "item.bloodmoss-salve", "item.unmarked-vial", "item.sealed-prayer-strip"] },
+    { "biomes": ["crypt"], "items": ["item.greater-tonic", "item.coin-pouch", "item.bloodmoss-salve", "item.bloodmoss-salve", "item.repulsion-scroll", "item.chain-mail", "item.trapweave-cloak", "item.ward-shield", "item.tower-kite-shield", "item.silvered-mace", "item.ember-dart", "item.mapping-scroll", "item.sealed-prayer-strip"] },
+    { "biomes": ["furnace", "black-candle"], "items": ["item.greater-tonic", "item.greater-tonic", "item.coin-pouch", "item.void-prism", "item.repulsion-scroll", "item.sun-sigil-blade", "item.moonlit-mail", "item.tower-kite-shield", "item.guardian-draught", "item.ember-dart", "item.sealed-prayer-strip"] },
+    { "minFloor": 4, "items": ["item.greater-tonic", "item.greater-tonic", "item.coin-pouch", "item.coin-pouch", "item.chain-mail", "item.trapweave-cloak", "item.ward-shield", "item.tower-kite-shield", "item.silvered-mace", "item.ember-dart", "item.ember-dart", "item.mapping-scroll", "item.guardian-draught", "item.repulsion-scroll", "item.bloodmoss-salve", "item.sealed-prayer-strip"] },
+    { "minFloor": 5, "items": ["item.sun-sigil-blade", "item.moonlit-mail", "item.void-prism", "item.silvered-mace"] }
+  ],
+  "guaranteedItems": [
+    { "floor": 1, "items": ["item.ember-tonic", "item.coin-pouch", "item.glim-map"] },
+    { "floor": 2, "items": ["item.iron-axe", "item.guardian-draught"] },
+    { "floor": 3, "items": ["item.ward-shield", "item.ember-dart", "item.bloodmoss-salve"] },
+    { "floor": 4, "items": ["item.chain-mail", "item.greater-tonic", "item.repulsion-scroll"] },
+    { "floor": 6, "items": ["item.sun-sigil-blade", "item.greater-tonic", "item.coin-pouch"] },
+    { "floor": 8, "items": ["item.moonlit-mail", "item.repulsion-scroll", "item.bloodmoss-salve"] },
+    { "minFloor": 1, "items": ["item.greater-tonic", "item.ember-dart", "item.coin-pouch"] }
+  ],
+  "eventPools": [
+    { "minFloor": 1, "events": ["event.blood-inscription", "event.mend-shrine", "event.warning-brazier", "event.oath-echo", "event.scout-cache", "event.lantern-font"] },
+    { "minFloor": 2, "events": ["event.broken-armory", "event.sealed-room", "event.dread-altar", "event.oath-echo", "event.scout-cache", "event.lantern-font", "event.candle-gallery"] },
+    { "minFloor": 3, "events": ["event.cursed-coffer", "event.seal-key"] },
+    { "minFloor": 2, "maxFloor": 9, "events": ["event.wayfarer-merchant", "event.wayfarer-merchant"] },
+    { "biomes": ["crypt"], "events": ["event.cursed-coffer", "event.dead-feast", "event.dead-feast", "event.bone-heap"] },
+    { "biomes": ["furnace"], "events": ["event.furnace-control-stone", "event.seal-key", "event.furnace-chamber"] },
+    { "minFloor": 4, "events": ["event.treasure-vault", "event.candle-gallery", "event.bone-heap"] }
+  ],
+  "trapPools": [
+    { "biomes": ["crypt"], "traps": ["trap.risk-panel", "trap.risk-panel", "trap.risk-panel"] },
+    { "biomes": ["furnace", "black-candle"], "traps": ["trap.risk-panel", "trap.risk-panel", "trap.risk-panel"] },
+    { "minFloor": 1, "traps": ["trap.risk-panel", "trap.risk-panel", "trap.risk-panel"] }
+  ],
+  "bosses": [
+    { "floor": 3, "contentId": "monster.crypt-priest", "reward": "item.grave-sun-charm" },
+    { "floor": 6, "contentId": "monster.blackstone-colossus", "reward": "item.colossus-heart" },
+    { "floor": 10, "contentId": "monster.black-candle-warden", "reward": "item.black-candle-core" }
+  ],
+  "equipment": {
+    "item.rusted-sword": { "slot": "weapon", "power": 1 },
+    "item.oath-knife": { "slot": "weapon", "power": 2, "trapAvoidPercent": 4 },
+    "item.hunter-spear": { "slot": "weapon", "power": 3, "rangedDefense": 1 },
+    "item.iron-axe": { "slot": "weapon", "power": 4 },
+    "item.sun-sigil-blade": { "slot": "weapon", "power": 5, "specialDamage": { "amount": 3, "families": ["undead", "demon", "cult"] } },
+    "item.ward-shield": { "slot": "shield", "power": 2, "rangedDefense": 2, "trapAvoidPenaltyPercent": 3 },
+    "item.leather-armor": { "slot": "armor", "power": 1, "trapAvoidPercent": 12 },
+    "item.chain-mail": { "slot": "armor", "power": 3, "rangedDefense": 1, "trapAvoidPenaltyPercent": 8 },
+    "item.trapweave-cloak": { "slot": "armor", "power": 1, "trapAvoidPercent": 22 },
+    "item.tower-kite-shield": { "slot": "shield", "power": 1, "rangedDefense": 3, "trapAvoidPenaltyPercent": 8 },
+    "item.silvered-mace": { "slot": "weapon", "power": 3, "specialDamage": { "amount": 3, "families": ["undead", "demon"] } },
+    "item.moonlit-mail": { "slot": "armor", "power": 4, "rangedDefense": 1, "trapAvoidPenaltyPercent": 5 }
+  },
+  "consumables": {
+    "item.ember-tonic": { "heal": 10 },
+    "item.greater-tonic": { "heal": 30 },
+    "item.guardian-draught": { "guardedTurns": 16 },
+    "item.bloodmoss-salve": { "heal": 22, "cureConditions": ["bleeding", "venomed"] },
+    "item.mapping-scroll": { "revealFloor": true },
+    "item.glim-map": { "revealRadius": 8 },
+    "item.repulsion-scroll": { "pushVisibleMonsters": true },
+    "item.void-prism": { "revealRadius": 12, "pushVisibleMonsters": true },
+    "item.grave-sun-charm": { "heal": 24, "cureConditions": ["bleeding", "venomed"], "guardedTurns": 8 },
+    "item.colossus-heart": { "guardedTurns": 24 },
+    "item.black-candle-core": { "heal": 20, "revealRadius": 14, "pushVisibleMonsters": true },
+    "item.ember-dart": { "rangedDamage": 7 },
+    "item.unmarked-vial": { "heal": 8, "mysteryEffects": ["heal", "guard", "bleed", "venom"] },
+    "item.sealed-prayer-strip": { "heal": 6, "mysteryEffects": ["guard", "reveal", "push", "bleed"] }
+  },
+  "events": {
+    "event.blood-inscription": { "xp": 6 },
+    "event.mend-shrine": { "heal": 14, "cureConditions": ["bleeding", "venomed"] },
+    "event.cursed-coffer": { "goldBase": 24, "goldPerFloor": 6, "condition": { "kind": "bleeding", "turns": 6 } },
+    "event.warning-brazier": { "revealRadius": 7 },
+    "event.dread-altar": { "revealTraps": 3, "condition": { "kind": "bleeding", "turns": 4 } },
+    "event.furnace-control-stone": { "weakenLateEnemies": true },
+    "event.seal-key": { "bossRewardBonus": 1 },
+    "event.broken-armory": { "loot": ["item.oath-knife"], "reward": "item.ember-dart" },
+    "event.sealed-room": { "encounters": ["monster.cinder-cultist", "monster.bone-thrall"], "highFloorGuard": { "minFloor": 7, "contentId": "monster.blackstone-sentinel" }, "reward": "item.guardian-draught", "highFloorReward": { "minFloor": 5, "contentId": "item.void-prism" }, "revealRadius": 4 },
+    "event.dead-feast": { "encounters": ["monster.bone-thrall", "monster.grave-leech", "monster.hollow-archer"], "loot": ["item.bloodmoss-salve", "item.coin-pouch"], "revealRadius": 4 },
+    "event.treasure-vault": { "guard": "monster.blackshield-grub", "highFloorGuard": { "minFloor": 7, "contentId": "monster.iron-reliquary-guard" }, "loot": ["item.coin-pouch"], "reward": "item.greater-tonic", "highFloorReward": { "minFloor": 5, "contentId": "item.sun-sigil-blade" }, "trap": "trap.blood-needle", "highFloorTrap": { "minFloor": 7, "contentId": "trap.crumbling-floor" }, "revealRadius": 4 }
+  },
+  "merchantOffers": [
+    { "serviceId": "heal", "cost": 34, "heal": 24, "requireHpRatioAtMost": 0.72 },
+    { "serviceId": "cure", "cost": 30, "heal": 8, "cureConditions": ["bleeding", "venomed"], "requireCondition": true },
+    { "serviceId": "equipment", "contentId": "item.ward-shield", "cost": 54, "minFloor": 2 },
+    { "serviceId": "equipment", "contentId": "item.trapweave-cloak", "cost": 64, "minFloor": 2 },
+    { "serviceId": "equipment", "contentId": "item.tower-kite-shield", "cost": 86, "minFloor": 3 },
+    { "serviceId": "equipment", "contentId": "item.chain-mail", "cost": 92, "minFloor": 4 },
+    { "serviceId": "equipment", "contentId": "item.silvered-mace", "cost": 110, "minFloor": 4 },
+    { "serviceId": "equipment", "contentId": "item.sun-sigil-blade", "cost": 150, "minFloor": 6 },
+    { "serviceId": "equipment", "contentId": "item.moonlit-mail", "cost": 180, "minFloor": 8 },
+    { "serviceId": "map", "contentId": "item.glim-map", "cost": 26 },
+    { "serviceId": "map", "contentId": "item.mapping-scroll", "cost": 56, "minFloor": 3 }
+  ],
+  "rangedMonsters": ["monster.hollow-archer", "monster.cinder-cultist", "monster.ash-warlock"],
+  "monsterAttackEffects": {
+    "monster.grave-leech": { "condition": "bleeding", "turns": 6, "message": "墓蛭の牙が裂け目を残し、出血が始まった。" },
+    "monster.venom-bat": { "condition": "venomed", "turns": 5, "message": "毒羽の棘が刺さり、毒が回り始めた。" },
+    "monster.ash-warlock": { "condition": "venomed", "turns": 4, "message": "灰の呪いが肺に入り、毒が残った。" }
+  },
+  "trapEffects": {
+    "trap.blood-needle": { "damage": 4, "damagePerFloorDivisor": 2, "condition": "bleeding", "turns": 5 },
+    "trap.venom-mist": { "damage": 2, "damagePerFloorDivisor": 3, "condition": "venomed", "turns": 5 },
+    "trap.crumbling-floor": { "damage": 6, "damagePerFloorDivisor": 2, "revealRadius": 3 }
+  },
+  "gold": {
+    "coinPouchBase": 8,
+    "coinPouchPerFloor": 4,
+    "coinPouchRandomMax": 8
+  }
+}
