@@ -34,12 +34,18 @@ type RecordTurnInput = {
   afterObservation?: GameObservation;
 };
 
-export function createRunLog(seed: number, roleId: string): RunLog {
+type RunLogOptions = {
+  maxEntries?: number;
+};
+
+export function createRunLog(seed: number, roleId: string, options: RunLogOptions = {}): RunLog {
   return {
     seed,
     roleId,
     startedAt: new Date().toISOString(),
     entries: [],
+    totalEntries: 0,
+    maxEntries: options.maxEntries,
     totals: {
       actions: {
         move: 0,
@@ -51,6 +57,7 @@ export function createRunLog(seed: number, roleId: string): RunLog {
         merchantService: 0,
         descend: 0,
       },
+      damageEvents: 0,
       damageTaken: 0,
       healingReceived: 0,
       pickups: 0,
@@ -73,8 +80,9 @@ export function recordTurn({ log, before, action, after, actor, aiDebug, beforeO
   const healingReceived = Math.max(0, (afterSnapshot.hp ?? 0) - (beforeSnapshot.hp ?? 0));
   const messageDelta = newMessages(before.messages, after.messages);
   const eventKinds = eventKindsFor(action, messageDelta);
+  const entryIndex = log.totalEntries;
   const entry: RunLogEntry = {
-    index: log.entries.length,
+    index: entryIndex,
     turn: after.turn,
     floor: after.floor,
     action: cloneAction(action),
@@ -95,7 +103,12 @@ export function recordTurn({ log, before, action, after, actor, aiDebug, beforeO
   };
 
   log.entries.push(entry);
+  log.totalEntries = entryIndex + 1;
+  if (log.maxEntries !== undefined && log.maxEntries > 0 && log.entries.length > log.maxEntries) {
+    log.entries.splice(0, log.entries.length - log.maxEntries);
+  }
   log.totals.actions[action.type] += 1;
+  log.totals.damageEvents += eventKinds.includes("damage") ? 1 : 0;
   log.totals.damageTaken += damageTaken;
   log.totals.healingReceived += healingReceived;
   log.totals.pickups += action.type === "pickup" ? 1 : 0;
@@ -109,7 +122,7 @@ export function recordTurn({ log, before, action, after, actor, aiDebug, beforeO
 export function analyzeRun(log: RunLog, finalState: GameState, finalObservation = observeGame(finalState)): RunReview {
   const player = finalObservation.player;
   const stats = {
-    turns: log.entries.length,
+    turns: log.totalEntries,
     floor: finalState.floor,
     level: finalState.playerProgress.level,
     xp: finalState.playerProgress.xp,
@@ -148,6 +161,8 @@ export function analyzeRun(log: RunLog, finalState: GameState, finalObservation 
         seed: log.seed,
         roleId: log.roleId,
         startedAt: log.startedAt,
+        totalEntries: log.totalEntries,
+        maxEntries: log.maxEntries,
         totals: log.totals,
         recentEntries: lastTurns,
       },

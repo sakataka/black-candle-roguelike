@@ -404,8 +404,11 @@ export type RunLog = {
   roleId: string;
   startedAt: string;
   entries: RunLogEntry[];
+  totalEntries: number;
+  maxEntries?: number;
   totals: {
     actions: Record<GameAction["type"], number>;
+    damageEvents: number;
     damageTaken: number;
     healingReceived: number;
     pickups: number;

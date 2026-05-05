@@ -12,6 +12,7 @@ export type SimulationRunInput = {
   label: string;
   trace?: boolean;
   profile?: boolean;
+  logLimit?: number | null;
 };
 
 export type SimulationProfile = {
@@ -97,7 +98,7 @@ export async function runSimulation(input: SimulationRunInput): Promise<Simulati
 
   const initStartMs = performance.now();
   let state = createInitialGame(input.seed, input.roleId);
-  const runLog = createRunLog(input.seed, input.roleId);
+  const runLog = createRunLog(input.seed, input.roleId, { maxEntries: input.logLimit ?? undefined });
   let executedTurns = 0;
   let observation = timeProfile(profile, "observeGame", () => observeGame(state));
   let lastKnownTiles = observation.knownTiles.length;
@@ -188,7 +189,7 @@ export async function runSimulation(input: SimulationRunInput): Promise<Simulati
     status: state.status,
     actions,
     pickups: actions.pickup,
-    attacks: runLog.entries.filter((entry) => entry.eventKinds.includes("damage")).length,
+    attacks: runLog.totals.damageEvents,
     descents: actions.descend,
     knownTiles: finalObservation.knownTiles.length,
     knownEntities: finalObservation.knownEntities.length,

@@ -22,7 +22,10 @@ type ConfigSpec = {
   path: string;
 };
 
+type BatchPreset = "custom" | "smoke" | "standard" | "compare" | "deep";
+
 type CliOptions = {
+  preset: BatchPreset;
   seeds: number[];
   turns: number;
   roles: "all" | string[];
@@ -31,6 +34,7 @@ type CliOptions = {
   jobs: number;
   trace: boolean;
   profile: boolean;
+  logLimit: number | null;
 };
 
 type AggregateSummary = {
@@ -64,17 +68,60 @@ type ComparisonDelta = {
   lostRateDelta: number;
   averageLowHpTurnsDelta: number;
   averageStagnantTurnsDelta: number;
+  averageRiskyTrapStepsDelta: number;
   averageDamageTakenDelta: number;
+};
+
+type RegressionCandidate = {
+  scope: "label" | "role";
+  label: string;
+  roleId?: string;
+  score: number;
+  reasons: string[];
+  delta: ComparisonDelta;
+};
+
+type RunRegression = {
+  label: string;
+  roleId: string;
+  seed: number;
+  baselineStatus: GameState["status"];
+  candidateStatus: GameState["status"];
+  floorDelta: number;
+  turnsDelta: number;
+  lowHpTurnsDelta: number;
+  stagnantTurnsDelta: number;
+  trapStepsDelta: number;
+  damageTakenDelta: number;
+  score: number;
+  candidateSummary: string;
+};
+
+type AiHintSample = {
+  hint: string;
+  count: number;
+  samples: Array<{
+    label: string;
+    roleId: string;
+    seed: number;
+    floor: number;
+    status: GameState["status"];
+    summary: string;
+  }>;
 };
 
 export type BatchSimulationReport = {
   generatedAt: string;
   inputs: {
+    preset: BatchPreset;
     seeds: number[];
     turns: number;
     roles: "all" | string[];
     configs: ConfigSpec[];
     jobs: number;
+    trace: boolean;
+    profile: boolean;
+    logLimit: number | null;
   };
   performance: {
     jobs: number;
@@ -92,6 +139,11 @@ export type BatchSimulationReport = {
     baselineLabel: string;
     byLabel: Record<string, ComparisonDelta>;
     byRole: Record<string, Record<string, ComparisonDelta>>;
+  };
+  analysis: {
+    regressionCandidates: RegressionCandidate[];
+    topRunRegressions: RunRegression[];
+    aiHintSamples: AiHintSample[];
   };
 };
 
@@ -142,6 +194,7 @@ for (const config of options.configs) {
         configPath: config.path,
         label: config.label,
         trace: options.trace,
+        logLimit: options.logLimit,
       });
     }
   }
@@ -160,18 +213,23 @@ const markdownPath = jsonPath.replace(/\.json$/i, ".md");
 const writeStartMs = performance.now();
 await writeText(jsonPath, `${JSON.stringify(report, null, 2)}\n`);
 await writeText(markdownPath, `${markdown}\n`);
+await writeText("tmp/sim-reports/latest.json", `${JSON.stringify(report, null, 2)}\n`);
+await writeText("tmp/sim-reports/latest.md", `${markdown}\n`);
 if (reportProfile) {
   reportProfile.reportWriteMs = round(performance.now() - writeStartMs);
   report.performance.profile = createBatchProfile(taskResults.profiles, taskResults.runs, reportProfile.reportBuildMs, reportProfile.reportWriteMs);
   const updatedMarkdown = renderMarkdownReport(report);
   await writeText(jsonPath, `${JSON.stringify(report, null, 2)}\n`);
   await writeText(markdownPath, `${updatedMarkdown}\n`);
+  await writeText("tmp/sim-reports/latest.json", `${JSON.stringify(report, null, 2)}\n`);
+  await writeText("tmp/sim-reports/latest.md", `${updatedMarkdown}\n`);
   markdown = updatedMarkdown;
 }
 
 console.log(markdown);
 console.log(`\nJSON: ${jsonPath}`);
 console.log(`Markdown: ${markdownPath}`);
+console.log("Latest: tmp/sim-reports/latest.json, tmp/sim-reports/latest.md");
 
 function parseCli(args: string[]): CliOptions {
   const values = new Map<string, string[]>();
@@ -207,18 +265,104 @@ function parseCli(args: string[]): CliOptions {
     values.set(key, existing);
   }
 
-  const label = last(values, "--label") ?? "baseline";
-  const configs = parseConfigs(values.get("--config") ?? [], label);
+  const preset = parsePreset(last(values, "--preset") ?? "custom");
+  const defaults = presetDefaults(preset);
+  const label = last(values, "--label") ?? defaults.label;
+  const configs = parseConfigs(values.get("--config") ?? defaults.configs, label);
   return {
-    seeds: parseSeeds(last(values, "--seeds") ?? "20260504:20260533"),
-    turns: Number(last(values, "--turns") ?? 800),
-    roles: parseRoles(last(values, "--roles") ?? "all"),
+    preset,
+    seeds: parseSeeds(last(values, "--seeds") ?? defaults.seeds),
+    turns: parseTurns(last(values, "--turns") ?? defaults.turns),
+    roles: parseRoles(last(values, "--roles") ?? defaults.roles),
     configs,
-    out: last(values, "--out") ?? defaultOutputPath(configs),
-    jobs: parseJobs(last(values, "--jobs") ?? "8"),
-    trace,
-    profile,
+    out: last(values, "--out") ?? defaultOutputPath(configs, preset),
+    jobs: parseJobs(last(values, "--jobs") ?? defaults.jobs),
+    trace: trace || defaults.trace,
+    profile: profile || defaults.profile,
+    logLimit: parseLogLimit(last(values, "--log-limit") ?? defaults.logLimit),
   };
+}
+
+function parsePreset(value: string): BatchPreset {
+  if (value === "custom" || value === "smoke" || value === "standard" || value === "compare" || value === "deep") {
+    return value;
+  }
+  throw new Error("--preset must be custom, smoke, standard, compare, or deep");
+}
+
+function presetDefaults(preset: BatchPreset): {
+  label: string;
+  seeds: string;
+  turns: string;
+  roles: string;
+  configs: string[];
+  jobs: string;
+  trace: boolean;
+  profile: boolean;
+  logLimit: string;
+} {
+  switch (preset) {
+    case "smoke":
+      return {
+        label: "smoke",
+        seeds: "20260504:20260508",
+        turns: "300",
+        roles: "all",
+        configs: ["public/config/game-balance.json"],
+        jobs: "4",
+        trace: false,
+        profile: false,
+        logLimit: "40",
+      };
+    case "standard":
+      return {
+        label: "standard",
+        seeds: "20260504:20260533",
+        turns: "1600",
+        roles: "all",
+        configs: ["public/config/game-balance.json"],
+        jobs: "8",
+        trace: false,
+        profile: false,
+        logLimit: "40",
+      };
+    case "compare":
+      return {
+        label: "baseline",
+        seeds: "20260504:20260533",
+        turns: "1600",
+        roles: "all",
+        configs: ["baseline=public/config/game-balance.json"],
+        jobs: "8",
+        trace: false,
+        profile: false,
+        logLimit: "40",
+      };
+    case "deep":
+      return {
+        label: "deep",
+        seeds: "20260504",
+        turns: "3200",
+        roles: "all",
+        configs: ["public/config/game-balance.json"],
+        jobs: "1",
+        trace: true,
+        profile: true,
+        logLimit: "none",
+      };
+    default:
+      return {
+        label: "baseline",
+        seeds: "20260504:20260533",
+        turns: "800",
+        roles: "all",
+        configs: ["public/config/game-balance.json"],
+        jobs: "8",
+        trace: false,
+        profile: false,
+        logLimit: "40",
+      };
+  }
 }
 
 type SimulationTask = Parameters<typeof runSimulation>[0];
@@ -278,6 +422,8 @@ async function runSimulationInChild(task: SimulationTask): Promise<{ run: Simula
       task.configPath,
       "--label",
       task.label,
+      "--log-limit",
+      task.logLimit === null ? "none" : String(task.logLimit),
       ...(task.trace ? ["trace"] : []),
       ...(task.profile ? ["--profile"] : []),
     ],
@@ -362,12 +508,31 @@ function parseRoles(value: string): CliOptions["roles"] {
   return roles;
 }
 
+function parseTurns(value: string): number {
+  const turns = Math.floor(Number(value));
+  if (!Number.isFinite(turns) || turns < 1) {
+    throw new Error("--turns must be a positive integer");
+  }
+  return turns;
+}
+
 function parseJobs(value: string): number {
   const jobs = Math.floor(Number(value));
   if (!Number.isFinite(jobs) || jobs < 1) {
     throw new Error("--jobs must be a positive integer");
   }
   return jobs;
+}
+
+function parseLogLimit(value: string): number | null {
+  if (value === "none" || value === "full") {
+    return null;
+  }
+  const limit = Math.floor(Number(value));
+  if (!Number.isFinite(limit) || limit < 1) {
+    throw new Error("--log-limit must be a positive integer, none, or full");
+  }
+  return limit;
 }
 
 async function loadRoleIds(configPath: string): Promise<string[]> {
@@ -393,11 +558,15 @@ function createBatchReport(
   return {
     generatedAt: new Date().toISOString(),
     inputs: {
+      preset: options.preset,
       seeds: options.seeds,
       turns: options.turns,
       roles: options.roles,
       configs: options.configs,
       jobs: options.jobs,
+      trace: options.trace,
+      profile: options.profile,
+      logLimit: options.logLimit,
     },
     performance: {
       jobs: options.jobs,
@@ -412,6 +581,7 @@ function createBatchReport(
     byRole,
     byLabelRole,
     comparison: compareAgainstBaseline(options.configs[0]?.label ?? "baseline", byLabel, byLabelRole),
+    analysis: createAnalysis(options.configs[0]?.label ?? "baseline", runResults, byLabel, byLabelRole),
   };
 }
 
@@ -584,8 +754,194 @@ function deltaFrom(baseline: AggregateSummary, candidate: AggregateSummary): Com
     lostRateDelta: round(candidate.lostRate - baseline.lostRate),
     averageLowHpTurnsDelta: round(candidate.averageLowHpTurns - baseline.averageLowHpTurns),
     averageStagnantTurnsDelta: round(candidate.averageStagnantTurns - baseline.averageStagnantTurns),
+    averageRiskyTrapStepsDelta: round(candidate.averageRiskyTrapSteps - baseline.averageRiskyTrapSteps),
     averageDamageTakenDelta: round(candidate.averageDamageTaken - baseline.averageDamageTaken),
   };
+}
+
+function createAnalysis(
+  baselineLabel: string,
+  runResults: SimulationRunResult[],
+  byLabel: Record<string, AggregateSummary>,
+  byLabelRole: Record<string, Record<string, AggregateSummary>>,
+): BatchSimulationReport["analysis"] {
+  return {
+    regressionCandidates: findRegressionCandidates(baselineLabel, byLabel, byLabelRole),
+    topRunRegressions: findTopRunRegressions(baselineLabel, runResults),
+    aiHintSamples: collectAiHintSamples(runResults),
+  };
+}
+
+function findRegressionCandidates(
+  baselineLabel: string,
+  byLabel: Record<string, AggregateSummary>,
+  byLabelRole: Record<string, Record<string, AggregateSummary>>,
+): RegressionCandidate[] {
+  const candidates: RegressionCandidate[] = [];
+  const baseline = byLabel[baselineLabel];
+  if (baseline) {
+    for (const [label, summary] of Object.entries(byLabel)) {
+      if (label === baselineLabel) {
+        continue;
+      }
+      const delta = deltaFrom(baseline, summary);
+      const reasons = regressionReasons(delta);
+      if (reasons.length > 0) {
+        candidates.push({ scope: "label", label, score: regressionScore(delta), reasons, delta });
+      }
+    }
+  }
+
+  const baselineRoles = byLabelRole[baselineLabel] ?? {};
+  for (const [roleId, baselineSummary] of Object.entries(baselineRoles)) {
+    for (const [label, roleSummaries] of Object.entries(byLabelRole)) {
+      const summary = roleSummaries[roleId];
+      if (label === baselineLabel || !summary) {
+        continue;
+      }
+      const delta = deltaFrom(baselineSummary, summary);
+      const reasons = regressionReasons(delta);
+      if (reasons.length > 0) {
+        candidates.push({ scope: "role", label, roleId, score: regressionScore(delta), reasons, delta });
+      }
+    }
+  }
+
+  return candidates.sort((a, b) => b.score - a.score || a.label.localeCompare(b.label)).slice(0, 12);
+}
+
+function regressionReasons(delta: ComparisonDelta): string[] {
+  const reasons: string[] = [];
+  if (delta.winRateDelta <= -0.05) {
+    reasons.push(`勝率 ${formatSigned(delta.winRateDelta)}`);
+  }
+  if (delta.averageFloorDelta <= -0.3) {
+    reasons.push(`平均階 ${formatSigned(delta.averageFloorDelta)}`);
+  }
+  if (delta.lostRateDelta >= 0.05) {
+    reasons.push(`敗北率 ${formatSigned(delta.lostRateDelta)}`);
+  }
+  if (delta.averageLowHpTurnsDelta >= 5) {
+    reasons.push(`低HP ${formatSigned(delta.averageLowHpTurnsDelta)}`);
+  }
+  if (delta.averageStagnantTurnsDelta >= 8) {
+    reasons.push(`停滞 ${formatSigned(delta.averageStagnantTurnsDelta)}`);
+  }
+  if (delta.averageRiskyTrapStepsDelta >= 1) {
+    reasons.push(`罠踏み ${formatSigned(delta.averageRiskyTrapStepsDelta)}`);
+  }
+  if (delta.averageDamageTakenDelta >= 20) {
+    reasons.push(`被ダメ ${formatSigned(delta.averageDamageTakenDelta)}`);
+  }
+  return reasons;
+}
+
+function regressionScore(delta: ComparisonDelta): number {
+  return round(
+    Math.max(0, -delta.winRateDelta * 100)
+      + Math.max(0, -delta.averageFloorDelta * 10)
+      + Math.max(0, delta.lostRateDelta * 80)
+      + Math.max(0, delta.averageLowHpTurnsDelta)
+      + Math.max(0, delta.averageStagnantTurnsDelta / 2)
+      + Math.max(0, delta.averageRiskyTrapStepsDelta * 8)
+      + Math.max(0, delta.averageDamageTakenDelta / 10),
+  );
+}
+
+function findTopRunRegressions(baselineLabel: string, runResults: SimulationRunResult[]): RunRegression[] {
+  const baselineRuns = new Map<string, SimulationRunResult>();
+  for (const run of runResults) {
+    if (run.label === baselineLabel) {
+      baselineRuns.set(runKey(run), run);
+    }
+  }
+  const regressions: RunRegression[] = [];
+  for (const run of runResults) {
+    if (run.label === baselineLabel) {
+      continue;
+    }
+    const baseline = baselineRuns.get(runKey(run));
+    if (!baseline) {
+      continue;
+    }
+    const regression = runRegressionFrom(baseline, run);
+    if (regression.score > 0) {
+      regressions.push(regression);
+    }
+  }
+  return regressions.sort((a, b) => b.score - a.score || a.roleId.localeCompare(b.roleId) || a.seed - b.seed).slice(0, 12);
+}
+
+function runRegressionFrom(baseline: SimulationRunResult, candidate: SimulationRunResult): RunRegression {
+  const floorDelta = candidate.floor - baseline.floor;
+  const turnsDelta = candidate.turns - baseline.turns;
+  const lowHpTurnsDelta = candidate.review.stats.lowHpTurns - baseline.review.stats.lowHpTurns;
+  const stagnantTurnsDelta = candidate.review.stats.stagnantTurns - baseline.review.stats.stagnantTurns;
+  const trapStepsDelta = candidate.review.stats.riskyTrapSteps - baseline.review.stats.riskyTrapSteps;
+  const damageTakenDelta = candidate.review.stats.damageTaken - baseline.review.stats.damageTaken;
+  const statusScore = statusRegressionScore(baseline.status, candidate.status);
+  const score = round(
+    statusScore
+      + Math.max(0, -floorDelta * 12)
+      + Math.max(0, lowHpTurnsDelta / 2)
+      + Math.max(0, stagnantTurnsDelta / 3)
+      + Math.max(0, trapStepsDelta * 10)
+      + Math.max(0, damageTakenDelta / 12),
+  );
+  return {
+    label: candidate.label,
+    roleId: candidate.roleId,
+    seed: candidate.seed,
+    baselineStatus: baseline.status,
+    candidateStatus: candidate.status,
+    floorDelta,
+    turnsDelta,
+    lowHpTurnsDelta,
+    stagnantTurnsDelta,
+    trapStepsDelta,
+    damageTakenDelta,
+    score,
+    candidateSummary: candidate.review.summaryText,
+  };
+}
+
+function statusRegressionScore(baseline: GameState["status"], candidate: GameState["status"]): number {
+  if (baseline === candidate) {
+    return 0;
+  }
+  if (baseline === "won") {
+    return candidate === "lost" ? 80 : 40;
+  }
+  if (baseline === "playing" && candidate === "lost") {
+    return 35;
+  }
+  return 0;
+}
+
+function collectAiHintSamples(runResults: SimulationRunResult[]): AiHintSample[] {
+  const hints = new Map<string, AiHintSample>();
+  for (const run of runResults) {
+    for (const hint of run.review.aiImprovementHints) {
+      const entry = hints.get(hint) ?? { hint, count: 0, samples: [] };
+      entry.count += 1;
+      if (entry.samples.length < 5) {
+        entry.samples.push({
+          label: run.label,
+          roleId: run.roleId,
+          seed: run.seed,
+          floor: run.floor,
+          status: run.status,
+          summary: run.review.summaryText,
+        });
+      }
+      hints.set(hint, entry);
+    }
+  }
+  return [...hints.values()].sort((a, b) => b.count - a.count || a.hint.localeCompare(b.hint)).slice(0, 8);
+}
+
+function runKey(run: SimulationRunResult): string {
+  return `${run.roleId}:${run.seed}`;
 }
 
 function renderMarkdownReport(report: BatchSimulationReport): string {
@@ -593,17 +949,57 @@ function renderMarkdownReport(report: BatchSimulationReport): string {
     "# Balance Simulation Batch",
     "",
     `- Generated: ${report.generatedAt}`,
+    `- Preset: ${report.inputs.preset}`,
     `- Seeds: ${rangeLabel(report.inputs.seeds)}`,
     `- Turns: ${report.inputs.turns}`,
     `- Jobs: ${report.inputs.jobs}`,
+    `- Trace/Profile: ${report.inputs.trace ? "on" : "off"} / ${report.inputs.profile ? "on" : "off"}`,
+    `- Log limit: ${report.inputs.logLimit ?? "full"}`,
     `- Configs: ${report.inputs.configs.map((config) => `${config.label}=${config.path}`).join(", ")}`,
     `- Batch elapsed: ${report.performance.batchElapsedMs}ms (${formatNumber(report.performance.runsPerSecond)} runs/sec)`,
+    "",
+  ];
+
+  lines.push("## PDCA Alerts", "");
+  if (report.analysis.regressionCandidates.length === 0) {
+    lines.push("- 明確な悪化候補はありません。");
+  } else {
+    lines.push("| Scope | Label | Role | Score | Reasons |");
+    lines.push("| --- | --- | --- | ---: | --- |");
+    for (const candidate of report.analysis.regressionCandidates) {
+      lines.push(`| ${candidate.scope} | ${candidate.label} | ${candidate.roleId ?? "-"} | ${formatNumber(candidate.score)} | ${candidate.reasons.join(", ")} |`);
+    }
+  }
+
+  lines.push("", `## Comparison vs ${report.comparison.baselineLabel}`, "");
+  if (Object.keys(report.comparison.byLabel).length === 0) {
+    lines.push("- 比較対象の追加configはありません。");
+  } else {
+    lines.push("| Label | Avg Floor Δ | Win Rate Δ | Lost Rate Δ | Low HP Δ | Stagnant Δ | Trap Steps Δ | Damage Δ |");
+    lines.push("| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |");
+    for (const [label, delta] of Object.entries(report.comparison.byLabel)) {
+      lines.push(`| ${label} | ${formatSigned(delta.averageFloorDelta)} | ${formatSigned(delta.winRateDelta)} | ${formatSigned(delta.lostRateDelta)} | ${formatSigned(delta.averageLowHpTurnsDelta)} | ${formatSigned(delta.averageStagnantTurnsDelta)} | ${formatSigned(delta.averageRiskyTrapStepsDelta)} | ${formatSigned(delta.averageDamageTakenDelta)} |`);
+    }
+  }
+
+  lines.push("", "## Top Run Regressions", "");
+  if (report.analysis.topRunRegressions.length === 0) {
+    lines.push("- seed単位の悪化候補はありません。");
+  } else {
+    lines.push("| Label | Role | Seed | Score | Status | Floor Δ | Low HP Δ | Stagnant Δ | Trap Δ | Damage Δ | Summary |");
+    lines.push("| --- | --- | ---: | ---: | --- | ---: | ---: | ---: | ---: | ---: | --- |");
+    for (const regression of report.analysis.topRunRegressions) {
+      lines.push(`| ${regression.label} | ${regression.roleId} | ${regression.seed} | ${formatNumber(regression.score)} | ${regression.baselineStatus}->${regression.candidateStatus} | ${formatSigned(regression.floorDelta)} | ${formatSigned(regression.lowHpTurnsDelta)} | ${formatSigned(regression.stagnantTurnsDelta)} | ${formatSigned(regression.trapStepsDelta)} | ${formatSigned(regression.damageTakenDelta)} | ${regression.candidateSummary} |`);
+    }
+  }
+
+  lines.push(
     "",
     "## Label x Role",
     "",
     "| Label | Role | Runs | Won | Lost | Playing | Avg Floor | Avg Turns | Avg HP | Low HP | Stagnant | Trap Steps | Pickups | Attacks | Descents | UseItem | Merchant | Avg ms/run | Runs/sec | Death Causes |",
     "| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |",
-  ];
+  );
 
   for (const config of report.inputs.configs) {
     const roleSummaries = report.byLabelRole[config.label] ?? {};
@@ -633,30 +1029,17 @@ function renderMarkdownReport(report: BatchSimulationReport): string {
     }
   }
 
-  lines.push("", `## Comparison vs ${report.comparison.baselineLabel}`, "");
-  if (Object.keys(report.comparison.byLabel).length === 0) {
-    lines.push("- 比較対象の追加configはありません。");
-  } else {
-    lines.push("| Label | Avg Floor Δ | Win Rate Δ | Lost Rate Δ | Low HP Δ | Stagnant Δ | Damage Δ |");
-    lines.push("| --- | ---: | ---: | ---: | ---: | ---: | ---: |");
-    for (const [label, delta] of Object.entries(report.comparison.byLabel)) {
-      lines.push(`| ${label} | ${formatSigned(delta.averageFloorDelta)} | ${formatSigned(delta.winRateDelta)} | ${formatSigned(delta.lostRateDelta)} | ${formatSigned(delta.averageLowHpTurnsDelta)} | ${formatSigned(delta.averageStagnantTurnsDelta)} | ${formatSigned(delta.averageDamageTakenDelta)} |`);
-    }
-  }
-
   lines.push("", "## Top AI Hints", "");
-  for (const config of report.inputs.configs) {
-    const summary = report.byLabel[config.label];
-    const hints = summary?.aiHints.slice(0, 5) ?? [];
-    lines.push(`### ${config.label}`);
-    if (hints.length === 0) {
-      lines.push("- なし");
-    } else {
-      for (const hint of hints) {
-        lines.push(`- ${hint.count}x ${hint.hint}`);
+  if (report.analysis.aiHintSamples.length === 0) {
+    lines.push("- なし");
+  } else {
+    for (const hint of report.analysis.aiHintSamples) {
+      lines.push(`### ${hint.count}x ${hint.hint}`);
+      for (const sample of hint.samples) {
+        lines.push(`- ${sample.label} / ${sample.roleId} / seed ${sample.seed} / floor ${sample.floor} / ${sample.status}: ${sample.summary}`);
       }
+      lines.push("");
     }
-    lines.push("");
   }
   if (report.performance.profile) {
     const profile = report.performance.profile;
@@ -705,9 +1088,10 @@ function normalizedJsonPath(path: string): string {
   return path.endsWith(".json") ? path : `${path}.json`;
 }
 
-function defaultOutputPath(configs: ConfigSpec[]): string {
+function defaultOutputPath(configs: ConfigSpec[], preset: BatchPreset): string {
   const label = configs.map((config) => config.label).join("-vs-") || "batch";
-  return `tmp/sim-reports/${label}-${timestampForPath(new Date())}.json`;
+  const prefix = preset === "custom" ? label : `${preset}-${label}`;
+  return `tmp/sim-reports/${prefix}-${timestampForPath(new Date())}.json`;
 }
 
 function timestampForPath(date: Date): string {
