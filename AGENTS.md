@@ -2,6 +2,8 @@
 
 このリポジトリでは、回答・作業報告は日本語で行う。
 
+Codex は、明示依頼がない限り formatter / format check / import sort の新規導入・設定追加・実行をしない。
+
 ## プロジェクト方針
 
 - 目的は NetHack 互換ではなく、TypeScript 製の独自ローグライクを作ること。
