@@ -4,12 +4,12 @@
   "workspaces": {
     "": {
       "dependencies": {
-        "pixi.js": "latest",
-        "rot-js": "latest",
+        "pixi.js": "^8.19.0",
+        "rot-js": "^2.2.1",
       },
       "devDependencies": {
-        "typescript": "latest",
-        "vite": "latest",
+        "typescript": "^6.0.3",
+        "vite": "^8.0.16",
       },
     },
   },
