@@ -110,6 +110,9 @@ export async function runSimulation(input: SimulationRunInput): Promise<Simulati
   let state = createInitialGame(input.seed, input.roleId, { identity });
   const runLog = createRunLog(input.seed, input.roleId, { maxEntries: input.logLimit ?? undefined }, identity);
   let executedTurns = 0;
+  let projectedDisplayMs = 0;
+  let scheduledFromAction: GameAction = { type: "wait" };
+  let scheduledDanger = false;
   let observation = timeProfile(profile, "observeGame", () => observeGame(state));
   let lastKnownTiles = observation.knownTiles.length;
   let turnsWithoutKnownTileGrowth = 0;
@@ -124,6 +127,10 @@ export async function runSimulation(input: SimulationRunInput): Promise<Simulati
       break;
     }
     const beforeObservation = observation;
+    if (!beforeObservation.pendingDecision) {
+      const pacing = getGameConfig().autonomous.pacingMs;
+      projectedDisplayMs += scheduledDanger ? pacing.danger : scheduledFromAction.type === "move" ? pacing.traversal : pacing.exploration;
+    }
     const action = timeProfile(profile, "chooseAutoplayAction", () => beforeObservation.pendingDecision
       ? chooseDecisionAction(beforeObservation, input.decisionPolicy ?? "temperament")
       : chooseAutoplayAction(beforeObservation));
@@ -132,7 +139,7 @@ export async function runSimulation(input: SimulationRunInput): Promise<Simulati
     const before = state;
     state = timeProfile(profile, "applyAction", () => applyAction(state, action));
     const afterObservation = timeProfile(profile, "observeGame", () => observeGame(state));
-    timeProfile(profile, "recordTurn", () => recordTurn({ log: runLog, before, action, after: state, actor: "ai", aiDebug: debug, beforeObservation, afterObservation }));
+    const logEntry = timeProfile(profile, "recordTurn", () => recordTurn({ log: runLog, before, action, after: state, actor: "ai", aiDebug: debug, beforeObservation, afterObservation }));
 
     const knownTiles = afterObservation.knownTiles.length;
     if (knownTiles > lastKnownTiles) {
@@ -165,6 +172,8 @@ export async function runSimulation(input: SimulationRunInput): Promise<Simulati
     if (action.type !== "resolveDecision") {
       executedTurns += 1;
     }
+    scheduledFromAction = action;
+    scheduledDanger = logEntry.messageDelta.some((entry) => entry.tone === "combat" || entry.tone === "danger");
     observation = afterObservation;
   }
   addProfileMs(profile, "turnLoopMs", performance.now() - loopStartMs);
@@ -197,10 +206,6 @@ export async function runSimulation(input: SimulationRunInput): Promise<Simulati
     profile.totalMeasuredMs = roundProfileMs(performance.now() - startMs);
   }
 
-  const pacing = getGameConfig().autonomous.pacingMs;
-  const projectedDisplayMs = actions.move * pacing.traversal
-    + Math.max(0, executedTurns - actions.move) * pacing.exploration
-    + runLog.totals.damageEvents * Math.max(0, pacing.danger - pacing.exploration);
   const result: SimulationRunResult = {
     seed: input.seed,
     turns: state.runTurn,

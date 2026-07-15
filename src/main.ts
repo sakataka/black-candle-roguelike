@@ -27,6 +27,7 @@ import type {
   RoleTruthId,
   RunIdentity,
   RunLog,
+  RunLogEntry,
   RunReview,
 } from "./game/types";
 
@@ -185,6 +186,8 @@ let currentReview: RunReview | null = null;
 let autoplayTimer: number | null = null;
 let speed = 1;
 let archivedRunId: string | null = null;
+let scheduledAction: GameAction = { type: "wait" };
+let scheduledDanger = false;
 
 installEvents();
 installDebugBridge();
@@ -199,7 +202,7 @@ function installEvents(): void {
     if (!button) return;
     speed = Number(button.dataset.speed ?? 1);
     document.querySelectorAll<HTMLButtonElement>("button[data-speed]").forEach((candidate) => candidate.classList.toggle("is-active", candidate === button));
-    if (autoplayTimer !== null) scheduleAutoplay({ type: "wait" });
+    if (autoplayTimer !== null) scheduleAutoplay(scheduledAction, scheduledDanger);
   });
   requireElement<HTMLButtonElement>("#new-expedition").addEventListener("click", openNewExpedition);
   requireElement<HTMLButtonElement>("#end-new-expedition").addEventListener("click", openNewExpedition);
@@ -289,17 +292,17 @@ function stepAutoplay(): void {
   }
   const observation = observeGame(state);
   const action = chooseAutoplayAction(observation);
-  applyLoggedAction(action, "ai", getAutoplayDebugState(observation));
+  const logEntry = applyLoggedAction(action, "ai", getAutoplayDebugState(observation));
   render();
-  if (state.status === "playing" && !state.pendingDecision) scheduleAutoplay(action);
+  if (state.status === "playing" && !state.pendingDecision) scheduleAutoplay(action, isDangerEntry(logEntry));
 }
 
-function scheduleAutoplay(lastAction: GameAction): void {
+function scheduleAutoplay(lastAction: GameAction, danger = false): void {
   stopAutoplay();
   if (state.status !== "playing" || state.pendingDecision || !candidateDialog.hidden) return;
+  scheduledAction = lastAction;
+  scheduledDanger = danger;
   const pacing = getGameConfig().autonomous.pacingMs;
-  const recent = state.messages.slice(-3).map((entry) => entry.tone);
-  const danger = recent.includes("combat") || recent.includes("danger");
   const delay = danger ? pacing.danger : lastAction.type === "move" ? pacing.traversal : pacing.exploration;
   autoplayTimer = window.setTimeout(stepAutoplay, Math.max(40, Math.round(delay / speed)));
 }
@@ -310,13 +313,18 @@ function stopAutoplay(): void {
   autoplayTimer = null;
 }
 
-function applyLoggedAction(action: GameAction, actor: "player" | "ai", aiDebug?: Parameters<typeof recordTurn>[0]["aiDebug"]): void {
+function applyLoggedAction(action: GameAction, actor: "player" | "ai", aiDebug?: Parameters<typeof recordTurn>[0]["aiDebug"]): RunLogEntry | null {
   const before = state;
   state = applyAction(state, action);
-  if (state === before) return;
-  recordTurn({ log: runLog, before, action, after: state, actor, aiDebug });
+  if (state === before) return null;
+  const entry = recordTurn({ log: runLog, before, action, after: state, actor, aiDebug });
   currentReview = state.status === "playing" ? null : analyzeRun(runLog, state);
   if (state.status !== "playing") archiveCompletedRun();
+  return entry;
+}
+
+function isDangerEntry(entry: RunLogEntry | null): boolean {
+  return entry?.messageDelta.some((message) => message.tone === "combat" || message.tone === "danger") ?? false;
 }
 
 function archiveCompletedRun(): void {
