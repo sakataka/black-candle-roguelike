@@ -22,6 +22,7 @@ import { analyzeRun, createRunLog, recordTurn } from "./game/core/runLog";
 import { PixiRoguelikeRenderer } from "./game/renderer/PixiRoguelikeRenderer";
 import type {
   CampaignState,
+  EquipmentConfig,
   GameAction,
   GameState,
   RoleTruthId,
@@ -29,6 +30,7 @@ import type {
   RunLog,
   RunLogEntry,
   RunReview,
+  StatusCondition,
 } from "./game/types";
 
 const CAMPAIGN_STORAGE_KEY = "black-candle-campaign-v1";
@@ -61,9 +63,10 @@ app.innerHTML = `
       <div class="header-actions">
         <div class="speed-selector" aria-label="観測速度">
           <span>観測速度</span>
-          <button type="button" data-speed="0.5">0.5×</button>
-          <button type="button" data-speed="1" class="is-active">1×</button>
-          <button type="button" data-speed="2">2×</button>
+          <button type="button" data-speed="0.5" aria-pressed="false">0.5×</button>
+          <button type="button" data-speed="1" class="is-active" aria-pressed="true">1×</button>
+          <button type="button" data-speed="2" aria-pressed="false">2×</button>
+          <button type="button" data-speed="3" aria-pressed="false">3×</button>
         </div>
         <button id="new-expedition" class="secondary-button" type="button">新しい遠征</button>
       </div>
@@ -141,6 +144,7 @@ app.innerHTML = `
       <p class="eyebrow">黒燭からの問い</p>
       <h2 id="decision-title">灯守の判断</h2>
       <p id="decision-body"></p>
+      <section id="decision-context" class="decision-context" aria-label="判断材料"></section>
       <div id="decision-options" class="decision-options"></div>
       <p id="decision-hint" class="modal-hint"></p>
     </div>
@@ -167,6 +171,7 @@ const candidateList = requireElement<HTMLDivElement>("#candidate-list");
 const decisionDialog = requireElement<HTMLElement>("#decision-dialog");
 const decisionTitle = requireElement<HTMLHeadingElement>("#decision-title");
 const decisionBody = requireElement<HTMLParagraphElement>("#decision-body");
+const decisionContext = requireElement<HTMLElement>("#decision-context");
 const decisionOptions = requireElement<HTMLDivElement>("#decision-options");
 const decisionHint = requireElement<HTMLParagraphElement>("#decision-hint");
 const endDialog = requireElement<HTMLElement>("#end-dialog");
@@ -201,7 +206,11 @@ function installEvents(): void {
     const button = (event.target as HTMLElement).closest<HTMLButtonElement>("button[data-speed]");
     if (!button) return;
     speed = Number(button.dataset.speed ?? 1);
-    document.querySelectorAll<HTMLButtonElement>("button[data-speed]").forEach((candidate) => candidate.classList.toggle("is-active", candidate === button));
+    document.querySelectorAll<HTMLButtonElement>("button[data-speed]").forEach((candidate) => {
+      const active = candidate === button;
+      candidate.classList.toggle("is-active", active);
+      candidate.setAttribute("aria-pressed", String(active));
+    });
     if (autoplayTimer !== null) scheduleAutoplay(scheduledAction, scheduledDanger);
   });
   requireElement<HTMLButtonElement>("#new-expedition").addEventListener("click", openNewExpedition);
@@ -379,7 +388,7 @@ function render(): void {
   renderInventory(player.inventory ?? []);
   renderTruths();
   renderArchive();
-  renderDecision();
+  renderDecision(observation);
   renderEnd();
 }
 
@@ -432,7 +441,7 @@ function renderArchive(): void {
   }));
 }
 
-function renderDecision(): void {
+function renderDecision(observation: ReturnType<typeof observeGame>): void {
   const decision = state.pendingDecision;
   if (!decision || state.status !== "playing") {
     decisionDialog.hidden = true;
@@ -441,6 +450,7 @@ function renderDecision(): void {
   stopAutoplay();
   decisionTitle.textContent = decision.title;
   decisionBody.textContent = decision.body;
+  renderDecisionContext(observation);
   decisionHint.textContent = `現在の啓示: ${state.revelationsRemaining}。啓示を使わない選択は探索者の気質に沿います。`;
   decisionOptions.replaceChildren(...decision.options.map((option, index) => {
     const button = document.createElement("button");
@@ -448,10 +458,98 @@ function renderDecision(): void {
     button.dataset.optionId = option.id;
     button.disabled = !!option.requiresRevelation && state.revelationsRemaining <= 0;
     button.className = option.id === decision.defaultOptionId ? "decision-option is-default" : "decision-option";
-    button.innerHTML = `<span>${index + 1}</span><strong>${escapeHtml(option.label)}</strong><small>${escapeHtml(option.description)}</small>${option.requiresRevelation ? '<em>啓示を1消費</em>' : '<em>消費なし</em>'}`;
+    const costLabel = option.requiresRevelation
+      ? "啓示を1消費"
+      : option.id === decision.defaultOptionId && decision.kind !== "final"
+        ? "気質どおり・消費なし"
+        : "消費なし";
+    button.innerHTML = `<span>${index + 1}</span><strong>${escapeHtml(option.label)}</strong><small>${escapeHtml(option.description)}</small><em>${costLabel}</em>`;
     return button;
   }));
   decisionDialog.hidden = false;
+}
+
+function renderDecisionContext(observation: ReturnType<typeof observeGame>): void {
+  const player = observation.player;
+  const stats = player.stats;
+  if (!stats) {
+    decisionContext.innerHTML = '<p class="empty-state">探索者の状態を取得できません。</p>';
+    return;
+  }
+
+  const config = getGameConfig();
+  const hpPercent = Math.max(0, Math.min(100, Math.round(stats.hp / stats.maxHp * 100)));
+  const health = hpPercent <= 35
+    ? { label: "危険", tone: "danger" }
+    : hpPercent <= 70
+      ? { label: "消耗", tone: "warning" }
+      : { label: "安定", tone: "safe" };
+  const equipment = (["weapon", "armor", "shield"] as const).map((slot) => {
+    const entry = player.inventory?.find((item) => item.equipped && config.equipment[item.contentId]?.slot === slot);
+    const itemConfig = entry ? config.equipment[entry.contentId] : undefined;
+    return `<div class="decision-equipment-item">
+      <span>${equipmentSlotLabel(slot)}</span>
+      <strong>${entry ? escapeHtml(getContentName(entry.contentId)) : "未装備"}</strong>
+      <small>${itemConfig ? equipmentDetail(itemConfig) : "補正なし"}</small>
+    </div>`;
+  }).join("");
+  const conditions = player.conditions?.length
+    ? player.conditions.map((condition) => `<span class="condition-tag condition-${conditionTone(condition)}">${conditionLabel(condition)} ${condition.turns}T</span>`).join("")
+    : '<span class="condition-tag condition-normal">異常なし</span>';
+  const score = calculateScore(state);
+
+  decisionContext.innerHTML = `
+    <div class="decision-context-heading">
+      <span>判断材料</span>
+      <strong>${escapeHtml(state.runIdentity.name)} · ${escapeHtml(getContentName(player.contentId))}</strong>
+      <em>地下${state.floor}階 / ${state.runTurn}手</em>
+    </div>
+    <div class="decision-stat-grid">
+      <div class="decision-hp decision-hp-${health.tone}">
+        <span>HP <em>${health.label}・${hpPercent}%</em></span>
+        <strong>${stats.hp} / ${stats.maxHp}</strong>
+        <div role="progressbar" aria-label="HP残量" aria-valuemin="0" aria-valuemax="${stats.maxHp}" aria-valuenow="${Math.max(0, stats.hp)}"><i style="width: ${hpPercent}%"></i></div>
+      </div>
+      <div><span>攻撃</span><strong>${stats.attack}</strong></div>
+      <div><span>防御</span><strong>${stats.defense}</strong></div>
+      <div><span>Lv</span><strong>${observation.playerProgress.level}</strong></div>
+    </div>
+    <div class="decision-equipment-grid">${equipment}</div>
+    <div class="decision-context-footer">
+      <div class="decision-conditions"><span>状態</span>${conditions}</div>
+      <div class="decision-meta-grid">
+        <span>気質 <strong>${temperamentLabel(state.runIdentity.temperament)}</strong></span>
+        <span>現在方針 <strong>${directiveLabel(state.directive)}</strong></span>
+        <span>所持金 <strong>${observation.playerProgress.gold}</strong></span>
+        <span>暫定得点 <strong>${score.total.toLocaleString("ja-JP")}</strong></span>
+      </div>
+    </div>
+  `;
+}
+
+function equipmentSlotLabel(slot: EquipmentConfig["slot"]): string {
+  if (slot === "weapon") return "武器";
+  if (slot === "armor") return "防具";
+  return "盾";
+}
+
+function equipmentDetail(equipment: EquipmentConfig): string {
+  const details = [`${equipment.slot === "weapon" ? "威力" : "防御"} +${equipment.power}`];
+  if (equipment.rangedDefense) details.push(`遠隔防御 +${equipment.rangedDefense}`);
+  const trapAvoid = (equipment.trapAvoidPercent ?? 0) - (equipment.trapAvoidPenaltyPercent ?? 0);
+  if (trapAvoid !== 0) details.push(`罠回避 ${trapAvoid > 0 ? "+" : ""}${trapAvoid}%`);
+  if (equipment.specialDamage) details.push(`特効 +${equipment.specialDamage.amount}`);
+  return details.join(" / ");
+}
+
+function conditionLabel(condition: StatusCondition): string {
+  if (condition.kind === "guarded") return "護り";
+  if (condition.kind === "bleeding") return "出血";
+  return "毒";
+}
+
+function conditionTone(condition: StatusCondition): "safe" | "danger" {
+  return condition.kind === "guarded" ? "safe" : "danger";
 }
 
 function renderEnd(): void {
