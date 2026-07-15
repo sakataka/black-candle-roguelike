@@ -1,4 +1,5 @@
 import { runSimulation } from "./simulation";
+import type { DecisionPolicy } from "../core/autonomous";
 
 declare const Bun: { argv: string[] };
 
@@ -10,6 +11,7 @@ const profile = Bun.argv.includes("--profile");
 const configPath = optionValue("--config") ?? "public/config/game-balance.json";
 const label = optionValue("--label") ?? "single";
 const logLimit = parseLogLimit(optionValue("--log-limit"));
+const decisionPolicy = parseDecisionPolicy(optionValue("--decision-policy"));
 
 const result = await runSimulation({
   seed,
@@ -20,6 +22,7 @@ const result = await runSimulation({
   trace,
   profile,
   logLimit,
+  decisionPolicy,
 });
 
 console.log(JSON.stringify(result));
@@ -27,6 +30,12 @@ console.log(JSON.stringify(result));
 function optionValue(name: string): string | undefined {
   const index = Bun.argv.indexOf(name);
   return index >= 0 ? Bun.argv[index + 1] : undefined;
+}
+
+function parseDecisionPolicy(value: string | undefined): DecisionPolicy {
+  if (!value) return "temperament";
+  if (value === "temperament" || value === "always-continue" || value === "return-3" || value === "return-6") return value;
+  throw new Error("--decision-policy must be temperament, always-continue, return-3, or return-6");
 }
 
 function parseLogLimit(value: string | undefined): number | null | undefined {

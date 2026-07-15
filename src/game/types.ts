@@ -23,6 +23,100 @@ export type Tier = "early" | "mid" | "late" | "boss";
 
 export type MerchantServiceId = "heal" | "cure" | "equipment" | "map";
 
+export type TemperamentId = "cautious" | "seeker" | "bold";
+
+export type DirectiveId = "survival" | "discovery" | "conquest";
+
+export type RoleTruthId = "shared-oath" | "furnace-map" | "purified-flame";
+
+export type EndingId = "inherit-flame" | "extinguish-flame" | "divide-flame";
+
+export type DecisionKind = "checkpoint" | "context" | "final";
+
+export type RunIdentity = {
+  name: string;
+  roleId: string;
+  temperament: TemperamentId;
+};
+
+export type DecisionOption = {
+  id: string;
+  label: string;
+  description: string;
+  outcome: "continue" | "return" | "research" | "relic" | "ending";
+  directive?: DirectiveId;
+  endingId?: EndingId;
+  requiresRevelation?: boolean;
+};
+
+export type PendingDecision = {
+  id: string;
+  kind: DecisionKind;
+  floor: number;
+  title: string;
+  body: string;
+  defaultOptionId: string;
+  resume: "none" | "descend";
+  options: DecisionOption[];
+};
+
+export type RunDecisionRecord = {
+  id: string;
+  floor: number;
+  optionId: string;
+  optionLabel: string;
+  usedRevelation: boolean;
+};
+
+export type RunStoryState = {
+  maxFloorReached: number;
+  bossesDefeated: number;
+  discoveries: string[];
+  decisions: RunDecisionRecord[];
+  contextActs: number[];
+  carriedTruthId?: RoleTruthId;
+  coreDisposition?: "research" | "relic";
+  endingId?: EndingId;
+  turnWarningShown: boolean;
+};
+
+export type ScoreBreakdown = {
+  depth: number;
+  guardians: number;
+  roleObjective: number;
+  discoveries: number;
+  survival: number;
+  recoveredValue: number;
+  tempo: number;
+  autonomy: number;
+  total: number;
+};
+
+export type ExpeditionRecord = {
+  id: string;
+  completedAt: string;
+  seed: number;
+  identity: RunIdentity;
+  status: "won" | "lost" | "returned" | "stranded";
+  floor: number;
+  runTurn: number;
+  score: ScoreBreakdown;
+  decisions: RunDecisionRecord[];
+  deathCause: string | null;
+  truthRecovered?: RoleTruthId;
+  endingId?: EndingId;
+};
+
+export type CampaignState = {
+  version: 1;
+  roleTruths: RoleTruthId[];
+  loreDiscoveries: string[];
+  unlockedDirectives: DirectiveId[];
+  endingsSeen: EndingId[];
+  expeditions: ExpeditionRecord[];
+  bestScoresByRole: Record<string, number>;
+};
+
 export type ContentName = {
   ja: string;
   en?: string;
@@ -233,6 +327,31 @@ export type GameConfig = {
     moonlitMailRegenAmount: number;
     bleedingDamage: number;
     venomedDamage: number;
+    runTurnWarning: number;
+    runTurnLimit: number;
+  };
+  autonomous: {
+    revelationsPerRun: number;
+    scoring: {
+      depthPerFloor: number;
+      guardian: number;
+      roleObjective: number;
+      roleObjectiveCap: number;
+      discovery: number;
+      discoveryCap: number;
+      returned: number;
+      won: number;
+      recoveredValueCap: number;
+      tempoParPerFloor: number;
+      tempoPerTurn: number;
+      tempoCap: number;
+      unusedRevelation: number;
+    };
+    pacingMs: {
+      traversal: number;
+      exploration: number;
+      danger: number;
+    };
   };
   biomes: Array<{ theme: BiomeTheme; minFloor: number; nameJa: string }>;
   roles: RoleDefinition[];
@@ -294,6 +413,7 @@ export type GameMessage = {
 export type GameState = {
   seed: number;
   turn: number;
+  runTurn: number;
   floor: number;
   biome: BiomeTheme;
   width: number;
@@ -303,8 +423,14 @@ export type GameState = {
   playerId: string;
   playerProgress: PlayerProgress;
   runObjectives: RunObjectiveFlags;
+  runIdentity: RunIdentity;
+  directive: DirectiveId;
+  revelationsRemaining: number;
+  pendingDecision: PendingDecision | null;
+  knownRoleTruths: RoleTruthId[];
+  story: RunStoryState;
   messages: GameMessage[];
-  status: "playing" | "won" | "lost";
+  status: "playing" | "won" | "lost" | "returned" | "stranded";
 };
 
 export type GameAction =
@@ -315,7 +441,8 @@ export type GameAction =
   | { type: "dropItem"; contentId: string }
   | { type: "useItem"; contentId: string }
   | { type: "merchantService"; serviceId: MerchantServiceId }
-  | { type: "descend" };
+  | { type: "descend" }
+  | { type: "resolveDecision"; optionId: string };
 
 export type VisibleEntity = Pick<Entity, "id" | "kind" | "contentId" | "pos" | "stats" | "hostile" | "blocksMovement" | "goldAmount">;
 
@@ -342,6 +469,7 @@ export type ExplorationStatus = {
 export type GameObservation = {
   seed: number;
   turn: number;
+  runTurn: number;
   floor: number;
   biome: BiomeTheme;
   width: number;
@@ -353,12 +481,17 @@ export type GameObservation = {
   visibleTiles: Array<Tile & Point>;
   knownTiles: Array<Tile & Point>;
   exploration: ExplorationStatus;
+  runIdentity: RunIdentity;
+  directive: DirectiveId;
+  revelationsRemaining: number;
+  pendingDecision: PendingDecision | null;
+  story: RunStoryState;
   messages: GameMessage[];
   status: GameState["status"];
   bossAlive: boolean;
 };
 
-export type DeathCause = "combat" | "rangedCombat" | "trap" | "bleeding" | "venom" | "unknown";
+export type DeathCause = "combat" | "rangedCombat" | "trap" | "bleeding" | "venom" | "signalLoss" | "unknown";
 
 export type RunLogPlayerSnapshot = {
   pos: Point;
@@ -402,6 +535,7 @@ export type RunLogEntry = {
 export type RunLog = {
   seed: number;
   roleId: string;
+  identity: RunIdentity;
   startedAt: string;
   entries: RunLogEntry[];
   totalEntries: number;
@@ -426,6 +560,9 @@ export type RunReview = {
   keyFindings: string[];
   aiImprovementHints: string[];
   lastTurns: RunLogEntry[];
+  score: ScoreBreakdown;
+  identity: RunIdentity;
+  decisions: RunDecisionRecord[];
   stats: {
     turns: number;
     floor: number;

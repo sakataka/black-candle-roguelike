@@ -13,9 +13,11 @@ import type {
   RunLogEntitySummary,
   RunLogPlayerSnapshot,
   RunReview,
+  RunIdentity,
   StatusCondition,
 } from "../types";
 import { observeGame } from "./game";
+import { calculateScore, createRunIdentity } from "./autonomous";
 
 type AiDebugSnapshot = {
   stagnantTurns: number;
@@ -38,10 +40,11 @@ type RunLogOptions = {
   maxEntries?: number;
 };
 
-export function createRunLog(seed: number, roleId: string, options: RunLogOptions = {}): RunLog {
+export function createRunLog(seed: number, roleId: string, options: RunLogOptions = {}, identity: RunIdentity = createRunIdentity(seed, roleId)): RunLog {
   return {
     seed,
     roleId,
+    identity: { ...identity },
     startedAt: new Date().toISOString(),
     entries: [],
     totalEntries: 0,
@@ -56,6 +59,7 @@ export function createRunLog(seed: number, roleId: string, options: RunLogOption
         useItem: 0,
         merchantService: 0,
         descend: 0,
+        resolveDecision: 0,
       },
       damageEvents: 0,
       damageTaken: 0,
@@ -122,7 +126,7 @@ export function recordTurn({ log, before, action, after, actor, aiDebug, beforeO
 export function analyzeRun(log: RunLog, finalState: GameState, finalObservation = observeGame(finalState)): RunReview {
   const player = finalObservation.player;
   const stats = {
-    turns: log.totalEntries,
+    turns: finalState.runTurn,
     floor: finalState.floor,
     level: finalState.playerProgress.level,
     xp: finalState.playerProgress.xp,
@@ -138,7 +142,7 @@ export function analyzeRun(log: RunLog, finalState: GameState, finalObservation 
     riskyTrapSteps: log.totals.riskyTrapSteps,
   };
   const lastTurns = log.entries.slice(-30);
-  const deathCause = finalState.status === "lost" ? classifyDeathCause(lastTurns, finalState.messages) : null;
+  const deathCause = finalState.status === "stranded" ? "signalLoss" : finalState.status === "lost" ? classifyDeathCause(lastTurns, finalState.messages) : null;
   const keyFindings = buildKeyFindings(log, finalState, deathCause, finalObservation);
   const aiImprovementHints = buildAiImprovementHints(log, finalState, deathCause);
   const summaryText = summaryFor(finalState.status, deathCause, stats);
@@ -150,6 +154,9 @@ export function analyzeRun(log: RunLog, finalState: GameState, finalObservation 
     keyFindings,
     aiImprovementHints,
     lastTurns,
+    score: calculateScore(finalState),
+    identity: { ...finalState.runIdentity },
+    decisions: finalState.story.decisions.map((entry) => ({ ...entry })),
     stats,
   };
   return {
@@ -160,6 +167,7 @@ export function analyzeRun(log: RunLog, finalState: GameState, finalObservation 
       run: {
         seed: log.seed,
         roleId: log.roleId,
+        identity: { ...log.identity },
         startedAt: log.startedAt,
         totalEntries: log.totalEntries,
         maxEntries: log.maxEntries,
@@ -255,10 +263,12 @@ function classifyDeathCause(entries: RunLogEntry[], finalMessages: GameMessage[]
 function buildKeyFindings(log: RunLog, finalState: GameState, deathCause: DeathCause | null, finalObservation: GameObservation): string[] {
   const player = finalObservation.player;
   const findings: string[] = [];
-  if (finalState.status === "lost") {
+  if (finalState.status === "lost" || finalState.status === "stranded") {
     findings.push(`敗因分類: ${deathCauseLabel(deathCause)}。`);
   } else if (finalState.status === "won") {
     findings.push("第十層を踏破して run は成功しました。");
+  } else if (finalState.status === "returned") {
+    findings.push(`第${finalState.floor}階から帰還し、戦果を確定しました。`);
   } else {
     findings.push("run は終了ターン上限まで継続中です。");
   }
@@ -314,6 +324,12 @@ function summaryFor(status: GameState["status"], deathCause: DeathCause | null, 
   if (status === "playing") {
     return `${stats.turns}ターン時点で探索継続中です。第${stats.floor}階、HP ${stats.finalHp ?? "-"}/${stats.maxHp ?? "-"}。`;
   }
+  if (status === "returned") {
+    return `${stats.turns}ターン、第${stats.floor}階から生還しました。`;
+  }
+  if (status === "stranded") {
+    return `${stats.turns}ターン、第${stats.floor}階で灯路が断絶し、未帰還となりました。`;
+  }
   return `${stats.turns}ターン、第${stats.floor}階で敗北しました。主因は${deathCauseLabel(deathCause)}と推定されます。`;
 }
 
@@ -329,6 +345,8 @@ function deathCauseLabel(cause: DeathCause | null): string {
       return "出血";
     case "venom":
       return "毒";
+    case "signalLoss":
+      return "灯路断絶";
     default:
       return "不明";
   }

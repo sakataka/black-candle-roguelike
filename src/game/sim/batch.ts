@@ -1,6 +1,7 @@
 import { getGameConfig, loadBunGameConfig } from "../content/config";
 import type { GameAction, GameState } from "../types";
 import { runSimulation, type SimulationProfile, type SimulationRunResult } from "./simulation";
+import type { DecisionPolicy } from "../core/autonomous";
 
 declare const Bun: {
   argv: string[];
@@ -35,6 +36,7 @@ type CliOptions = {
   trace: boolean;
   profile: boolean;
   logLimit: number | null;
+  decisionPolicy: DecisionPolicy;
 };
 
 type AggregateSummary = {
@@ -45,9 +47,15 @@ type AggregateSummary = {
   statusCounts: Record<GameState["status"], number>;
   winRate: number;
   lostRate: number;
+  returnedRate: number;
+  strandedRate: number;
   playingRate: number;
   averageFloor: number;
   averageTurns: number;
+  averageScore: number;
+  medianScore: number;
+  averageDecisions: number;
+  averageProjectedDisplayMs: number;
   averageFinalHp: number;
   averageLowHpTurns: number;
   averageStagnantTurns: number;
@@ -57,8 +65,11 @@ type AggregateSummary = {
   averageActions: Record<GameAction["type"], number>;
   averagePickups: number;
   averageAttacks: number;
+  averageDiscoveries: number;
+  averageAttacksPer100Turns: number;
   averageDescents: number;
   deathCauses: Record<string, number>;
+  decisionChoices: Record<string, number>;
   aiHints: Array<{ hint: string; count: number }>;
 };
 
@@ -122,6 +133,7 @@ export type BatchSimulationReport = {
     trace: boolean;
     profile: boolean;
     logLimit: number | null;
+    decisionPolicy: DecisionPolicy;
   };
   performance: {
     jobs: number;
@@ -134,6 +146,7 @@ export type BatchSimulationReport = {
   runs: SimulationRunResult[];
   byLabel: Record<string, AggregateSummary>;
   byRole: Record<string, AggregateSummary>;
+  byTemperament: Record<string, AggregateSummary>;
   byLabelRole: Record<string, Record<string, AggregateSummary>>;
   comparison: {
     baselineLabel: string;
@@ -195,6 +208,7 @@ for (const config of options.configs) {
         label: config.label,
         trace: options.trace,
         logLimit: options.logLimit,
+        decisionPolicy: options.decisionPolicy,
       });
     }
   }
@@ -280,6 +294,7 @@ function parseCli(args: string[]): CliOptions {
     trace: trace || defaults.trace,
     profile: profile || defaults.profile,
     logLimit: parseLogLimit(last(values, "--log-limit") ?? defaults.logLimit),
+    decisionPolicy: parseDecisionPolicy(last(values, "--decision-policy") ?? "temperament"),
   };
 }
 
@@ -288,6 +303,11 @@ function parsePreset(value: string): BatchPreset {
     return value;
   }
   throw new Error("--preset must be custom, smoke, standard, compare, or deep");
+}
+
+function parseDecisionPolicy(value: string): DecisionPolicy {
+  if (value === "temperament" || value === "always-continue" || value === "return-3" || value === "return-6") return value;
+  throw new Error("--decision-policy must be temperament, always-continue, return-3, or return-6");
 }
 
 function presetDefaults(preset: BatchPreset): {
@@ -424,6 +444,8 @@ async function runSimulationInChild(task: SimulationTask): Promise<{ run: Simula
       task.label,
       "--log-limit",
       task.logLimit === null ? "none" : String(task.logLimit),
+      "--decision-policy",
+      task.decisionPolicy ?? "temperament",
       ...(task.trace ? ["trace"] : []),
       ...(task.profile ? ["--profile"] : []),
     ],
@@ -549,6 +571,7 @@ function createBatchReport(
 ): BatchSimulationReport {
   const byLabel = groupAggregate(runResults, (run) => run.label);
   const byRole = groupAggregate(runResults, (run) => run.roleId);
+  const byTemperament = groupAggregate(runResults, (run) => run.temperament);
   const byLabelRole: BatchSimulationReport["byLabelRole"] = {};
   const batchElapsedMs = Math.round(performance.now() - batchStartMs);
   const simulationElapsedMs = runResults.reduce((sum, run) => sum + run.elapsedMs, 0);
@@ -567,6 +590,7 @@ function createBatchReport(
       trace: options.trace,
       profile: options.profile,
       logLimit: options.logLimit,
+      decisionPolicy: options.decisionPolicy,
     },
     performance: {
       jobs: options.jobs,
@@ -579,6 +603,7 @@ function createBatchReport(
     runs: runResults,
     byLabel,
     byRole,
+    byTemperament,
     byLabelRole,
     comparison: compareAgainstBaseline(options.configs[0]?.label ?? "baseline", byLabel, byLabelRole),
     analysis: createAnalysis(options.configs[0]?.label ?? "baseline", runResults, byLabel, byLabelRole),
@@ -652,8 +677,9 @@ function groupAggregate<T extends string>(items: SimulationRunResult[], keyFor: 
 }
 
 function summarizeRuns(runResults: SimulationRunResult[]): AggregateSummary {
-  const statusCounts: AggregateSummary["statusCounts"] = { playing: 0, won: 0, lost: 0 };
+  const statusCounts: AggregateSummary["statusCounts"] = { playing: 0, won: 0, lost: 0, returned: 0, stranded: 0 };
   const deathCauses: Record<string, number> = {};
+  const decisionChoices: Record<string, number> = {};
   const hintCounts = new Map<string, number>();
   const actionTotals: Record<GameAction["type"], number> = {
     move: 0,
@@ -664,6 +690,7 @@ function summarizeRuns(runResults: SimulationRunResult[]): AggregateSummary {
     useItem: 0,
     merchantService: 0,
     descend: 0,
+    resolveDecision: 0,
   };
 
   for (const run of runResults) {
@@ -673,6 +700,9 @@ function summarizeRuns(runResults: SimulationRunResult[]): AggregateSummary {
     }
     if (run.review.deathCause) {
       deathCauses[run.review.deathCause] = (deathCauses[run.review.deathCause] ?? 0) + 1;
+    }
+    for (const decision of run.review.decisions) {
+      decisionChoices[decision.optionId] = (decisionChoices[decision.optionId] ?? 0) + 1;
     }
     for (const hint of run.review.aiImprovementHints) {
       hintCounts.set(hint, (hintCounts.get(hint) ?? 0) + 1);
@@ -689,9 +719,15 @@ function summarizeRuns(runResults: SimulationRunResult[]): AggregateSummary {
     statusCounts,
     winRate: ratio(statusCounts.won, count),
     lostRate: ratio(statusCounts.lost, count),
+    returnedRate: ratio(statusCounts.returned, count),
+    strandedRate: ratio(statusCounts.stranded, count),
     playingRate: ratio(statusCounts.playing, count),
     averageFloor: average(runResults, (run) => run.floor),
     averageTurns: average(runResults, (run) => run.turns),
+    averageScore: average(runResults, (run) => run.score.total),
+    medianScore: median(runResults.map((run) => run.score.total)),
+    averageDecisions: average(runResults, (run) => run.decisions),
+    averageProjectedDisplayMs: average(runResults, (run) => run.projectedDisplayMs),
     averageFinalHp: average(runResults, (run) => run.review.stats.finalHp ?? 0),
     averageLowHpTurns: average(runResults, (run) => run.review.stats.lowHpTurns),
     averageStagnantTurns: average(runResults, (run) => run.review.stats.stagnantTurns),
@@ -707,11 +743,15 @@ function summarizeRuns(runResults: SimulationRunResult[]): AggregateSummary {
       useItem: ratio(actionTotals.useItem, count),
       merchantService: ratio(actionTotals.merchantService, count),
       descend: ratio(actionTotals.descend, count),
+      resolveDecision: ratio(actionTotals.resolveDecision, count),
     },
     averagePickups: average(runResults, (run) => run.pickups),
     averageAttacks: average(runResults, (run) => run.attacks),
+    averageDiscoveries: average(runResults, (run) => run.discoveries),
+    averageAttacksPer100Turns: average(runResults, (run) => run.turns === 0 ? 0 : run.attacks / run.turns * 100),
     averageDescents: average(runResults, (run) => run.descents),
     deathCauses,
+    decisionChoices,
     aiHints: [...hintCounts.entries()]
       .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
       .map(([hint, countValue]) => ({ hint, count: countValue })),
@@ -955,6 +995,7 @@ function renderMarkdownReport(report: BatchSimulationReport): string {
     `- Jobs: ${report.inputs.jobs}`,
     `- Trace/Profile: ${report.inputs.trace ? "on" : "off"} / ${report.inputs.profile ? "on" : "off"}`,
     `- Log limit: ${report.inputs.logLimit ?? "full"}`,
+    `- Decision policy: ${report.inputs.decisionPolicy}`,
     `- Configs: ${report.inputs.configs.map((config) => `${config.label}=${config.path}`).join(", ")}`,
     `- Batch elapsed: ${report.performance.batchElapsedMs}ms (${formatNumber(report.performance.runsPerSecond)} runs/sec)`,
     "",
@@ -997,8 +1038,8 @@ function renderMarkdownReport(report: BatchSimulationReport): string {
     "",
     "## Label x Role",
     "",
-    "| Label | Role | Runs | Won | Lost | Playing | Avg Floor | Avg Turns | Avg HP | Low HP | Stagnant | Trap Steps | Pickups | Attacks | Descents | UseItem | Merchant | Avg ms/run | Runs/sec | Death Causes |",
-    "| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |",
+    "| Label | Role | Runs | Won | Returned | Lost | Stranded | Playing | Avg Floor | Avg Turns | Avg Score | Median Score | Display min | Avg HP | Low HP | Stagnant | Trap Steps | Discoveries | Pickups | Attacks | Attacks/100T | Descents | Decisions | UseItem | Merchant | Avg ms/run | Runs/sec | Death Causes | Choices |",
+    "| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- | --- |",
   );
 
   for (const config of report.inputs.configs) {
@@ -1009,22 +1050,31 @@ function renderMarkdownReport(report: BatchSimulationReport): string {
         roleId,
         String(summary.runs),
         String(summary.statusCounts.won),
+        String(summary.statusCounts.returned),
         String(summary.statusCounts.lost),
+        String(summary.statusCounts.stranded),
         String(summary.statusCounts.playing),
         formatNumber(summary.averageFloor),
         formatNumber(summary.averageTurns),
+        formatNumber(summary.averageScore),
+        formatNumber(summary.medianScore),
+        formatNumber(summary.averageProjectedDisplayMs / 60_000),
         formatNumber(summary.averageFinalHp),
         formatNumber(summary.averageLowHpTurns),
         formatNumber(summary.averageStagnantTurns),
         formatNumber(summary.averageRiskyTrapSteps),
+        formatNumber(summary.averageDiscoveries),
         formatNumber(summary.averagePickups),
         formatNumber(summary.averageAttacks),
+        formatNumber(summary.averageAttacksPer100Turns),
         formatNumber(summary.averageDescents),
+        formatNumber(summary.averageActions.resolveDecision),
         formatNumber(summary.averageActions.useItem),
         formatNumber(summary.averageActions.merchantService),
         formatNumber(summary.averageElapsedMs),
         formatNumber(summary.runsPerSecond),
         formatCounts(summary.deathCauses),
+        formatCounts(summary.decisionChoices),
       ].join(" | ").replace(/^/, "| ").replace(/$/, " |"));
     }
   }
@@ -1115,6 +1165,13 @@ function last(values: Map<string, string[]>, key: string): string | undefined {
 
 function average(items: SimulationRunResult[], valueFor: (run: SimulationRunResult) => number): number {
   return ratio(items.reduce((sum, item) => sum + valueFor(item), 0), items.length);
+}
+
+function median(values: number[]): number {
+  if (values.length === 0) return 0;
+  const sorted = [...values].sort((a, b) => a - b);
+  const middle = Math.floor(sorted.length / 2);
+  return round(sorted.length % 2 === 0 ? (sorted[middle - 1] + sorted[middle]) / 2 : sorted[middle]);
 }
 
 function ratio(value: number, total: number): number {

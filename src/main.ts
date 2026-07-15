@@ -4,12 +4,33 @@ import { getGameConfig, loadBrowserGameConfig } from "./game/content/config";
 import { assetForContent } from "./game/content/assets";
 import { contentEntities, getContentName } from "./game/content/entities";
 import { worldBible } from "./game/content/worldBible";
-import { applyAction, availableMerchantServices, biomeThemeName, createInitialGame, observeGame, playableRoles } from "./game/core/game";
+import {
+  calculateScore,
+  chooseDecisionAction,
+  createCampaignState,
+  createRunIdentity,
+  directiveLabel,
+  endingLabel,
+  normalizeCampaignState,
+  recordCampaignResult,
+  roleTruthLabel,
+  temperamentDescription,
+  temperamentLabel,
+} from "./game/core/autonomous";
+import { applyAction, biomeThemeName, createInitialGame, observeGame, playableRoles } from "./game/core/game";
 import { analyzeRun, createRunLog, recordTurn } from "./game/core/runLog";
 import { PixiRoguelikeRenderer } from "./game/renderer/PixiRoguelikeRenderer";
-import type { Direction, GameAction, GameState, InventoryEntry, MerchantServiceId, RunLog, RunReview, Tier } from "./game/types";
+import type {
+  CampaignState,
+  GameAction,
+  GameState,
+  RoleTruthId,
+  RunIdentity,
+  RunLog,
+  RunReview,
+} from "./game/types";
 
-type Rarity = "common" | "uncommon" | "rare" | "special";
+const CAMPAIGN_STORAGE_KEY = "black-candle-campaign-v1";
 
 declare global {
   interface Window {
@@ -20,516 +41,437 @@ declare global {
       getRunLog: () => RunLog;
       getRunReview: () => RunReview;
       stepAi: (steps?: number) => GameState;
+      stepUntilDecision: (steps?: number) => GameState;
     };
   }
 }
 
 const app = document.querySelector<HTMLDivElement>("#app");
-
-if (!app) {
-  throw new Error("Missing #app root");
-}
+if (!app) throw new Error("Missing #app root");
 
 app.innerHTML = `
-  <main class="rogue-shell">
-    <header class="topbar">
-      <div>
-        <p class="eyebrow">TypeScript Roguelike Baseline</p>
+  <main class="observer-shell">
+    <header class="observer-header">
+      <div class="brand-block">
+        <p class="eyebrow">灰灯院・遠征観測室</p>
         <h1>${worldBible.title}</h1>
+        <p class="brand-copy">探索者は自ら歩く。灯守は、運命の節目だけを選ぶ。</p>
       </div>
-      <div class="controls" aria-label="操作">
-        <div id="role-controls" class="role-controls" aria-label="開始職"></div>
-        <button id="restart" type="button">再生成</button>
-        <button id="step-ai" type="button">AI 1手</button>
-        <button id="toggle-ai" type="button" aria-pressed="false">AI開始</button>
-        <button id="copy-debug" type="button">状態コピー</button>
-        <label class="speed-control">AI間隔 <input id="ai-delay" type="range" min="40" max="240" step="20" value="100"><span id="ai-delay-label">100ms</span></label>
+      <div class="header-actions">
+        <div class="speed-selector" aria-label="観測速度">
+          <span>観測速度</span>
+          <button type="button" data-speed="0.5">0.5×</button>
+          <button type="button" data-speed="1" class="is-active">1×</button>
+          <button type="button" data-speed="2">2×</button>
+        </div>
+        <button id="new-expedition" class="secondary-button" type="button">新しい遠征</button>
       </div>
     </header>
 
-    <section class="game-layout">
-      <section class="playfield-panel" aria-label="ダンジョン">
+    <section class="run-ribbon" aria-label="遠征状況">
+      <div><span>探索者</span><strong id="run-delver">-</strong></div>
+      <div><span>気質</span><strong id="run-temperament">-</strong></div>
+      <div><span>方針</span><strong id="run-directive">-</strong></div>
+      <div><span>啓示</span><strong id="run-revelations">-</strong></div>
+      <div><span>深度</span><strong id="run-floor">-</strong></div>
+      <div><span>観測手</span><strong id="run-turn">-</strong></div>
+      <div class="turn-meter" aria-label="灯路の残り">
+        <span id="turn-meter-label">灯路</span>
+        <div><i id="turn-meter-fill"></i></div>
+      </div>
+    </section>
+
+    <section class="observer-layout">
+      <section class="map-panel" aria-label="黒燭越しの迷宮">
+        <div class="map-heading">
+          <div>
+            <p class="eyebrow" id="biome-kicker">観測中</p>
+            <h2 id="biome-title">黒石迷宮</h2>
+          </div>
+          <div class="live-score"><span>暫定得点</span><strong id="live-score">0</strong></div>
+        </div>
         <div id="pixi-root" class="pixi-root"></div>
       </section>
 
-      <aside class="side-panel" aria-label="状況">
-        <section class="panel-section">
-          <div class="section-heading">
-            <h2>ログ</h2>
-            <span id="turn-counter">turn 0</span>
-          </div>
+      <aside class="observer-sidebar">
+        <section class="side-card objective-card">
+          <div class="section-heading"><h2>次の動き</h2><span id="explored-ratio">0%</span></div>
+          <strong id="objective-title">未探索を広げる</strong>
+          <p id="objective-detail">黒燭が映す道筋を追っています。</p>
+        </section>
+        <section class="side-card log-card">
+          <div class="section-heading"><h2>遠征記録</h2><span>直近</span></div>
           <ol id="message-list" class="message-list"></ol>
         </section>
-        <section class="panel-section role-guide-section">
-          <div class="section-heading">
-            <h2>職業特性</h2>
-            <span id="role-guide-focus">-</span>
-          </div>
-          <div id="role-guide" class="role-guide"></div>
+        <section class="side-card truth-card">
+          <div class="section-heading"><h2>三つの真相</h2><span id="truth-count">0/3</span></div>
+          <div id="truth-list" class="truth-list"></div>
         </section>
       </aside>
     </section>
 
-    <footer class="status-bar">
-      <section class="hero-card" aria-label="主人公ステータス">
-        <h2 id="hero-name">主人公</h2>
+    <section class="lower-grid">
+      <section class="lower-card hero-card">
+        <div class="section-heading"><h2>探索者</h2><span id="hero-role">-</span></div>
         <div id="hero-stats" class="stat-grid"></div>
       </section>
-      <section class="objective-card" aria-label="探索目標">
-        <div class="section-heading">
-          <h2>探索目標</h2>
-          <span id="exploration-summary">-</span>
-        </div>
-        <div id="objective-body" class="objective-body"></div>
-      </section>
-      <section class="inventory-card" aria-label="インベントリ">
-        <div class="section-heading">
-          <h2>インベントリ</h2>
-          <span id="inventory-hint">0</span>
-        </div>
+      <section class="lower-card inventory-card">
+        <div class="section-heading"><h2>携行品</h2><span id="inventory-count">0</span></div>
         <ul id="inventory-list" class="inventory-list"></ul>
-        <div class="inventory-actions">
-          <button id="selected-item-action" class="inventory-action" type="button" disabled>所持品を選択</button>
-          <button id="selected-item-drop" class="inventory-action" type="button" disabled>捨てる</button>
-        </div>
       </section>
-    </footer>
-
-    <section id="end-dialog" class="end-dialog" aria-live="assertive" hidden>
-      <div class="end-dialog-panel" role="dialog" aria-modal="true" aria-labelledby="end-title">
-        <p id="end-kicker" class="eyebrow">run ended</p>
-        <h2 id="end-title">ゲームオーバー</h2>
-        <p id="end-body"></p>
-        <div id="end-review" class="end-review"></div>
-        <button id="copy-review" type="button">分析JSONコピー</button>
-        <button id="end-reset" type="button">新しい探索を始める</button>
-      </div>
-    </section>
-
-    <section id="item-popover" class="item-popover" hidden>
-      <div class="item-popover-panel" role="dialog" aria-modal="false" aria-labelledby="item-popover-title">
-        <button id="item-popover-close" class="item-popover-close" type="button" aria-label="閉じる">×</button>
-        <div class="item-popover-heading">
-          <span id="item-popover-icon" class="item-popover-icon" aria-hidden="true"></span>
-          <div>
-            <h2 id="item-popover-title">アイテム</h2>
-            <p id="item-popover-meta"></p>
-          </div>
-        </div>
-        <p id="item-popover-description"></p>
-        <dl id="item-popover-stats" class="item-popover-stats"></dl>
-      </div>
+      <section class="lower-card archive-card">
+        <div class="section-heading"><h2>最近の遠征</h2><span id="archive-count">0</span></div>
+        <ol id="archive-list" class="archive-list"></ol>
+      </section>
     </section>
   </main>
+
+  <section id="candidate-dialog" class="modal-layer" aria-live="polite">
+    <div class="modal-panel candidate-panel" role="dialog" aria-modal="true" aria-labelledby="candidate-title">
+      <p class="eyebrow">遠征者選定</p>
+      <h2 id="candidate-title">誰を黒燭の迷宮へ送るか</h2>
+      <p>職業だけでなく、探索者自身の気質もAIの判断へ影響します。</p>
+      <div id="candidate-list" class="candidate-list"></div>
+    </div>
+  </section>
+
+  <section id="decision-dialog" class="modal-layer" hidden aria-live="assertive">
+    <div class="modal-panel decision-panel" role="dialog" aria-modal="true" aria-labelledby="decision-title">
+      <p class="eyebrow">黒燭からの問い</p>
+      <h2 id="decision-title">灯守の判断</h2>
+      <p id="decision-body"></p>
+      <div id="decision-options" class="decision-options"></div>
+      <p id="decision-hint" class="modal-hint"></p>
+    </div>
+  </section>
+
+  <section id="end-dialog" class="modal-layer" hidden aria-live="assertive">
+    <div class="modal-panel result-panel" role="dialog" aria-modal="true" aria-labelledby="end-title">
+      <p id="end-kicker" class="eyebrow">遠征終了</p>
+      <h2 id="end-title">遠征記録</h2>
+      <p id="end-summary"></p>
+      <div id="score-breakdown" class="score-breakdown"></div>
+      <div id="decision-history" class="decision-history"></div>
+      <button id="end-new-expedition" class="primary-button" type="button">次の探索者を選ぶ</button>
+    </div>
+  </section>
 `;
 
 await loadBrowserGameConfig();
 
+const renderer = new PixiRoguelikeRenderer();
 const pixiRoot = requireElement<HTMLDivElement>("#pixi-root");
-const restartButton = requireElement<HTMLButtonElement>("#restart");
-const roleControls = requireElement<HTMLDivElement>("#role-controls");
-const stepAiButton = requireElement<HTMLButtonElement>("#step-ai");
-const toggleAiButton = requireElement<HTMLButtonElement>("#toggle-ai");
-const copyDebugButton = requireElement<HTMLButtonElement>("#copy-debug");
-const aiDelayInput = requireElement<HTMLInputElement>("#ai-delay");
-const aiDelayLabel = requireElement<HTMLSpanElement>("#ai-delay-label");
-const turnCounter = requireElement<HTMLSpanElement>("#turn-counter");
-const messageList = requireElement<HTMLOListElement>("#message-list");
-const roleGuideFocus = requireElement<HTMLSpanElement>("#role-guide-focus");
-const roleGuide = requireElement<HTMLDivElement>("#role-guide");
-const heroName = requireElement<HTMLHeadingElement>("#hero-name");
-const heroStats = requireElement<HTMLDivElement>("#hero-stats");
-const explorationSummary = requireElement<HTMLSpanElement>("#exploration-summary");
-const objectiveBody = requireElement<HTMLDivElement>("#objective-body");
-const inventoryList = requireElement<HTMLUListElement>("#inventory-list");
-const inventoryHint = requireElement<HTMLSpanElement>("#inventory-hint");
-const selectedItemActionButton = requireElement<HTMLButtonElement>("#selected-item-action");
-const selectedItemDropButton = requireElement<HTMLButtonElement>("#selected-item-drop");
+const candidateDialog = requireElement<HTMLElement>("#candidate-dialog");
+const candidateList = requireElement<HTMLDivElement>("#candidate-list");
+const decisionDialog = requireElement<HTMLElement>("#decision-dialog");
+const decisionTitle = requireElement<HTMLHeadingElement>("#decision-title");
+const decisionBody = requireElement<HTMLParagraphElement>("#decision-body");
+const decisionOptions = requireElement<HTMLDivElement>("#decision-options");
+const decisionHint = requireElement<HTMLParagraphElement>("#decision-hint");
 const endDialog = requireElement<HTMLElement>("#end-dialog");
-const endTitle = requireElement<HTMLHeadingElement>("#end-title");
 const endKicker = requireElement<HTMLParagraphElement>("#end-kicker");
-const endBody = requireElement<HTMLParagraphElement>("#end-body");
-const endReview = requireElement<HTMLDivElement>("#end-review");
-const copyReviewButton = requireElement<HTMLButtonElement>("#copy-review");
-const endResetButton = requireElement<HTMLButtonElement>("#end-reset");
-const itemPopover = requireElement<HTMLElement>("#item-popover");
-const itemPopoverClose = requireElement<HTMLButtonElement>("#item-popover-close");
-const itemPopoverIcon = requireElement<HTMLElement>("#item-popover-icon");
-const itemPopoverTitle = requireElement<HTMLHeadingElement>("#item-popover-title");
-const itemPopoverMeta = requireElement<HTMLParagraphElement>("#item-popover-meta");
-const itemPopoverDescription = requireElement<HTMLParagraphElement>("#item-popover-description");
-const itemPopoverStats = requireElement<HTMLElement>("#item-popover-stats");
+const endTitle = requireElement<HTMLHeadingElement>("#end-title");
+const endSummary = requireElement<HTMLParagraphElement>("#end-summary");
+const scoreBreakdown = requireElement<HTMLDivElement>("#score-breakdown");
+const decisionHistory = requireElement<HTMLDivElement>("#decision-history");
 
+let campaign = loadCampaign();
+let candidateSeed = nextSeed();
 let selectedRoleId = playableRoles()[0].id;
-let state: GameState = createInitialGame(undefined, selectedRoleId);
-let runLog = createRunLog(state.seed, selectedRoleId);
+let selectedIdentity = createRunIdentity(candidateSeed, selectedRoleId);
+let state = createInitialGame(candidateSeed, selectedRoleId, { identity: selectedIdentity, knownRoleTruths: campaign.roleTruths });
+let runLog = createRunLog(state.seed, selectedRoleId, {}, selectedIdentity);
 let currentReview: RunReview | null = null;
 let autoplayTimer: number | null = null;
-let autoplayDelayMs = Number(aiDelayInput.value);
-let selectedInventoryContentId: string | null = null;
-const renderer = new PixiRoguelikeRenderer();
+let speed = 1;
+let archivedRunId: string | null = null;
 
+installEvents();
 installDebugBridge();
+renderCandidateSelection();
 render();
 await renderer.mount(pixiRoot);
 render();
 
-restartButton.addEventListener("click", () => {
-  resetGame();
-});
-
-roleControls.addEventListener("click", (event) => {
-  const target = event.target;
-  if (!(target instanceof HTMLElement)) {
-    return;
-  }
-  const button = target.closest<HTMLButtonElement>("button[data-role-id]");
-  if (!button) {
-    return;
-  }
-  selectedRoleId = button.dataset.roleId ?? selectedRoleId;
-  resetGame();
-});
-
-stepAiButton.addEventListener("click", () => {
-  stepAutoplay();
-});
-
-toggleAiButton.addEventListener("click", () => {
-  if (autoplayTimer) {
-    stopAutoplay();
-  } else {
-    startAutoplay();
-  }
-});
-
-copyDebugButton.addEventListener("click", () => {
-  void copyDebugDump();
-});
-
-copyReviewButton.addEventListener("click", () => {
-  void copyReviewJson();
-});
-
-endResetButton.addEventListener("click", resetGame);
-
-inventoryList.addEventListener("click", (event) => {
-  const target = event.target;
-  if (!(target instanceof HTMLElement)) {
-    return;
-  }
-  const button = target.closest<HTMLButtonElement>("button[data-content-id]");
-  if (!button) {
-    return;
-  }
-  selectedInventoryContentId = button.dataset.contentId ?? null;
-  showItemPopover(selectedInventoryContentId);
-  render();
-});
-
-itemPopoverClose.addEventListener("click", () => {
-  itemPopover.hidden = true;
-});
-
-itemPopover.addEventListener("click", (event) => {
-  if (event.target === itemPopover) {
-    itemPopover.hidden = true;
-  }
-});
-
-selectedItemActionButton.addEventListener("click", () => {
-  if (!selectedInventoryContentId) {
-    return;
-  }
-  stopAutoplay();
-  applyLoggedAction({ type: "useItem", contentId: selectedInventoryContentId }, "player");
-  itemPopover.hidden = true;
-  render();
-});
-
-selectedItemDropButton.addEventListener("click", () => {
-  if (!selectedInventoryContentId) {
-    return;
-  }
-  stopAutoplay();
-  applyLoggedAction({ type: "dropItem", contentId: selectedInventoryContentId }, "player");
-  itemPopover.hidden = true;
-  render();
-});
-
-objectiveBody.addEventListener("click", (event) => {
-  const target = event.target;
-  if (!(target instanceof HTMLElement)) {
-    return;
-  }
-  const button = target.closest<HTMLButtonElement>("button[data-merchant-service]");
-  if (!button) {
-    return;
-  }
-  stopAutoplay();
-  applyLoggedAction({ type: "merchantService", serviceId: button.dataset.merchantService as MerchantServiceId }, "player");
-  render();
-});
-
-aiDelayInput.addEventListener("input", () => {
-  autoplayDelayMs = Number(aiDelayInput.value);
-  aiDelayLabel.textContent = `${autoplayDelayMs}ms`;
-  if (autoplayTimer) {
-    stopAutoplay();
-    startAutoplay();
-  }
-});
-
-window.addEventListener("keydown", (event) => {
-  const action = actionForKey(event.key);
-  if (!action) {
-    return;
-  }
-  event.preventDefault();
-  stopAutoplay();
-  applyLoggedAction(action, "player");
-  render();
-});
-
-function startAutoplay(): void {
-  if (autoplayTimer || state.status !== "playing") {
-    return;
-  }
-  toggleAiButton.textContent = "AI停止";
-  toggleAiButton.setAttribute("aria-pressed", "true");
-  autoplayTimer = window.setInterval(stepAutoplay, autoplayDelayMs);
+function installEvents(): void {
+  document.querySelector(".speed-selector")?.addEventListener("click", (event) => {
+    const button = (event.target as HTMLElement).closest<HTMLButtonElement>("button[data-speed]");
+    if (!button) return;
+    speed = Number(button.dataset.speed ?? 1);
+    document.querySelectorAll<HTMLButtonElement>("button[data-speed]").forEach((candidate) => candidate.classList.toggle("is-active", candidate === button));
+    if (autoplayTimer !== null) scheduleAutoplay({ type: "wait" });
+  });
+  requireElement<HTMLButtonElement>("#new-expedition").addEventListener("click", openNewExpedition);
+  requireElement<HTMLButtonElement>("#end-new-expedition").addEventListener("click", openNewExpedition);
+  candidateList.addEventListener("click", (event) => {
+    const button = (event.target as HTMLElement).closest<HTMLButtonElement>("button[data-role-id]");
+    if (!button) return;
+    startExpedition(button.dataset.roleId ?? playableRoles()[0].id);
+  });
+  decisionOptions.addEventListener("click", (event) => {
+    const button = (event.target as HTMLElement).closest<HTMLButtonElement>("button[data-option-id]");
+    if (!button || button.disabled) return;
+    applyLoggedAction({ type: "resolveDecision", optionId: button.dataset.optionId ?? "" }, "player");
+    render();
+    if (state.status === "playing" && !state.pendingDecision) scheduleAutoplay({ type: "resolveDecision", optionId: button.dataset.optionId ?? "" });
+  });
+  window.addEventListener("keydown", (event) => {
+    if (!["1", "2", "3", "4"].includes(event.key)) return;
+    const index = Number(event.key) - 1;
+    const visibleButtons = !candidateDialog.hidden
+      ? candidateList.querySelectorAll<HTMLButtonElement>("button[data-role-id]")
+      : !decisionDialog.hidden
+        ? decisionOptions.querySelectorAll<HTMLButtonElement>("button[data-option-id]:not(:disabled)")
+        : [];
+    visibleButtons[index]?.click();
+  });
 }
 
-function stopAutoplay(): void {
-  if (!autoplayTimer) {
-    return;
-  }
-  window.clearInterval(autoplayTimer);
-  autoplayTimer = null;
-  toggleAiButton.textContent = "AI開始";
-  toggleAiButton.setAttribute("aria-pressed", "false");
+function openNewExpedition(): void {
+  stopAutoplay();
+  endDialog.hidden = true;
+  decisionDialog.hidden = true;
+  candidateSeed = nextSeed();
+  renderCandidateSelection();
+  candidateDialog.hidden = false;
+}
+
+function startExpedition(roleId: string): void {
+  stopAutoplay();
+  selectedRoleId = roleId;
+  selectedIdentity = createRunIdentity(candidateSeed, roleId);
+  state = createInitialGame(candidateSeed, roleId, { identity: selectedIdentity, knownRoleTruths: campaign.roleTruths });
+  runLog = createRunLog(state.seed, roleId, {}, selectedIdentity);
+  currentReview = null;
+  archivedRunId = null;
+  candidateDialog.hidden = true;
+  decisionDialog.hidden = true;
+  endDialog.hidden = true;
+  render();
+  scheduleAutoplay({ type: "wait" });
+}
+
+function renderCandidateSelection(): void {
+  candidateList.replaceChildren(...playableRoles().map((role, index) => {
+    const identity = createRunIdentity(candidateSeed, role.id);
+    const button = document.createElement("button");
+    button.type = "button";
+    button.dataset.roleId = role.id;
+    button.className = "candidate-card";
+    const asset = assetForContent(role.id);
+    const portrait = document.createElement("span");
+    portrait.className = "candidate-portrait";
+    applySprite(portrait, asset, 72);
+    const body = document.createElement("span");
+    body.className = "candidate-body";
+    body.innerHTML = `
+      <span class="candidate-index">${index + 1}</span>
+      <strong>${identity.name}</strong>
+      <em>${getContentName(role.id)}</em>
+      <span class="temperament-tag temperament-${identity.temperament}">${temperamentLabel(identity.temperament)}</span>
+      <small>${temperamentDescription(identity.temperament)}</small>
+      <small>HP ${role.stats.maxHp} / 攻撃 ${role.stats.attack} / 防御 ${role.stats.defense}</small>
+    `;
+    button.append(portrait, body);
+    return button;
+  }));
 }
 
 function stepAutoplay(): void {
+  autoplayTimer = null;
   if (state.status !== "playing") {
-    stopAutoplay();
+    render();
+    return;
+  }
+  if (state.pendingDecision) {
+    render();
     return;
   }
   const observation = observeGame(state);
   const action = chooseAutoplayAction(observation);
   applyLoggedAction(action, "ai", getAutoplayDebugState(observation));
   render();
+  if (state.status === "playing" && !state.pendingDecision) scheduleAutoplay(action);
+}
+
+function scheduleAutoplay(lastAction: GameAction): void {
+  stopAutoplay();
+  if (state.status !== "playing" || state.pendingDecision || !candidateDialog.hidden) return;
+  const pacing = getGameConfig().autonomous.pacingMs;
+  const recent = state.messages.slice(-3).map((entry) => entry.tone);
+  const danger = recent.includes("combat") || recent.includes("danger");
+  const delay = danger ? pacing.danger : lastAction.type === "move" ? pacing.traversal : pacing.exploration;
+  autoplayTimer = window.setTimeout(stepAutoplay, Math.max(40, Math.round(delay / speed)));
+}
+
+function stopAutoplay(): void {
+  if (autoplayTimer === null) return;
+  window.clearTimeout(autoplayTimer);
+  autoplayTimer = null;
 }
 
 function applyLoggedAction(action: GameAction, actor: "player" | "ai", aiDebug?: Parameters<typeof recordTurn>[0]["aiDebug"]): void {
   const before = state;
   state = applyAction(state, action);
-  if (actor === "ai" && shouldLogAutoplayAction(action)) {
-    state.messages = [
-      ...state.messages.slice(0, -1),
-      ...state.messages.slice(-1),
-      { turn: state.turn, text: `AI: ${describeAction(action)}`, tone: "ai" as const },
-    ].slice(-80);
-  }
+  if (state === before) return;
   recordTurn({ log: runLog, before, action, after: state, actor, aiDebug });
   currentReview = state.status === "playing" ? null : analyzeRun(runLog, state);
+  if (state.status !== "playing") archiveCompletedRun();
+}
+
+function archiveCompletedRun(): void {
+  const recordId = `${state.seed}-${state.runIdentity.roleId}-${state.runTurn}-${state.status}`;
+  if (archivedRunId === recordId) return;
+  const review = currentReview ?? analyzeRun(runLog, state);
+  campaign = recordCampaignResult(campaign, state, review.deathCause);
+  saveCampaign(campaign);
+  archivedRunId = recordId;
 }
 
 function render(): void {
   renderer.render(state);
   const observation = observeGame(state);
   const player = observation.player;
+  const config = getGameConfig();
+  const score = calculateScore(state);
+  setText("#run-delver", `${state.runIdentity.name} / ${getContentName(state.runIdentity.roleId)}`);
+  setText("#run-temperament", temperamentLabel(state.runIdentity.temperament));
+  setText("#run-directive", directiveLabel(state.directive));
+  setText("#run-revelations", `${state.revelationsRemaining}/${config.autonomous.revelationsPerRun}`);
+  setText("#run-floor", `${state.floor}/${config.rules.maxFloor}`);
+  setText("#run-turn", `${state.runTurn}/${config.rules.runTurnLimit}`);
+  setText("#biome-kicker", `地下${state.floor}階 / ${state.status === "playing" ? "観測中" : statusLabel(state.status)}`);
+  setText("#biome-title", biomeThemeName(state.biome));
+  setText("#live-score", score.total.toLocaleString("ja-JP"));
+  setText("#turn-meter-label", state.runTurn >= config.rules.runTurnWarning ? "灯路が揺らいでいる" : "灯路は安定");
+  const meter = requireElement<HTMLElement>("#turn-meter-fill");
+  meter.style.width = `${Math.min(100, state.runTurn / config.rules.runTurnLimit * 100)}%`;
+  meter.classList.toggle("is-warning", state.runTurn >= config.rules.runTurnWarning);
+
+  setText("#explored-ratio", `${Math.round(observation.exploration.exploredTileRatio * 100)}%`);
+  setText("#objective-title", objectiveLabel(observation.exploration.objective));
+  setText("#objective-detail", objectiveDetail(observation));
+  setText("#hero-role", getContentName(player.contentId));
   const progress = observation.playerProgress;
+  requireElement<HTMLDivElement>("#hero-stats").innerHTML = [
+    ["HP", player.stats ? `${player.stats.hp}/${player.stats.maxHp}` : "-"],
+    ["Lv", String(progress.level)],
+    ["攻撃", String(player.stats?.attack ?? "-")],
+    ["防御", String(player.stats?.defense ?? "-")],
+    ["Gold", String(progress.gold)],
+    ["固有", String(state.runObjectives.roleGoalProgress)],
+  ].map(([label, value]) => `<div><span>${label}</span><strong>${value}</strong></div>`).join("");
 
-  renderRoleControls();
-  renderRoleGuide(player.contentId);
-  turnCounter.textContent = `turn ${state.turn} / floor ${state.floor}`;
-  heroName.textContent = getContentName(player.contentId);
-  const hp = player.stats ? `${player.stats.hp}/${player.stats.maxHp}` : "-";
-  heroStats.innerHTML = `
-    <div><span>Lv</span><strong>${progress.level}</strong></div>
-    <div><span>XP</span><strong>${progress.xp}${progress.xpToNext > 0 ? ` / +${progress.xpToNext}` : ""}</strong></div>
-    <div><span>Gold</span><strong>${progress.gold}</strong></div>
-    <div><span>HP</span><strong>${hp}</strong></div>
-    <div><span>攻撃</span><strong>${player.stats?.attack ?? "-"}</strong></div>
-    <div><span>防御</span><strong>${player.stats?.defense ?? "-"}</strong></div>
-    <div><span>階層</span><strong>${state.floor}/${getGameConfig().rules.maxFloor}</strong></div>
-    <div><span>領域</span><strong>${biomeThemeName(state.biome)}</strong></div>
-    <div><span>状態</span><strong>${statusLabel(state.status)}</strong></div>
-    <div><span>効果</span><strong>${conditionLabel(player.conditions)}</strong></div>
-    <div><span>固有</span><strong>${roleGoalLabel(player.contentId, state.runObjectives.roleGoalProgress)}</strong></div>
-  `;
-  renderExplorationObjective(observation);
-
-  messageList.replaceChildren(
-    ...[...state.messages.slice(-10)]
-      .reverse()
-      .map((entry) => {
-        const li = document.createElement("li");
-        li.className = `tone-${entry.tone}`;
-        li.textContent = `[${entry.turn}] ${entry.text}`;
-        return li;
-      }),
-  );
-
-  const inventory = player.inventory ?? [];
-  syncSelectedInventory(inventory);
-  inventoryHint.textContent = `${inventory.length}/${getGameConfig().rules.inventorySlotLimit}`;
-  inventoryList.replaceChildren(
-    ...inventory.map((entry) => {
-      const li = document.createElement("li");
-      const content = contentEntities[entry.contentId];
-      const selected = entry.contentId === selectedInventoryContentId;
-      li.className = selected ? "is-selected" : "";
-      const selectButton = document.createElement("button");
-      selectButton.type = "button";
-      selectButton.dataset.contentId = entry.contentId;
-      selectButton.className = "inventory-select";
-      const icon = document.createElement("span");
-      icon.className = "inventory-icon";
-      applyInventoryIcon(icon, entry.contentId);
-      const label = document.createElement("span");
-      label.className = "inventory-label";
-      label.innerHTML = `<strong>${content?.names.ja ?? entry.contentId}</strong><span>x${entry.quantity}${entry.equipped ? " / 装備中" : ""}</span>`;
-      selectButton.append(icon, label);
-      li.append(selectButton);
-      return li;
-    }),
-  );
-
-  renderEndDialog();
+  requireElement<HTMLOListElement>("#message-list").replaceChildren(...[...state.messages.slice(-8)].reverse().map((entry) => {
+    const item = document.createElement("li");
+    item.className = `tone-${entry.tone}`;
+    item.innerHTML = `<span>${entry.turn}</span><p>${escapeHtml(entry.text)}</p>`;
+    return item;
+  }));
+  renderInventory(player.inventory ?? []);
+  renderTruths();
+  renderArchive();
+  renderDecision();
+  renderEnd();
 }
 
-function resetGame(): void {
-  stopAutoplay();
-  state = createInitialGame(Date.now() % 100000, selectedRoleId);
-  runLog = createRunLog(state.seed, selectedRoleId);
-  currentReview = null;
-  selectedInventoryContentId = null;
-  itemPopover.hidden = true;
-  render();
-}
-
-function renderRoleControls(): void {
-  roleControls.replaceChildren(
-    ...playableRoles().map((role) => {
-      const button = document.createElement("button");
-      button.type = "button";
-      button.dataset.roleId = role.id;
-      button.textContent = getContentName(role.id);
-      button.className = role.id === selectedRoleId ? "is-selected" : "";
-      button.setAttribute("aria-pressed", role.id === selectedRoleId ? "true" : "false");
-      return button;
-    }),
-  );
-}
-
-function renderRoleGuide(roleId: string): void {
-  const role = playableRoles().find((candidate) => candidate.id === roleId) ?? playableRoles()[0];
-  roleGuideFocus.textContent = role.traits.focus;
-  const startingItems = role.inventory.map((entry) => `${getContentName(entry.contentId)}${entry.quantity > 1 ? ` x${entry.quantity}` : ""}`).join(" / ");
-  roleGuide.replaceChildren(
-    roleGuideLine("基本", `HP ${role.stats.maxHp} / 攻撃 ${role.stats.attack} / 防御 ${role.stats.defense}`),
-    roleGuideLine("初期装備", startingItems),
-    roleGuideLine("特徴", role.traits.traitLabels.join(" / ")),
-    roleGuideList(role.traits.strengths),
-  );
-}
-
-function roleGuideLine(label: string, value: string): HTMLElement {
-  const row = document.createElement("div");
-  const labelElement = document.createElement("span");
-  labelElement.textContent = label;
-  const valueElement = document.createElement("strong");
-  valueElement.textContent = value;
-  row.append(labelElement, valueElement);
-  return row;
-}
-
-function roleGuideList(items: string[]): HTMLElement {
-  const list = document.createElement("ul");
-  for (const item of items) {
-    const li = document.createElement("li");
-    li.textContent = item;
-    list.append(li);
+function renderInventory(inventory: NonNullable<GameState["entities"][number]["inventory"]>): void {
+  setText("#inventory-count", `${inventory.length}/${getGameConfig().rules.inventorySlotLimit}`);
+  const list = requireElement<HTMLUListElement>("#inventory-list");
+  if (inventory.length === 0) {
+    list.innerHTML = '<li class="empty-state">携行品なし</li>';
+    return;
   }
-  return list;
+  list.replaceChildren(...inventory.map((entry) => {
+    const item = document.createElement("li");
+    const icon = document.createElement("span");
+    icon.className = "inventory-icon";
+    applySprite(icon, assetForContent(entry.contentId), 32);
+    const text = document.createElement("span");
+    text.innerHTML = `<strong>${escapeHtml(getContentName(entry.contentId))}</strong><small>x${entry.quantity}${entry.equipped ? " / 装備中" : ""}</small>`;
+    item.append(icon, text);
+    return item;
+  }));
 }
 
-function renderExplorationObjective(observation: ReturnType<typeof observeGame>): void {
-  const exploration = observation.exploration;
-  const objective = explorationObjectiveLabel(exploration.objective);
-  explorationSummary.textContent = `${Math.round(exploration.exploredTileRatio * 100)}%`;
-  const target = exploration.reachableStairs
-    ? `到達可能な階段 ${pointLabel(exploration.reachableStairs)}`
-    : exploration.blockedStairs
-      ? `階段への経路探索 ${pointLabel(exploration.blockedStairs)}`
-      : exploration.nearestFrontier
-        ? `未探索境界 ${pointLabel(exploration.nearestFrontier)}`
-        : "候補なし";
-  const rows = [
-    objectiveLine("目標", objective),
-    objectiveLine("次の手がかり", target),
-    objectiveLine("探索候補", `${exploration.reachableFrontierCount} 箇所`),
+function renderTruths(): void {
+  const truths: Array<{ id: RoleTruthId; name: string; hint: string }> = [
+    { id: "shared-oath", name: "分誓の碑文", hint: "誓約の探索者で6階から生還" },
+    { id: "furnace-map", name: "炉脈全図", hint: "灰弓の斥候で6階から生還" },
+    { id: "purified-flame", name: "浄火の祈り", hint: "灯火の祈祷者で6階から生還" },
   ];
-  const merchantServices = availableMerchantServices(state);
-  if (merchantServices.length > 0) {
-    rows.push(merchantServicePanel(merchantServices));
+  setText("#truth-count", `${campaign.roleTruths.length}/3`);
+  requireElement<HTMLDivElement>("#truth-list").replaceChildren(...truths.map((truth) => {
+    const unlocked = campaign.roleTruths.includes(truth.id);
+    const item = document.createElement("div");
+    item.className = unlocked ? "truth-item is-unlocked" : "truth-item";
+    item.innerHTML = `<i>${unlocked ? "◆" : "◇"}</i><span><strong>${truth.name}</strong><small>${unlocked ? "記録済み" : truth.hint}</small></span>`;
+    return item;
+  }));
+}
+
+function renderArchive(): void {
+  setText("#archive-count", `${campaign.expeditions.length}件`);
+  const list = requireElement<HTMLOListElement>("#archive-list");
+  if (campaign.expeditions.length === 0) {
+    list.innerHTML = '<li class="empty-state">まだ帰還記録はありません。</li>';
+    return;
   }
-  objectiveBody.replaceChildren(...rows);
+  list.replaceChildren(...campaign.expeditions.slice(0, 6).map((record) => {
+    const item = document.createElement("li");
+    item.innerHTML = `<span class="archive-status status-${record.status}">${statusLabel(record.status)}</span><span><strong>${escapeHtml(record.identity.name)}</strong><small>${getContentName(record.identity.roleId)} / F${record.floor} / ${record.score.total.toLocaleString("ja-JP")}点</small></span>`;
+    return item;
+  }));
 }
 
-function objectiveLine(label: string, value: string): HTMLElement {
-  const row = document.createElement("div");
-  const labelElement = document.createElement("span");
-  labelElement.textContent = label;
-  const valueElement = document.createElement("strong");
-  valueElement.textContent = value;
-  row.append(labelElement, valueElement);
-  return row;
-}
-
-function merchantServicePanel(services: ReturnType<typeof availableMerchantServices>): HTMLElement {
-  const panel = document.createElement("div");
-  panel.className = "merchant-services";
-  const labelElement = document.createElement("span");
-  labelElement.textContent = "旅商人";
-  const list = document.createElement("div");
-  list.className = "merchant-service-list";
-  for (const service of services) {
+function renderDecision(): void {
+  const decision = state.pendingDecision;
+  if (!decision || state.status !== "playing") {
+    decisionDialog.hidden = true;
+    return;
+  }
+  stopAutoplay();
+  decisionTitle.textContent = decision.title;
+  decisionBody.textContent = decision.body;
+  decisionHint.textContent = `現在の啓示: ${state.revelationsRemaining}。啓示を使わない選択は探索者の気質に沿います。`;
+  decisionOptions.replaceChildren(...decision.options.map((option, index) => {
     const button = document.createElement("button");
     button.type = "button";
-    button.dataset.merchantService = service.serviceId;
-    button.disabled = !service.affordable || !service.useful;
-    button.textContent = `${service.label} / ${service.cost}G`;
-    list.append(button);
-  }
-  panel.append(labelElement, list);
-  return panel;
+    button.dataset.optionId = option.id;
+    button.disabled = !!option.requiresRevelation && state.revelationsRemaining <= 0;
+    button.className = option.id === decision.defaultOptionId ? "decision-option is-default" : "decision-option";
+    button.innerHTML = `<span>${index + 1}</span><strong>${escapeHtml(option.label)}</strong><small>${escapeHtml(option.description)}</small>${option.requiresRevelation ? '<em>啓示を1消費</em>' : '<em>消費なし</em>'}`;
+    return button;
+  }));
+  decisionDialog.hidden = false;
 }
 
-function explorationObjectiveLabel(objective: ReturnType<typeof observeGame>["exploration"]["objective"]): string {
-  switch (objective) {
-    case "defeatBoss":
-      return "守り手を倒す";
-    case "descend":
-      return "階段へ向かう";
-    case "findStairs":
-      return "階段を探す";
-    case "resolveStall":
-      return "探索経路を見直す";
-    case "explore":
-      return "未探索を広げる";
+function renderEnd(): void {
+  if (state.status === "playing") {
+    endDialog.hidden = true;
+    return;
   }
-}
-
-function pointLabel(point: { x: number; y: number }): string {
-  return `(${point.x}, ${point.y})`;
+  stopAutoplay();
+  const review = currentReview ?? analyzeRun(runLog, state);
+  const status = statusLabel(state.status);
+  endKicker.textContent = state.status === "won" ? "遠征達成" : state.status === "returned" ? "生還" : "遠征終了";
+  endTitle.textContent = `${state.runIdentity.name} — ${status}`;
+  endSummary.textContent = state.story.endingId
+    ? `${endingLabel(state.story.endingId)}の結末を遠征録へ刻みました。`
+    : `${review.summaryText} 得点は${review.score.total.toLocaleString("ja-JP")}点です。`;
+  const rows: Array<[string, number]> = [
+    ["進行", review.score.depth], ["守護者", review.score.guardians], ["職業目的", review.score.roleObjective],
+    ["発見", review.score.discoveries], ["生還", review.score.survival], ["持帰り", review.score.recoveredValue],
+    ["迅速", review.score.tempo], ["自律", review.score.autonomy],
+  ];
+  scoreBreakdown.innerHTML = `${rows.map(([label, value]) => `<div><span>${label}</span><strong>${value.toLocaleString("ja-JP")}</strong></div>`).join("")}<div class="score-total"><span>総合</span><strong>${review.score.total.toLocaleString("ja-JP")}</strong></div>`;
+  decisionHistory.innerHTML = `<h3>灯守の判断</h3>${review.decisions.length === 0 ? "<p>介入記録なし</p>" : `<ol>${review.decisions.map((entry) => `<li><span>F${entry.floor}</span><strong>${escapeHtml(entry.optionLabel)}</strong>${entry.usedRevelation ? "<em>啓示</em>" : ""}</li>`).join("")}</ol>`}`;
+  endDialog.hidden = false;
 }
 
 function installDebugBridge(): void {
   window.__rogueDebug = {
-    dump: () => createDebugDump(),
+    dump: () => JSON.stringify({ state, observation: observeGame(state), review: currentReview ?? analyzeRun(runLog, state), campaign }, null, 2),
     getState: () => structuredClone(state),
     getObservation: () => structuredClone(observeGame(state)),
     getRunLog: () => structuredClone(runLog),
@@ -538,8 +480,17 @@ function installDebugBridge(): void {
       stopAutoplay();
       for (let index = 0; index < steps && state.status === "playing"; index += 1) {
         const observation = observeGame(state);
-        const action = chooseAutoplayAction(observation);
-        applyLoggedAction(action, "ai", getAutoplayDebugState(observation));
+        const action = observation.pendingDecision ? chooseDecisionAction(observation, "temperament") : chooseAutoplayAction(observation);
+        applyLoggedAction(action, "ai", observation.pendingDecision ? undefined : getAutoplayDebugState(observation));
+      }
+      render();
+      return structuredClone(state);
+    },
+    stepUntilDecision: (steps = 1600) => {
+      stopAutoplay();
+      for (let index = 0; index < steps && state.status === "playing" && !state.pendingDecision; index += 1) {
+        const observation = observeGame(state);
+        applyLoggedAction(chooseAutoplayAction(observation), "ai", getAutoplayDebugState(observation));
       }
       render();
       return structuredClone(state);
@@ -547,589 +498,74 @@ function installDebugBridge(): void {
   };
 }
 
-async function copyDebugDump(): Promise<void> {
-  const dump = createDebugDump();
+function objectiveLabel(objective: ReturnType<typeof observeGame>["exploration"]["objective"]): string {
+  if (objective === "defeatBoss") return "守り手を倒す";
+  if (objective === "descend") return "下層へ進む";
+  if (objective === "findStairs") return "階段を探す";
+  if (objective === "resolveStall") return "探索経路を見直す";
+  return "未探索を広げる";
+}
+
+function objectiveDetail(observation: ReturnType<typeof observeGame>): string {
+  if (observation.pendingDecision) return "黒燭は灯守の判断を待っています。";
+  if (observation.exploration.reachableStairs) return "到達可能な階段へ向かっています。";
+  if (observation.bossAlive) return "この階層の守り手が帰還路を封じています。";
+  return `${observation.exploration.reachableFrontierCount}箇所の探索候補を比較しています。`;
+}
+
+function statusLabel(status: GameState["status"] | CampaignState["expeditions"][number]["status"]): string {
+  if (status === "won") return "踏破";
+  if (status === "returned") return "帰還";
+  if (status === "stranded") return "未帰還";
+  if (status === "lost") return "死亡";
+  return "観測中";
+}
+
+function loadCampaign(): CampaignState {
   try {
-    await navigator.clipboard.writeText(dump);
-    copyDebugButton.textContent = "状態コピー済み";
-    window.setTimeout(() => {
-      copyDebugButton.textContent = "状態コピー";
-    }, 1200);
-  } catch {
-    console.log(dump);
-    copyDebugButton.textContent = "console出力済み";
-    window.setTimeout(() => {
-      copyDebugButton.textContent = "状態コピー";
-    }, 1200);
+    const raw = window.localStorage.getItem(CAMPAIGN_STORAGE_KEY);
+    return raw ? normalizeCampaignState(JSON.parse(raw)) : createCampaignState();
+  } catch (error) {
+    console.warn("遠征録を読み込めなかったため、新しい記録を開始します。", error);
+    return createCampaignState();
   }
 }
 
-async function copyReviewJson(): Promise<void> {
-  const review = currentReview ?? analyzeRun(runLog, state);
-  const json = JSON.stringify(review.exportJson, null, 2);
+function saveCampaign(value: CampaignState): void {
   try {
-    await navigator.clipboard.writeText(json);
-    copyReviewButton.textContent = "分析JSONコピー済み";
-    window.setTimeout(() => {
-      copyReviewButton.textContent = "分析JSONコピー";
-    }, 1200);
-  } catch {
-    console.log(json);
-    copyReviewButton.textContent = "console出力済み";
-    window.setTimeout(() => {
-      copyReviewButton.textContent = "分析JSONコピー";
-    }, 1200);
+    window.localStorage.setItem(CAMPAIGN_STORAGE_KEY, JSON.stringify(value));
+  } catch (error) {
+    console.warn("遠征録を保存できませんでした。", error);
   }
 }
 
-function createDebugDump(): string {
-  const observation = observeGame(state);
-  const player = observation.player;
-  const recentMessages = state.messages.slice(-20);
-  const walkableKnownTiles = observation.knownTiles.filter((tile) => tile.kind === "floor" || tile.kind === "stairsDown").length;
-  const review = currentReview ?? analyzeRun(runLog, state);
-  return JSON.stringify(
-    {
-      generatedAt: new Date().toISOString(),
-      state,
-      observation: {
-        seed: observation.seed,
-        turn: observation.turn,
-        floor: observation.floor,
-        biome: observation.biome,
-        status: observation.status,
-        bossAlive: observation.bossAlive,
-        size: { width: observation.width, height: observation.height },
-        player: {
-          pos: player.pos,
-          stats: player.stats,
-          inventory: player.inventory,
-          conditions: player.conditions,
-        },
-        progress: observation.playerProgress,
-        visibleEntities: observation.visibleEntities,
-        knownEntities: observation.knownEntities,
-        knownTiles: observation.knownTiles.length,
-        visibleTiles: observation.visibleTiles.length,
-        walkableKnownTiles,
-      },
-      ai: getAutoplayDebugState(observation),
-      runReview: review,
-      runLog: {
-        ...runLog,
-        entries: runLog.entries.slice(-30),
-      },
-      recentMessages,
-    },
-    null,
-    2,
-  );
+function nextSeed(): number {
+  return Math.floor(Date.now() % 100_000_000);
 }
 
-function renderEndDialog(): void {
-  if (state.status === "playing") {
-    endDialog.hidden = true;
-    return;
-  }
-  stopAutoplay();
-  const lost = state.status === "lost";
-  const player = state.entities.find((entity) => entity.id === state.playerId);
-  const review = currentReview ?? analyzeRun(runLog, state);
-  const progress = state.playerProgress;
-  const hp = player?.stats ? `${player.stats.hp}/${player.stats.maxHp}` : "-";
-  const finalStats = `ターン: ${review.stats.turns} / 階層: ${state.floor}/${getGameConfig().rules.maxFloor} / Lv: ${progress.level} / XP: ${progress.xp} / Gold: ${progress.gold} / HP: ${hp} / 攻撃: ${player?.stats?.attack ?? "-"} / 防御: ${player?.stats?.defense ?? "-"}`;
-  endKicker.textContent = lost ? "game over" : "run clear";
-  endTitle.textContent = lost ? "ゲームオーバー" : "踏破成功";
-  endBody.textContent = lost
-    ? `HPが0以下になりました。${finalStats}`
-    : "黒燭の迷宮、第十層を踏破しました。";
-  if (lost) {
-    renderRunReview(review);
-  } else {
-    renderRunClearSummary(review, player);
-  }
-  endDialog.hidden = false;
-}
-
-function renderRunClearSummary(review: RunReview, player?: GameState["entities"][number]): void {
-  const progress = state.playerProgress;
-  const stats = player?.stats;
-  const inventory = player?.inventory ?? [];
-  endReview.replaceChildren(
-    clearStatsBlock([
-      ["総ターン数", `${review.stats.turns}ターン`],
-      ["階層", `${state.floor}/${getGameConfig().rules.maxFloor}`],
-      ["現在の状態", state.status === "won" ? "踏破成功" : statusLabel(state.status)],
-      ["HP", stats ? `${stats.hp}/${stats.maxHp}` : "-"],
-      ["Lv", String(progress.level)],
-      ["XP", String(progress.xp)],
-      ["Gold", String(progress.gold)],
-      ["攻撃", String(stats?.attack ?? "-")],
-      ["防御", String(stats?.defense ?? "-")],
-      ["効果", conditionLabel(player?.conditions)],
-    ]),
-    inventoryBlock(inventory),
-  );
-}
-
-function clearStatsBlock(items: Array<[string, string]>): HTMLElement {
-  const section = document.createElement("section");
-  section.className = "end-summary-section";
-  const heading = document.createElement("h3");
-  heading.textContent = "現在のステータス";
-  const grid = document.createElement("dl");
-  grid.className = "end-stat-grid";
-  for (const [label, value] of items) {
-    const item = document.createElement("div");
-    const dt = document.createElement("dt");
-    const dd = document.createElement("dd");
-    dt.textContent = label;
-    dd.textContent = value;
-    item.append(dt, dd);
-    grid.append(item);
-  }
-  section.append(heading, grid);
-  return section;
-}
-
-function inventoryBlock(inventory: InventoryEntry[]): HTMLElement {
-  const section = document.createElement("section");
-  section.className = "end-summary-section";
-  const heading = document.createElement("h3");
-  heading.textContent = "アイテム";
-  const list = document.createElement("ul");
-  list.className = "end-inventory-list";
-  if (inventory.length === 0) {
-    const item = document.createElement("li");
-    item.className = "is-empty";
-    item.textContent = "所持品はありません。";
-    list.append(item);
-  } else {
-    for (const entry of inventory) {
-      list.append(inventorySummaryItem(entry));
-    }
-  }
-  section.append(heading, list);
-  return section;
-}
-
-function inventorySummaryItem(entry: InventoryEntry): HTMLElement {
-  const item = document.createElement("li");
-  const icon = document.createElement("span");
-  icon.className = "inventory-icon";
-  applyInventoryIcon(icon, entry.contentId);
-  const body = document.createElement("span");
-  body.className = "end-inventory-body";
-  const title = document.createElement("strong");
-  title.textContent = `${getContentName(entry.contentId)} x${entry.quantity}${entry.equipped ? " / 装備中" : ""}`;
-  const details = document.createElement("span");
-  details.textContent = itemSummaryText(entry.contentId);
-  body.append(title, details);
-  item.append(icon, body);
-  return item;
-}
-
-function itemSummaryText(contentId: string): string {
-  const content = contentEntities[contentId];
-  const rows = itemDetailTextRows(contentId);
-  const parts = [
-    content?.description.ja,
-    ...rows.map(([label, value]) => `${label}: ${value}`),
-  ].filter(Boolean);
-  return parts.length > 0 ? parts.join(" / ") : "詳細情報なし";
-}
-
-function renderRunReview(review: RunReview): void {
-  const findings = review.keyFindings.slice(0, 5);
-  const hints = review.aiImprovementHints.slice(0, 5);
-  const turns = review.lastTurns.slice(-6).map((entry) => {
-    const messages = entry.messageDelta.map((message) => message.text).join(" / ");
-    return `#${entry.index + 1} F${entry.floor} T${entry.turn}: ${describeAction(entry.action)}${messages ? ` - ${messages}` : ""}`;
-  });
-  endReview.replaceChildren(
-    sectionBlock("敗因", [review.summaryText, ...findings]),
-    sectionBlock("直前の流れ", turns.length > 0 ? turns : ["記録された直前行動はありません。"]),
-    sectionBlock("改善ヒント", hints),
-  );
-}
-
-function sectionBlock(title: string, lines: string[]): HTMLElement {
-  const section = document.createElement("section");
-  const heading = document.createElement("h3");
-  heading.textContent = title;
-  const list = document.createElement("ul");
-  for (const line of lines) {
-    const item = document.createElement("li");
-    item.textContent = line;
-    list.append(item);
-  }
-  section.append(heading, list);
-  return section;
-}
-
-function actionForKey(key: string): GameAction | null {
-  const moveKeys: Record<string, Direction> = {
-    ArrowUp: "north",
-    ArrowDown: "south",
-    ArrowLeft: "west",
-    ArrowRight: "east",
-    w: "north",
-    s: "south",
-    a: "west",
-    d: "east",
-    q: "northwest",
-    e: "northeast",
-    z: "southwest",
-    c: "southeast",
-  };
-  const direction = moveKeys[key];
-  if (direction) {
-    return { type: "move", direction };
-  }
-  if (key === "g" || key === "G") {
-    return { type: "pickup" };
-  }
-  if ((key === "x" || key === "X") && selectedInventoryContentId) {
-    return { type: "dropItem", contentId: selectedInventoryContentId };
-  }
-  if (key === " " || key === ".") {
-    return { type: "wait" };
-  }
-  if (key === "Enter") {
-    return { type: "descend" };
-  }
-  if (key === "1") {
-    const player = state.entities.find((entity) => entity.id === state.playerId);
-    const potion = [...(player?.inventory ?? [])]
-      .filter((entry) => (getGameConfig().consumables[entry.contentId]?.heal ?? 0) > 0 && !getGameConfig().consumables[entry.contentId]?.cureConditions && entry.quantity > 0)
-      .sort((a, b) => (getGameConfig().consumables[b.contentId]?.heal ?? 0) - (getGameConfig().consumables[a.contentId]?.heal ?? 0))[0];
-    return { type: "useItem", contentId: potion?.contentId ?? "item.ember-tonic" };
-  }
-  if (key === "2") {
-    return { type: "useItem", contentId: "item.mapping-scroll" };
-  }
-  if (key === "3") {
-    return { type: "useItem", contentId: "item.ember-dart" };
-  }
-  if (key === "4") {
-    return { type: "useItem", contentId: "item.guardian-draught" };
-  }
-  if (key === "5") {
-    return { type: "useItem", contentId: "item.repulsion-scroll" };
-  }
-  if (key === "6") {
-    return { type: "useItem", contentId: "item.glim-map" };
-  }
-  if (key === "7") {
-    return { type: "useItem", contentId: "item.bloodmoss-salve" };
-  }
-  if (key === "r" || key === "R") {
-    resetGame();
-    return null;
-  }
-  return null;
-}
-
-function syncSelectedInventory(inventory: NonNullable<GameState["entities"][number]["inventory"]>): void {
-  if (!inventory.some((entry) => entry.contentId === selectedInventoryContentId)) {
-    selectedInventoryContentId = inventory[0]?.contentId ?? null;
-  }
-
-  if (!selectedInventoryContentId) {
-    selectedItemActionButton.disabled = true;
-    selectedItemDropButton.disabled = true;
-    selectedItemActionButton.textContent = "所持品を選択";
-    selectedItemDropButton.textContent = "捨てる";
-    return;
-  }
-
-  selectedItemActionButton.disabled = false;
-  selectedItemDropButton.disabled = false;
-  selectedItemActionButton.textContent = `${getInventoryActionLabel(selectedInventoryContentId)}: ${getContentName(selectedInventoryContentId)}`;
-  selectedItemDropButton.textContent = `捨てる: ${getContentName(selectedInventoryContentId)}`;
-}
-
-function getInventoryActionLabel(contentId: string): string {
-  const tags = contentEntities[contentId]?.tags ?? [];
-  if (tags.includes("weapon") || tags.includes("armor") || tags.includes("shield")) {
-    return "装備";
-  }
-  return "使う";
-}
-
-function showItemPopover(contentId: string | null): void {
-  if (!contentId) {
-    itemPopover.hidden = true;
-    return;
-  }
-
-  const content = contentEntities[contentId];
-  const player = state.entities.find((entity) => entity.id === state.playerId);
-  const entry = player?.inventory?.find((inventoryEntry) => inventoryEntry.contentId === contentId);
-  if (!content || !entry) {
-    itemPopover.hidden = true;
-    return;
-  }
-
-  applyInventoryIcon(itemPopoverIcon, contentId, 48);
-  itemPopoverTitle.textContent = content.names.ja;
-  itemPopoverMeta.textContent = itemMetaLabel(contentId, entry.equipped);
-  itemPopoverDescription.textContent = content.description.ja;
-  itemPopoverStats.replaceChildren(...itemDetailRows(contentId));
-  itemPopover.hidden = false;
-}
-
-function itemMetaLabel(contentId: string, equipped?: boolean): string {
-  const content = contentEntities[contentId];
-  const labels = [
-    content?.balance.tier ? tierLabel(content.balance.tier) : null,
-    content?.balance.rarity ? rarityLabel(content.balance.rarity) : null,
-    equipped ? "装備中" : null,
-  ].filter(Boolean);
-  return labels.join(" / ");
-}
-
-function itemDetailRows(contentId: string): HTMLElement[] {
-  return itemDetailTextRows(contentId).flatMap(([label, value]) => {
-    const dt = document.createElement("dt");
-    dt.textContent = label;
-    const dd = document.createElement("dd");
-    dd.textContent = value;
-    return [dt, dd];
-  });
-}
-
-function itemDetailTextRows(contentId: string): Array<[string, string]> {
-  const content = contentEntities[contentId];
-  if (!content) {
-    return [];
-  }
-  const rows: Array<[string, string]> = [];
-  const equipment = getGameConfig().equipment[contentId];
-  if (equipment) {
-    rows.push(["装備", equipmentDetailLabel(equipment)]);
-  }
-  const hooks = content.simulation.hooks ?? [];
-  if (hooks.length > 0) {
-    rows.push(["効果", hooks.map(itemHookLabel).join(" / ")]);
-  }
-  if (content.balance.utility !== undefined) {
-    rows.push(["有用度", String(content.balance.utility)]);
-  }
-  if (content.balance.economyValue !== undefined) {
-    rows.push(["価値", `${content.balance.economyValue} Gold相当`]);
-  }
-  if (content.tags.length > 0) {
-    rows.push(["分類", content.tags.join(" / ")]);
-  }
-  return rows;
-}
-
-function equipmentDetailLabel(equipment: ReturnType<typeof getGameConfig>["equipment"][string]): string {
-  const details = [`${equipment.slot} +${equipment.power}`];
-  if (equipment.rangedDefense) {
-    details.push(`遠隔防御 +${equipment.rangedDefense}`);
-  }
-  if (equipment.trapAvoidPercent) {
-    details.push(`罠回避 +${equipment.trapAvoidPercent}%`);
-  }
-  if (equipment.trapAvoidPenaltyPercent) {
-    details.push(`罠回避 -${equipment.trapAvoidPenaltyPercent}%`);
-  }
-  if (equipment.specialDamage) {
-    details.push(`${equipment.specialDamage.families.join("/")}へ追加 ${equipment.specialDamage.amount}`);
-  }
-  return details.join(" / ");
-}
-
-function itemHookLabel(hook: string): string {
-  if (hook.startsWith("attack+")) {
-    return `攻撃 +${hook.slice("attack+".length)}`;
-  }
-  if (hook.startsWith("defense+")) {
-    return `防御 +${hook.slice("defense+".length)}`;
-  }
-  if (hook.startsWith("heal+")) {
-    return `HP ${hook.slice("heal+".length)}回復`;
-  }
-  if (hook.startsWith("ranged-damage+")) {
-    return `遠隔 ${hook.slice("ranged-damage+".length)}ダメージ`;
-  }
-  if (hook.startsWith("ranged-defense+")) {
-    return `遠隔防御 +${hook.slice("ranged-defense+".length)}`;
-  }
-  if (hook.startsWith("trap-avoid+")) {
-    return `罠回避 +${hook.slice("trap-avoid+".length)}%`;
-  }
-  if (hook.startsWith("trap-avoid-")) {
-    return `罠回避 -${hook.slice("trap-avoid-".length)}%`;
-  }
-  if (hook.startsWith("temporary-defense+")) {
-    return `一時防御 +${hook.slice("temporary-defense+".length)}`;
-  }
-
-  const labels: Record<string, string> = {
-    "bonus-vs-undead-demon-cult": "不死・悪魔・異端者に有利",
-    "bonus-vs-undead-demon": "不死・悪魔に有利",
-    bleed: "出血の危険",
-    "cure-bleed-poison": "出血・毒を治療",
-    "cure-conditions": "状態異常を治療",
-    gold: "Goldを得る",
-    "map-floor": "階層全体を探索済みにする",
-    "map-nearby": "周辺を探索済みにする",
-    "map-wide": "広範囲を探索済みにする",
-    "push-visible-enemies": "見えている敵を押し戻す",
-    "regen-every-10-turns": "10ターンごとにHP回復",
-    score: "Goldを得る",
-    shop: "商人との取引",
-    "guard-or-reveal-or-curse": "護り・探索・呪いのいずれか",
-    "heal-or-harm": "回復または害",
-    "unknown-effect": "使うまで効果不明",
-    "adds-cover": "遮蔽を追加",
-    "adds-trap": "罠を追加",
-    loot: "物資を出す",
-    "map-reward": "地図報酬",
-    "monster-guard": "守り手が出現",
-    "room-reveal": "部屋周辺を探索済みにする",
-    "room-undead": "亡者が出現",
-    "weapon-loot": "武器を入手する可能性",
-    "xp+6": "経験値 +6",
-  };
-  return labels[hook] ?? hook;
-}
-
-function tierLabel(tier: Tier): string {
-  switch (tier) {
-    case "early":
-      return "序盤";
-    case "mid":
-      return "中盤";
-    case "late":
-      return "終盤";
-    case "boss":
-      return "特別";
-  }
-}
-
-function rarityLabel(rarity: Rarity): string {
-  switch (rarity) {
-    case "common":
-      return "一般";
-    case "uncommon":
-      return "良品";
-    case "rare":
-      return "希少";
-    case "special":
-      return "特殊";
-  }
-}
-
-function describeAction(action: GameAction): string {
-  switch (action.type) {
-    case "move":
-      return `${action.direction}へ移動`;
-    case "pickup":
-      return "足元のアイテムを拾う";
-    case "useItem":
-      return `${getContentName(action.contentId)}を使う`;
-    case "merchantService":
-      return `商人サービス: ${merchantServiceActionLabel(action.serviceId)}`;
-    case "equip":
-      return `${getContentName(action.contentId)}を装備`;
-    case "dropItem":
-      return `${getContentName(action.contentId)}を捨てる`;
-    case "descend":
-      return "階段を降りる";
-    case "wait":
-      return "待機";
-  }
-}
-
-function shouldLogAutoplayAction(action: GameAction): boolean {
-  return action.type !== "move";
-}
-
-function merchantServiceActionLabel(serviceId: MerchantServiceId): string {
-  if (serviceId === "heal") {
-    return "回復";
-  }
-  if (serviceId === "cure") {
-    return "解毒・止血";
-  }
-  if (serviceId === "equipment") {
-    return "装備購入";
-  }
-  return "地図購入";
-}
-
-function statusLabel(status: GameState["status"]): string {
-  if (status === "won") {
-    return "踏破";
-  }
-  if (status === "lost") {
-    return "敗北";
-  }
-  return "探索中";
-}
-
-function conditionLabel(conditions: GameState["entities"][number]["conditions"]): string {
-  const active = conditions?.filter((condition) => condition.turns > 0) ?? [];
-  if (active.length === 0) {
-    return "なし";
-  }
-  return active
-    .map((condition) => {
-      if (condition.kind === "guarded") {
-        return `護り${condition.turns}`;
-      }
-      if (condition.kind === "bleeding") {
-        return `出血${condition.turns}`;
-      }
-      return `毒${condition.turns}`;
-    })
-    .join(" / ");
-}
-
-function roleGoalLabel(roleId: string, progress: number): string {
-  if (roleId === "role.oathbound") {
-    return `誓約報酬 ${progress}`;
-  }
-  if (roleId === "role.ash-scout") {
-    return `斥候術 ${progress}`;
-  }
-  if (roleId === "role.lantern-priest") {
-    return `浄化護り ${progress}`;
-  }
-  return String(progress);
-}
-
-function applyInventoryIcon(element: HTMLElement, contentId: string, iconSize = 24): void {
-  const asset = assetForContent(contentId);
-  if (!asset?.path || !asset.sheet) {
-    element.style.backgroundImage = "";
-    element.style.backgroundSize = "";
-    element.style.backgroundPosition = "";
-    return;
-  }
-
+function applySprite(element: HTMLElement, asset: ReturnType<typeof assetForContent>, size: number): void {
+  if (!asset?.path || !asset.sheet) return;
   const col = asset.sheet.index % asset.sheet.columns;
   const row = Math.floor(asset.sheet.index / asset.sheet.columns);
   element.style.backgroundImage = `url(${publicAssetPath(asset.path)})`;
-  element.style.backgroundSize = `${asset.sheet.columns * iconSize}px ${asset.sheet.rows * iconSize}px`;
-  element.style.backgroundPosition = `-${col * iconSize}px -${row * iconSize}px`;
+  element.style.backgroundSize = `${asset.sheet.columns * size}px ${asset.sheet.rows * size}px`;
+  element.style.backgroundPosition = `-${col * size}px -${row * size}px`;
 }
 
 function publicAssetPath(path: string): string {
-  if (!path.startsWith("/")) {
-    return path;
-  }
-  return `${import.meta.env.BASE_URL}${path.slice(1)}`;
+  return path.startsWith("/") ? `${import.meta.env.BASE_URL}${path.slice(1)}` : path;
+}
+
+function setText(selector: string, value: string): void {
+  requireElement<HTMLElement>(selector).textContent = value;
+}
+
+function escapeHtml(value: string): string {
+  return value.replace(/[&<>"]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[char] ?? char);
 }
 
 function requireElement<T extends Element>(selector: string): T {
   const element = document.querySelector<T>(selector);
-  if (!element) {
-    throw new Error(`Missing element: ${selector}`);
-  }
+  if (!element) throw new Error(`Missing element: ${selector}`);
   return element;
 }

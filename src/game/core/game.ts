@@ -15,12 +15,23 @@ import type {
   PlayerProgress,
   Point,
   RunObjectiveFlags,
+  RunIdentity,
+  RoleTruthId,
   Stats,
   Tile,
   TileKind,
   TrapKind,
 } from "../types";
 import { Rng } from "./rng";
+import {
+  createCheckpointDecision,
+  createContextDecision,
+  createFinalDecision,
+  createRunIdentity,
+  createRunStoryState,
+  defaultDirectiveForTemperament,
+  roleTruthFor,
+} from "./autonomous";
 
 const DIRS: Record<Direction, Point> = {
   north: { x: 0, y: -1 },
@@ -41,6 +52,8 @@ type FloorPlan = {
   monsterPoints: Point[];
 };
 
+type RunCarryState = Pick<GameState, "runTurn" | "runIdentity" | "directive" | "revelationsRemaining" | "knownRoleTruths" | "story">;
+
 export function playableRoles() {
   return getGameConfig().roles;
 }
@@ -49,8 +62,20 @@ function roleTraits(roleId: string) {
   return getGameConfig().roles.find((role) => role.id === roleId)?.traits;
 }
 
-export function createInitialGame(seed = 20260504, roleId = "role.oathbound"): GameState {
-  return createFloorState(seed, 1, undefined, [], createInitialProgress(), roleId, createInitialRunObjectives());
+export function createInitialGame(
+  seed = 20260504,
+  roleId = "role.oathbound",
+  options: { identity?: RunIdentity; knownRoleTruths?: RoleTruthId[] } = {},
+): GameState {
+  const identity = options.identity ?? createRunIdentity(seed, roleId);
+  return createFloorState(seed, 1, undefined, [], createInitialProgress(), roleId, createInitialRunObjectives(), {
+    runTurn: 0,
+    runIdentity: identity,
+    directive: defaultDirectiveForTemperament(identity.temperament),
+    revelationsRemaining: getGameConfig().autonomous.revelationsPerRun,
+    knownRoleTruths: [...(options.knownRoleTruths ?? [])],
+    story: createRunStoryState(),
+  });
 }
 
 export function biomeThemeForFloor(floor: number): BiomeTheme {
@@ -69,9 +94,19 @@ function createFloorState(
   carriedProgress: PlayerProgress = createInitialProgress(),
   roleId = "role.oathbound",
   carriedRunObjectives: RunObjectiveFlags = createInitialRunObjectives(),
+  carriedRun?: RunCarryState,
 ): GameState {
   const config = getGameConfig();
   const { rules } = config;
+  const fallbackIdentity = createRunIdentity(seed, roleId);
+  const run = carriedRun ?? {
+    runTurn: 0,
+    runIdentity: fallbackIdentity,
+    directive: defaultDirectiveForTemperament(fallbackIdentity.temperament),
+    revelationsRemaining: config.autonomous.revelationsPerRun,
+    knownRoleTruths: [],
+    story: createRunStoryState(),
+  };
   const biome = biomeThemeForFloor(floor);
   const tiles = Array.from({ length: rules.mapWidth * rules.mapHeight }, (): Tile => ({
     kind: "wall",
@@ -175,9 +210,10 @@ function createFloorState(
 
   const entities: Entity[] = [player, ...spawnedMonsters, ...spawnedBoss, ...spawnedItems, ...spawnedEvents, ...spawnedTraps];
 
-  return updateVisibility({
+  let next = updateVisibility({
     seed,
     turn: 0,
+    runTurn: run.runTurn,
     floor,
     biome,
     width: rules.mapWidth,
@@ -187,13 +223,31 @@ function createFloorState(
     playerId: player.id,
     playerProgress: normalizeProgress(carriedProgress),
     runObjectives: { ...carriedRunObjectives },
+    runIdentity: { ...run.runIdentity },
+    directive: run.directive,
+    revelationsRemaining: run.revelationsRemaining,
+    pendingDecision: null,
+    knownRoleTruths: [...run.knownRoleTruths],
+    story: {
+      ...run.story,
+      maxFloorReached: Math.max(run.story.maxFloorReached, floor),
+      discoveries: [...run.story.discoveries],
+      decisions: run.story.decisions.map((entry) => ({ ...entry })),
+      contextActs: [...run.story.contextActs],
+    },
     messages: [
       ...carriedMessages,
       message(0, floor === 1 ? `黒燭の迷宮、${biomeThemeName(biome)}に足を踏み入れた。` : `地下${floor}階、${biomeThemeName(biome)}へ降りた。`, "system"),
-      message(0, "方向キー/WASDで移動、Gで拾う、Xで捨てる、1で回復薬、2で地図、3で投げ針、4で防御薬、5で押し戻し、6で小地図、7で治療薬、Enterで階段。", "explore"),
+      message(0, "探索者は自らの判断で歩き始めた。灯守は黒燭越しに見守る。", "explore"),
     ].slice(-80),
     status: "playing",
   });
+  const fallbackAct = floor === 5 ? 1 : floor === 8 ? 2 : null;
+  if (fallbackAct && !next.story.contextActs.includes(fallbackAct)) {
+    next.story.contextActs.push(fallbackAct);
+    next.pendingDecision = createContextDecision(next, fallbackAct, "fallback");
+  }
+  return next;
 }
 
 export function applyAction(state: GameState, action: GameAction): GameState {
@@ -201,7 +255,14 @@ export function applyAction(state: GameState, action: GameAction): GameState {
     return state;
   }
 
+  if (state.pendingDecision && action.type !== "resolveDecision") {
+    return state;
+  }
+
   let next = cloneState(state);
+  if (action.type === "resolveDecision") {
+    return updateVisibility(resolveDecision(next, action.optionId));
+  }
   const player = getPlayer(next);
 
   switch (action.type) {
@@ -233,11 +294,17 @@ export function applyAction(state: GameState, action: GameAction): GameState {
           break;
         }
         if (next.floor >= getGameConfig().rules.maxFloor) {
-          next.status = "won";
-          next.messages = pushMessage(next, "黒燭の迷宮、第十層を踏破した。", "system");
+          next.pendingDecision = createFinalDecision(next);
+          next.messages = pushMessage(next, "黒燭の番人が崩れ、中枢の火が灯守へ問いかけた。", "system");
+        } else if (next.floor === 3 || next.floor === 6) {
+          if (next.floor === 6) {
+            next.story.carriedTruthId = roleTruthFor(next.runIdentity.roleId);
+          }
+          next.pendingDecision = createCheckpointDecision(next);
+          next.messages = pushMessage(next, "帰還路と下層への階段が同時に開いた。灯守の判断を待っている。", "system");
         } else {
           const descentMessages = pushMessage(next, "下層へ降りる。", "system");
-          next = createFloorState(next.seed + 101 * next.floor, next.floor + 1, getPlayer(next), descentMessages, next.playerProgress, getPlayer(next).contentId, next.runObjectives);
+          next = descendToNextFloor(next, descentMessages);
         }
       } else {
         next.messages = pushMessage(next, "ここには下り階段がない。", "explore");
@@ -245,16 +312,110 @@ export function applyAction(state: GameState, action: GameAction): GameState {
       break;
   }
 
-  if (next.status === "playing") {
+  if (next.status === "playing" && !next.pendingDecision) {
     next = reevaluateEquipment(next);
     next = runMonsterTurn(next);
   }
-  if (next.status === "playing") {
+  if (next.status === "playing" && !next.pendingDecision) {
     next = tickPlayerConditions(next);
   }
   next.turn += 1;
+  next.runTurn += 1;
+  if (next.status === "playing" && next.runTurn >= getGameConfig().rules.runTurnWarning && !next.story.turnWarningShown) {
+    next.story.turnWarningShown = true;
+    next.messages = pushMessage(next, "黒燭の像が揺らいだ。灯路断絶まで残された時間は少ない。", "danger");
+  }
+  if (next.status === "playing" && next.runTurn >= getGameConfig().rules.runTurnLimit) {
+    next.status = "stranded";
+    next.pendingDecision = null;
+    next.messages = pushMessage(next, "黒燭の像が途切れた。探索者は未帰還となった。", "danger");
+  }
   next = updateVisibility(next);
   return next;
+}
+
+function resolveDecision(state: GameState, optionId: string): GameState {
+  const decision = state.pendingDecision;
+  const option = decision?.options.find((candidate) => candidate.id === optionId);
+  if (!decision || !option) return state;
+  if (option.requiresRevelation && state.revelationsRemaining <= 0) {
+    state.messages = pushMessage(state, "啓示の火はもう残っていない。", "danger");
+    return state;
+  }
+  if (option.requiresRevelation) state.revelationsRemaining -= 1;
+  if (option.directive) state.directive = option.directive;
+  state.story.decisions.push({
+    id: decision.id,
+    floor: state.floor,
+    optionId: option.id,
+    optionLabel: option.label,
+    usedRevelation: !!option.requiresRevelation,
+  });
+  state.pendingDecision = null;
+  state.messages = pushMessage(state, `${state.runIdentity.name}へ「${option.label}」を伝えた。`, "system");
+  if (option.outcome === "return") {
+    state.status = "returned";
+    state.messages = pushMessage(state, `${state.runIdentity.name}は灯路をたどり、灰灯院へ帰還した。`, "system");
+    return state;
+  }
+  if (option.outcome === "research") {
+    state.story.coreDisposition = "research";
+    state.status = "won";
+    state.messages = pushMessage(state, "黒燭核は灰灯院の記録庫へ封じられ、新しい真相の研究が始まった。", "system");
+    return state;
+  }
+  if (option.outcome === "relic") {
+    state.story.coreDisposition = "relic";
+    addInventoryItem(getPlayer(state), "item.black-candle-core", 1);
+    state.status = "won";
+    state.messages = pushMessage(state, "黒燭核を戦果として回収し、第十層から帰還した。", "system");
+    return state;
+  }
+  if (option.outcome === "ending" && option.endingId) {
+    state.story.endingId = option.endingId;
+    state.status = "won";
+    const endingMessage = option.endingId === "divide-flame"
+      ? "三つの真相が重なり、黒燭は無数の灯へ分かれた。一人の犠牲に頼らない封印が始まった。"
+      : option.endingId === "inherit-flame"
+        ? `${state.runIdentity.name}は黒燭を継ぎ、次の番人として中枢に残った。`
+        : "黒燭は消え、無明の王との戦いが地上で始まった。";
+    state.messages = pushMessage(state, endingMessage, "system");
+    return state;
+  }
+  if (decision.resume === "descend") {
+    const descentMessages = pushMessage(state, "灯守の方針を胸に、下層へ降りる。", "system");
+    return descendToNextFloor(state, descentMessages);
+  }
+  return state;
+}
+
+function descendToNextFloor(state: GameState, messages: GameMessage[]): GameState {
+  return createFloorState(
+    state.seed + 101 * state.floor,
+    state.floor + 1,
+    getPlayer(state),
+    messages,
+    state.playerProgress,
+    getPlayer(state).contentId,
+    state.runObjectives,
+    carryRun(state),
+  );
+}
+
+function carryRun(state: GameState): RunCarryState {
+  return {
+    runTurn: state.runTurn,
+    runIdentity: { ...state.runIdentity },
+    directive: state.directive,
+    revelationsRemaining: state.revelationsRemaining,
+    knownRoleTruths: [...state.knownRoleTruths],
+    story: {
+      ...state.story,
+      discoveries: [...state.story.discoveries],
+      decisions: state.story.decisions.map((entry) => ({ ...entry })),
+      contextActs: [...state.story.contextActs],
+    },
+  };
 }
 
 export function observeGame(state: GameState): GameObservation {
@@ -290,6 +451,7 @@ export function observeGame(state: GameState): GameObservation {
   return {
     seed: state.seed,
     turn: state.turn,
+    runTurn: state.runTurn,
     floor: state.floor,
     biome: state.biome,
     width: state.width,
@@ -301,6 +463,11 @@ export function observeGame(state: GameState): GameObservation {
     visibleTiles,
     knownTiles,
     exploration: buildExplorationStatus(state, knownTiles, knownEntities, visibleEntities, aliveBoss),
+    runIdentity: { ...state.runIdentity },
+    directive: state.directive,
+    revelationsRemaining: state.revelationsRemaining,
+    pendingDecision: state.pendingDecision ? structuredClone(state.pendingDecision) : null,
+    story: structuredClone(state.story),
     messages: state.messages.slice(-8),
     status: state.status,
     bossAlive: aliveBoss,
@@ -717,9 +884,9 @@ function moveActor(state: GameState, actorId: string, delta: Point): GameState {
     const floorItem = state.entities.find((entity) => entity.kind === "item" && samePoint(entity.pos, target));
     const tile = tileAt(state, target);
     if (floorItem) {
-      state.messages = pushMessage(state, `${getContentName(floorItem.contentId)}が落ちている。Gで拾える。`, "loot");
+      state.messages = pushMessage(state, `${getContentName(floorItem.contentId)}を携行候補として認識した。`, "loot");
     } else if (tile.kind === "stairsDown") {
-      state.messages = pushMessage(state, "下り階段を見つけた。Enterで進む。", "explore");
+      state.messages = pushMessage(state, "下り階段を見つけた。探索方針へ組み込む。", "explore");
     }
   }
   return state;
@@ -848,6 +1015,21 @@ function triggerRiskPanel(state: GameState, actor: Entity, trapEntity: Entity): 
 }
 
 function triggerEvent(state: GameState, eventEntity: Entity): GameState {
+  if (!state.story.discoveries.includes(eventEntity.contentId)) {
+    state.story.discoveries.push(eventEntity.contentId);
+  }
+  const resolved = resolveEvent(state, eventEntity);
+  if (resolved.status !== "playing" || resolved.pendingDecision) return resolved;
+  const act = resolved.floor >= 4 && resolved.floor <= 6 ? 1 : resolved.floor >= 7 && resolved.floor <= 9 ? 2 : null;
+  if (act && !resolved.story.contextActs.includes(act) && eventEntity.contentId !== "event.wayfarer-merchant") {
+    resolved.story.contextActs.push(act);
+    resolved.pendingDecision = createContextDecision(resolved, act, eventEntity.contentId);
+    resolved.messages = pushMessage(resolved, "黒燭が出来事の意味を映し返した。灯守の判断を待っている。", "system");
+  }
+  return resolved;
+}
+
+function resolveEvent(state: GameState, eventEntity: Entity): GameState {
   const eventConfig = getGameConfig().events[eventEntity.contentId];
   if (eventEntity.contentId === "event.blood-inscription") {
     const xp = eventConfig?.xp ?? 6;
@@ -1185,6 +1367,9 @@ function attack(state: GameState, attacker: Entity, defender: Entity): GameState
         state.entities.push(item(`${reward}.boss.${state.floor}.${state.turn}`, reward, defeatedPos, state.floor, rngForFloor(state.seed + state.turn, state.floor)));
         state.messages = pushMessage(state, `${getContentName(reward)}が残された。`, "loot");
         state = dropBonusBossRewards(state, defeatedPos);
+      }
+      if (contentEntities[defender.contentId]?.balance.tier === "boss") {
+        state.story.bossesDefeated += 1;
       }
       state = applyRoleBossGoal(state, defender.contentId, defeatedPos);
     }
@@ -2214,6 +2399,18 @@ function cloneState(state: GameState): GameState {
     ...state,
     playerProgress: { ...state.playerProgress },
     runObjectives: { ...state.runObjectives },
+    runIdentity: { ...state.runIdentity },
+    knownRoleTruths: [...state.knownRoleTruths],
+    pendingDecision: state.pendingDecision ? {
+      ...state.pendingDecision,
+      options: state.pendingDecision.options.map((option) => ({ ...option })),
+    } : null,
+    story: {
+      ...state.story,
+      discoveries: [...state.story.discoveries],
+      decisions: state.story.decisions.map((entry) => ({ ...entry })),
+      contextActs: [...state.story.contextActs],
+    },
     tiles: state.tiles.map((tile) => ({ ...tile })),
     entities: state.entities.map((entity) => ({
       ...entity,

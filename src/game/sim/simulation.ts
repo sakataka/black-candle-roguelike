@@ -1,7 +1,8 @@
 import { chooseAutoplayAction, getAutoplayDebugState, resetAutoplayState } from "../ai/autoplay";
-import { loadBunGameConfig } from "../content/config";
+import { getGameConfig, loadBunGameConfig } from "../content/config";
 import { applyAction, createInitialGame, observeGame } from "../core/game";
 import { analyzeRun, createRunLog, recordTurn } from "../core/runLog";
+import { calculateScore, chooseDecisionAction, createRunIdentity, type DecisionPolicy } from "../core/autonomous";
 import type { GameAction, GameState, RunReview } from "../types";
 
 export type SimulationRunInput = {
@@ -13,6 +14,7 @@ export type SimulationRunInput = {
   trace?: boolean;
   profile?: boolean;
   logLimit?: number | null;
+  decisionPolicy?: DecisionPolicy;
 };
 
 export type SimulationProfile = {
@@ -37,6 +39,7 @@ export type CompactRunReview = {
   keyFindings: string[];
   aiImprovementHints: string[];
   stats: RunReview["stats"];
+  decisions: RunReview["decisions"];
   lastTurns: Array<{
     index: number;
     turn: number;
@@ -74,6 +77,11 @@ export type SimulationRunResult = {
   label: string;
   configPath: string;
   review: CompactRunReview;
+  score: ReturnType<typeof calculateScore>;
+  temperament: GameState["runIdentity"]["temperament"];
+  decisions: number;
+  discoveries: number;
+  projectedDisplayMs: number;
   profile?: SimulationProfile;
 };
 
@@ -89,6 +97,7 @@ export async function runSimulation(input: SimulationRunInput): Promise<Simulati
     useItem: 0,
     merchantService: 0,
     descend: 0,
+    resolveDecision: 0,
   };
 
   const configStartMs = performance.now();
@@ -97,8 +106,9 @@ export async function runSimulation(input: SimulationRunInput): Promise<Simulati
   resetAutoplayState();
 
   const initStartMs = performance.now();
-  let state = createInitialGame(input.seed, input.roleId);
-  const runLog = createRunLog(input.seed, input.roleId, { maxEntries: input.logLimit ?? undefined });
+  const identity = createRunIdentity(input.seed, input.roleId);
+  let state = createInitialGame(input.seed, input.roleId, { identity });
+  const runLog = createRunLog(input.seed, input.roleId, { maxEntries: input.logLimit ?? undefined }, identity);
   let executedTurns = 0;
   let observation = timeProfile(profile, "observeGame", () => observeGame(state));
   let lastKnownTiles = observation.knownTiles.length;
@@ -108,9 +118,15 @@ export async function runSimulation(input: SimulationRunInput): Promise<Simulati
   addProfileMs(profile, "initMs", performance.now() - initStartMs);
 
   const loopStartMs = performance.now();
-  for (let turn = 0; turn < input.turns && state.status === "playing"; turn += 1) {
+  const maximumSteps = input.turns + 16;
+  for (let step = 0; step < maximumSteps && state.status === "playing"; step += 1) {
+    if (!state.pendingDecision && state.runTurn >= input.turns) {
+      break;
+    }
     const beforeObservation = observation;
-    const action = timeProfile(profile, "chooseAutoplayAction", () => chooseAutoplayAction(beforeObservation));
+    const action = timeProfile(profile, "chooseAutoplayAction", () => beforeObservation.pendingDecision
+      ? chooseDecisionAction(beforeObservation, input.decisionPolicy ?? "temperament")
+      : chooseAutoplayAction(beforeObservation));
     const debug = timeProfile(profile, "getAutoplayDebugState", () => getAutoplayDebugState(beforeObservation));
     actions[action.type] += 1;
     const before = state;
@@ -131,7 +147,7 @@ export async function runSimulation(input: SimulationRunInput): Promise<Simulati
           const nextDebug = getAutoplayDebugState(nextObservation);
           console.error(JSON.stringify({
             type: "stagnant",
-            simTurn: turn + 1,
+            simTurn: state.runTurn,
             floor: state.floor,
             player: nextObservation.player.pos,
             hp: nextObservation.player.stats?.hp,
@@ -146,7 +162,9 @@ export async function runSimulation(input: SimulationRunInput): Promise<Simulati
       }
     }
     maxTurnsWithoutKnownTileGrowth = Math.max(maxTurnsWithoutKnownTileGrowth, turnsWithoutKnownTileGrowth);
-    executedTurns += 1;
+    if (action.type !== "resolveDecision") {
+      executedTurns += 1;
+    }
     observation = afterObservation;
   }
   addProfileMs(profile, "turnLoopMs", performance.now() - loopStartMs);
@@ -179,9 +197,13 @@ export async function runSimulation(input: SimulationRunInput): Promise<Simulati
     profile.totalMeasuredMs = roundProfileMs(performance.now() - startMs);
   }
 
+  const pacing = getGameConfig().autonomous.pacingMs;
+  const projectedDisplayMs = actions.move * pacing.traversal
+    + Math.max(0, executedTurns - actions.move) * pacing.exploration
+    + runLog.totals.damageEvents * Math.max(0, pacing.danger - pacing.exploration);
   const result: SimulationRunResult = {
     seed: input.seed,
-    turns: executedTurns,
+    turns: state.runTurn,
     floor: state.floor,
     level: state.playerProgress.level,
     xp: state.playerProgress.xp,
@@ -200,6 +222,11 @@ export async function runSimulation(input: SimulationRunInput): Promise<Simulati
     label: input.label,
     configPath: input.configPath,
     review: compactReview(review),
+    score: calculateScore(state),
+    temperament: state.runIdentity.temperament,
+    decisions: state.story.decisions.length,
+    discoveries: state.story.discoveries.length,
+    projectedDisplayMs,
   };
   if (profile) {
     result.profile = profile;
@@ -258,6 +285,7 @@ export function compactReview(review: RunReview): CompactRunReview {
     keyFindings: review.keyFindings,
     aiImprovementHints: review.aiImprovementHints,
     stats: review.stats,
+    decisions: review.decisions,
     lastTurns: review.lastTurns.slice(-8).map((entry) => ({
       index: entry.index,
       turn: entry.turn,
