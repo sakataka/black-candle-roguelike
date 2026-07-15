@@ -75,7 +75,7 @@ export function roleTruthFor(roleId: string): RoleTruthId {
   return "shared-oath";
 }
 
-export function roleTruthLabel(truthId: RoleTruthId): string {
+function roleTruthLabel(truthId: RoleTruthId): string {
   if (truthId === "shared-oath") return "分誓の碑文";
   if (truthId === "furnace-map") return "炉脈全図";
   return "浄火の祈り";
@@ -206,7 +206,7 @@ export function calculateScore(state: GameState): ScoreBreakdown {
   const player = state.entities.find((entity) => entity.id === state.playerId);
   const survived = state.status === "returned" || state.status === "won";
   const recoveredRaw = survived
-    ? state.playerProgress.gold + (player?.inventory ?? []).reduce((sum, entry) => sum + (contentEntities[entry.contentId]?.balance.economyValue ?? 0) * entry.quantity, 0)
+    ? state.playerProgress.gold + (player?.inventory ?? []).reduce((sum, entry) => sum + (contentEntities[entry.contentId]?.economyValue ?? 0) * entry.quantity, 0)
     : 0;
   const depth = state.story.maxFloorReached * config.depthPerFloor;
   const guardians = state.story.bossesDefeated * config.guardian;
@@ -224,11 +224,7 @@ export function createCampaignState(): CampaignState {
   return {
     version: 1,
     roleTruths: [],
-    loreDiscoveries: [],
-    unlockedDirectives: ["survival", "discovery", "conquest"],
-    endingsSeen: [],
     expeditions: [],
-    bestScoresByRole: {},
   };
 }
 
@@ -238,11 +234,7 @@ export function normalizeCampaignState(value: unknown): CampaignState {
   return {
     version: 1,
     roleTruths: unique((input.roleTruths ?? []).filter(isRoleTruthId)),
-    loreDiscoveries: unique((input.loreDiscoveries ?? []).filter((entry): entry is string => typeof entry === "string")),
-    unlockedDirectives: unique((input.unlockedDirectives ?? ["survival", "discovery", "conquest"]).filter(isDirectiveId)),
-    endingsSeen: unique((input.endingsSeen ?? []).filter(isEndingId)),
     expeditions: Array.isArray(input.expeditions) ? input.expeditions.slice(0, 100) as ExpeditionRecord[] : [],
-    bestScoresByRole: input.bestScoresByRole && typeof input.bestScoresByRole === "object" ? input.bestScoresByRole : {},
   };
 }
 
@@ -267,14 +259,7 @@ export function recordCampaignResult(campaign: CampaignState, state: GameState, 
   return {
     version: 1,
     roleTruths: truthRecovered ? unique([...campaign.roleTruths, truthRecovered]) : [...campaign.roleTruths],
-    loreDiscoveries: unique([...campaign.loreDiscoveries, ...state.story.discoveries]),
-    unlockedDirectives: [...campaign.unlockedDirectives],
-    endingsSeen: state.story.endingId ? unique([...campaign.endingsSeen, state.story.endingId]) : [...campaign.endingsSeen],
     expeditions: [record, ...campaign.expeditions].slice(0, 100),
-    bestScoresByRole: {
-      ...campaign.bestScoresByRole,
-      [state.runIdentity.roleId]: Math.max(campaign.bestScoresByRole[state.runIdentity.roleId] ?? 0, score.total),
-    },
   };
 }
 
@@ -293,12 +278,4 @@ function unique<T>(values: T[]): T[] {
 
 function isRoleTruthId(value: unknown): value is RoleTruthId {
   return value === "shared-oath" || value === "furnace-map" || value === "purified-flame";
-}
-
-function isDirectiveId(value: unknown): value is DirectiveId {
-  return value === "survival" || value === "discovery" || value === "conquest";
-}
-
-function isEndingId(value: unknown): value is EndingId {
-  return value === "inherit-flame" || value === "extinguish-flame" || value === "divide-flame";
 }

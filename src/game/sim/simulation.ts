@@ -27,12 +27,12 @@ export type SimulationProfile = {
   timers: Record<"observeGame" | "chooseAutoplayAction" | "getAutoplayDebugState" | "applyAction" | "recordTurn", ProfileTimer>;
 };
 
-export type ProfileTimer = {
+type ProfileTimer = {
   calls: number;
   ms: number;
 };
 
-export type CompactRunReview = {
+type CompactRunReview = {
   result: RunReview["result"];
   deathCause: RunReview["deathCause"];
   summaryText: string;
@@ -282,7 +282,7 @@ function roundProfileMs(value: number): number {
   return Math.round(value * 100) / 100;
 }
 
-export function compactReview(review: RunReview): CompactRunReview {
+function compactReview(review: RunReview): CompactRunReview {
   return {
     result: review.result,
     deathCause: review.deathCause,

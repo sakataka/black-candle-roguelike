@@ -6,7 +6,6 @@ import type {
   GameAction,
   GameMessage,
   GameState,
-  InventoryEntry,
   GameObservation,
   RunLog,
   RunLogEntry,
@@ -14,7 +13,6 @@ import type {
   RunLogPlayerSnapshot,
   RunReview,
   RunIdentity,
-  StatusCondition,
 } from "../types";
 import { observeGame } from "./game";
 import { calculateScore, createRunIdentity } from "./autonomous";

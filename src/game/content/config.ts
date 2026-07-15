@@ -2,7 +2,7 @@ import type { BiomeTheme, FloorRule, GameConfig } from "../types";
 
 let activeGameConfig: GameConfig | null = null;
 
-export function setGameConfig(config: GameConfig): void {
+function setGameConfig(config: GameConfig): void {
   activeGameConfig = config;
 }
 

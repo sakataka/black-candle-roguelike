@@ -155,7 +155,7 @@ export function chooseAutoplayAction(observation: GameObservation): GameAction {
   }
 
   const visibleBoss = nearest(
-    observation.visibleEntities.filter((entity) => entity.kind === "monster" && entity.hostile && contentEntities[entity.contentId]?.balance.tier === "boss"),
+    observation.visibleEntities.filter((entity) => entity.kind === "monster" && entity.hostile && contentEntities[entity.contentId]?.tier === "boss"),
     observation.player.pos,
   );
   if (visibleBoss && hpRatio > (policy.conquest ? 0.38 : 0.5)) {
@@ -183,7 +183,7 @@ export function chooseAutoplayAction(observation: GameObservation): GameAction {
   }
 
   const weakEnemy = nearest(
-    observation.visibleEntities.filter((entity) => entity.kind === "monster" && entity.hostile && (contentEntities[entity.contentId]?.balance.danger ?? 99) <= 4),
+    observation.visibleEntities.filter((entity) => entity.kind === "monster" && entity.hostile && (contentEntities[entity.contentId]?.danger ?? 99) <= 4),
     observation.player.pos,
   );
   if (weakEnemy && hpRatio > policy.combatHp && policy.conquest && progress.stagnantTurns < LOOP_ESCAPE_TURNS) {
@@ -472,41 +472,6 @@ function isRangedThreat(contentId: string): boolean {
   return getGameConfig().rangedMonsters.includes(contentId);
 }
 
-function stepToward(observation: GameObservation, target: Point): GameAction | null {
-  const start = observation.player.pos;
-  const queue: Point[] = [start];
-  const cameFrom = new Map<string, Point | null>([[pointKey(start), null]]);
-  const targetKey = pointKey(target);
-
-  let cursor = 0;
-  while (cursor < queue.length) {
-    const current = queue[cursor];
-    cursor += 1;
-    if (pointKey(current) === targetKey) {
-      break;
-    }
-    for (const { delta } of directions) {
-      const next = { x: current.x + delta.x, y: current.y + delta.y };
-      const key = pointKey(next);
-      if (cameFrom.has(key) || !isKnownWalkable(observation, next)) {
-        continue;
-      }
-      cameFrom.set(key, current);
-      queue.push(next);
-    }
-  }
-
-  if (!cameFrom.has(targetKey)) {
-    return fallbackStepToward(observation, target);
-  }
-
-  let step = target;
-  while (cameFrom.get(pointKey(step)) && pointKey(cameFrom.get(pointKey(step)) as Point) !== pointKey(start)) {
-    step = cameFrom.get(pointKey(step)) as Point;
-  }
-  return actionFromStep(start, step);
-}
-
 function stepTowardKnownReachable(observation: GameObservation, target: Point, options: PathOptions = {}): GameAction | null {
   const start = observation.player.pos;
   const queue: Point[] = [start];
@@ -540,22 +505,6 @@ function stepTowardKnownReachable(observation: GameObservation, target: Point, o
     step = cameFrom.get(pointKey(step)) as Point;
   }
   return actionFromStep(start, step);
-}
-
-function fallbackStepToward(observation: GameObservation, target: Point): GameAction | null {
-  const ranked = [...directions].sort((a, b) => {
-    const aPos = { x: observation.player.pos.x + a.delta.x, y: observation.player.pos.y + a.delta.y };
-    const bPos = { x: observation.player.pos.x + b.delta.x, y: observation.player.pos.y + b.delta.y };
-    return distance(aPos, target) - distance(bPos, target);
-  });
-
-  for (const candidate of ranked) {
-    const pos = { x: observation.player.pos.x + candidate.delta.x, y: observation.player.pos.y + candidate.delta.y };
-    if (isKnownWalkable(observation, pos)) {
-      return candidate.action;
-    }
-  }
-  return null;
 }
 
 function stepTowardAdjacentTarget(observation: GameObservation, target: Point): GameAction | null {
@@ -612,10 +561,6 @@ function nearest<T extends { pos?: Point; x?: number; y?: number }>(items: T[], 
     }
   }
   return best;
-}
-
-function bestFrontier<T extends Point>(observation: GameObservation, items: T[]): T | null {
-  return [...items].sort((a, b) => frontierScore(observation, a) - frontierScore(observation, b))[0] ?? null;
 }
 
 function bestAdjacentExplore(observation: GameObservation, options: PathOptions = {}): GameAction | null {
@@ -1172,10 +1117,6 @@ function stepOntoAdjacentRiskPanel(observation: GameObservation, hp: number, hpR
     return null;
   }
   return actionFromStep(observation.player.pos, panel.pos);
-}
-
-function isKnownTile(observation: GameObservation, pos: Point): boolean {
-  return observationIndex(observation).knownTiles.has(pointKey(pos));
 }
 
 function hasUnseenNeighbor(observation: GameObservation, pos: Point): boolean {

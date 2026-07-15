@@ -1,6 +1,5 @@
 import { Application, Assets, Container, Graphics, Rectangle, Sprite, Text, Texture } from "pixi.js";
 import { assetCatalog, assetIdForContent } from "../content/assets";
-import { getContentName } from "../content/entities";
 import type { BiomeTheme, Entity, GameState, TileKind } from "../types";
 
 const TILE_SIZE = 64;
@@ -93,11 +92,8 @@ export class PixiRoguelikeRenderer {
     this.textures.set("cover:crypt", await this.loadSheetFrame("/assets/sprites/dungeon-cover-sheet.png", 4, 1, 1));
     this.textures.set("cover:furnace", await this.loadSheetFrame("/assets/sprites/dungeon-cover-sheet.png", 4, 1, 2));
     this.textures.set("cover:black-candle", await this.loadSheetFrame("/assets/sprites/dungeon-cover-sheet.png", 4, 1, 3));
-    for (const asset of Object.values(assetCatalog)) {
-      if (!asset.path || !asset.sheet) {
-        continue;
-      }
-      this.textures.set(asset.id, await this.loadSheetFrame(asset.path, asset.sheet.columns, asset.sheet.rows, asset.sheet.index));
+    for (const [id, asset] of Object.entries(assetCatalog)) {
+      this.textures.set(id, await this.loadSheetFrame(asset.path, asset.sheet.columns, asset.sheet.rows, asset.sheet.index));
     }
   }
 
@@ -244,13 +240,4 @@ function publicAssetPath(path: string): string {
     return path;
   }
   return `${import.meta.env.BASE_URL}${path.slice(1)}`;
-}
-
-export function describeEntity(entity: Entity): string {
-  if (entity.kind === "trap") {
-    return getContentName("trap.risk-panel");
-  }
-  const hp = entity.stats ? ` HP ${entity.stats.hp}/${entity.stats.maxHp}` : "";
-  const gold = entity.contentId === "item.coin-pouch" && entity.goldAmount ? ` ${entity.goldAmount} Gold` : "";
-  return `${getContentName(entity.contentId)}${hp}${gold}`;
 }

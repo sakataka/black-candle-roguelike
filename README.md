@@ -62,7 +62,7 @@ bun run build
 - `monsterSpawnRules`, `itemPools`, `guaranteedItems`, `eventPools`, `trapPools`, `bosses`: 階層・バイオームごとの出現設定
 - `equipment`, `consumables`, `events`, `merchantOffers`, `trapEffects`: 武器/防具の値、遠隔防御、罠回避補正、消耗品効果、イベント報酬、小目的フラグ、商人価格、罠効果
 
-`src/game/content/entities.ts` は名前、説明、タグ、アセット生成用メモなどのコンテンツ辞書です。数値調整は基本的に JSON 側で行い、ゲームロジックへ直接埋め込まない方針です。
+`src/game/content/entities.ts` は表示名と、AI・戦闘・得点で使う最小限の分類値だけを持つコンテンツ辞書です。数値調整は基本的に JSON 側で行い、画像の切り出しは `src/game/content/assets.ts`、生成方針は `AGENTS.md` と `docs/` に集約します。
 
 ## AIシミュレーション
 

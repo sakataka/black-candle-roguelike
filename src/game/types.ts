@@ -1,5 +1,3 @@
-export type Locale = "ja" | "en";
-
 export type Point = {
   x: number;
   y: number;
@@ -11,15 +9,13 @@ export type TileKind = "void" | "floor" | "wall" | "cover" | "stairsDown";
 
 export type BiomeTheme = "blackstone" | "crypt" | "furnace" | "black-candle";
 
-export type EntityKind = "player" | "monster" | "item" | "event" | "trap";
+type EntityKind = "player" | "monster" | "item" | "event" | "trap";
 
 export type TrapKind = "blood-needle" | "venom-mist" | "crumbling-floor";
 
-export type EnemyFamily = "beast" | "undead" | "cult" | "demon" | "construct";
+type EnemyFamily = "beast" | "undead" | "cult" | "demon" | "construct";
 
-export type CombatRole = "melee" | "ranged" | "caster" | "skirmisher" | "boss";
-
-export type Tier = "early" | "mid" | "late" | "boss";
+type Tier = "early" | "mid" | "late" | "boss";
 
 export type MerchantServiceId = "heal" | "cure" | "equipment" | "map";
 
@@ -31,7 +27,7 @@ export type RoleTruthId = "shared-oath" | "furnace-map" | "purified-flame";
 
 export type EndingId = "inherit-flame" | "extinguish-flame" | "divide-flame";
 
-export type DecisionKind = "checkpoint" | "context" | "final";
+type DecisionKind = "checkpoint" | "context" | "final";
 
 export type RunIdentity = {
   name: string;
@@ -60,7 +56,7 @@ export type PendingDecision = {
   options: DecisionOption[];
 };
 
-export type RunDecisionRecord = {
+type RunDecisionRecord = {
   id: string;
   floor: number;
   optionId: string;
@@ -110,68 +106,26 @@ export type ExpeditionRecord = {
 export type CampaignState = {
   version: 1;
   roleTruths: RoleTruthId[];
-  loreDiscoveries: string[];
-  unlockedDirectives: DirectiveId[];
-  endingsSeen: EndingId[];
   expeditions: ExpeditionRecord[];
-  bestScoresByRole: Record<string, number>;
-};
-
-export type ContentName = {
-  ja: string;
-  en?: string;
-};
-
-export type SourceRef = {
-  game: "nethack";
-  version: "5.0.0";
-  file: string;
-  line?: number;
 };
 
 export type ContentEntity = {
-  id: string;
-  kind: "monster" | "item" | "terrain" | "role" | "event" | "trap";
-  sourceRef?: SourceRef;
-  names: ContentName;
-  description: ContentName;
-  tags: string[];
-  balance: {
-    tier?: Tier;
-    rarity?: "common" | "uncommon" | "rare" | "special";
-    danger?: number;
-    utility?: number;
-    economyValue?: number;
-    xpReward?: number;
-  };
-  simulation: {
-    family?: EnemyFamily;
-    roles?: CombatRole[];
-    aiHints?: string[];
-    biomes?: string[];
-    hooks?: string[];
-  };
-  modernizedSkin: {
-    visualTags: string[];
-    palette: string[];
-    promptSeed: string;
-  };
+  name: string;
+  tier?: Tier;
+  danger?: number;
+  economyValue?: number;
+  xpReward?: number;
+  family?: EnemyFamily;
 };
 
 export type AssetDefinition = {
-  id: string;
-  kind: "monster" | "item" | "terrain" | "character" | "ui" | "effect" | "event" | "trap";
-  entityRefs: string[];
-  styleTags: string[];
-  size: 64 | 128;
-  path?: string;
-  sheet?: {
+  contentId: string;
+  path: string;
+  sheet: {
     columns: number;
     rows: number;
     index: number;
   };
-  promptSeed: string;
-  status: "procedural-fallback" | "prompt-ready" | "generated" | "final";
 };
 
 export type Tile = {
@@ -194,13 +148,13 @@ export type StatusCondition = {
   turns: number;
 };
 
-export type InventoryEntry = {
+type InventoryEntry = {
   contentId: string;
   quantity: number;
   equipped?: boolean;
 };
 
-export type RoleTraits = {
+type RoleTraits = {
   focus: string;
   strengths: string[];
   traitLabels: string[];
@@ -212,7 +166,7 @@ export type RoleTraits = {
   bossReward?: string;
 };
 
-export type RoleDefinition = {
+type RoleDefinition = {
   id: string;
   stats: Stats;
   inventory: InventoryEntry[];
@@ -226,11 +180,11 @@ export type FloorRule = {
   biomes?: BiomeTheme[];
 };
 
-export type MonsterSpawnRule = FloorRule & {
+type MonsterSpawnRule = FloorRule & {
   contentId: string;
 };
 
-export type MonsterStatsConfig = {
+type MonsterStatsConfig = {
   hp: number;
   attack: number;
   defense: number;
@@ -249,7 +203,7 @@ export type EquipmentConfig = {
   };
 };
 
-export type ConsumableConfig = {
+type ConsumableConfig = {
   heal?: number;
   cureConditions?: ConditionKind[];
   guardedTurns?: number;
@@ -260,7 +214,7 @@ export type ConsumableConfig = {
   mysteryEffects?: Array<"heal" | "guard" | "reveal" | "push" | "bleed" | "venom">;
 };
 
-export type EventConfig = {
+type EventConfig = {
   xp?: number;
   heal?: number;
   cureConditions?: ConditionKind[];
@@ -444,16 +398,16 @@ export type GameAction =
   | { type: "descend" }
   | { type: "resolveDecision"; optionId: string };
 
-export type VisibleEntity = Pick<Entity, "id" | "kind" | "contentId" | "pos" | "stats" | "hostile" | "blocksMovement" | "goldAmount">;
+type VisibleEntity = Pick<Entity, "id" | "kind" | "contentId" | "pos" | "stats" | "hostile" | "blocksMovement" | "goldAmount">;
 
-export type ExplorationObjective = "explore" | "findStairs" | "defeatBoss" | "descend" | "resolveStall";
+type ExplorationObjective = "explore" | "findStairs" | "defeatBoss" | "descend" | "resolveStall";
 
-export type ExplorationFrontier = Point & {
+type ExplorationFrontier = Point & {
   distance: number;
   unseenNeighbors: number;
 };
 
-export type ExplorationStatus = {
+type ExplorationStatus = {
   objective: ExplorationObjective;
   knownStairs: Point | null;
   reachableStairs: Point | null;

@@ -78,7 +78,7 @@ export function createInitialGame(
   });
 }
 
-export function biomeThemeForFloor(floor: number): BiomeTheme {
+function biomeThemeForFloor(floor: number): BiomeTheme {
   return [...getGameConfig().biomes].sort((a, b) => b.minFloor - a.minFloor).find((entry) => floor >= entry.minFloor)?.theme ?? "blackstone";
 }
 
@@ -805,7 +805,7 @@ function statsForMonster(contentId: string, dangerBoost: number, floor = 1, runO
   const base = config.monsterStats[contentId] ?? { hp: 5, attack: 1, defense: 0 };
   let hp = base.hp + dangerBoost * (base.hpPerDanger ?? 1);
   let attack = base.attack + halfBoost;
-  if (runObjectives.lateEnemiesWeakened && floor >= 7 && contentEntities[contentId]?.balance.tier !== "boss") {
+  if (runObjectives.lateEnemiesWeakened && floor >= 7 && contentEntities[contentId]?.tier !== "boss") {
     hp = Math.max(1, Math.floor(hp * 0.85));
     attack = Math.max(1, attack - 1);
   }
@@ -1368,7 +1368,7 @@ function attack(state: GameState, attacker: Entity, defender: Entity): GameState
         state.messages = pushMessage(state, `${getContentName(reward)}が残された。`, "loot");
         state = dropBonusBossRewards(state, defeatedPos);
       }
-      if (contentEntities[defender.contentId]?.balance.tier === "boss") {
+      if (contentEntities[defender.contentId]?.tier === "boss") {
         state.story.bossesDefeated += 1;
       }
       state = applyRoleBossGoal(state, defender.contentId, defeatedPos);
@@ -1400,7 +1400,7 @@ function dropBonusBossRewards(state: GameState, defeatedPos: Point): GameState {
 
 function applyRoleBossGoal(state: GameState, defeatedContentId: string, defeatedPos: Point): GameState {
   const player = getPlayer(state);
-  if (player.contentId !== "role.oathbound" || contentEntities[defeatedContentId]?.balance.tier !== "boss") {
+  if (player.contentId !== "role.oathbound" || contentEntities[defeatedContentId]?.tier !== "boss") {
     return state;
   }
   const reward = state.floor >= 6 ? (roleTraits(player.contentId)?.bossReward ?? "item.guardian-draught") : "item.greater-tonic";
@@ -1806,25 +1806,10 @@ function shieldPower(contentId: string): number {
 }
 
 function awardXp(state: GameState, defeatedContentId: string): GameState {
-  const reward = contentEntities[defeatedContentId]?.balance.xpReward ?? 5;
+  const reward = contentEntities[defeatedContentId]?.xpReward ?? 5;
   state.playerProgress = normalizeProgress({ ...state.playerProgress, xp: state.playerProgress.xp + reward });
   state.messages = pushMessage(state, `${reward} XPを得た。`, "loot");
   return applyLevelUps(state);
-}
-
-export function availableMerchantServices(state: GameState): Array<{ serviceId: MerchantServiceId; label: string; cost: number; contentId?: string; affordable: boolean; useful: boolean }> {
-  if (!isPlayerOnMerchant(state)) {
-    return [];
-  }
-  const player = getPlayer(state);
-  return merchantOffersForState(state).map((offer) => ({
-    serviceId: offer.serviceId,
-    label: merchantServiceLabel(offer.serviceId, offer.contentId),
-    cost: offer.cost,
-    contentId: offer.contentId,
-    affordable: state.playerProgress.gold >= offer.cost,
-    useful: isMerchantOfferUseful(state, player, offer),
-  }));
 }
 
 function buyMerchantService(state: GameState, serviceId: MerchantServiceId): GameState {
@@ -2022,7 +2007,7 @@ function equippedWeaponSpecialDamage(player: Entity, defenderContentId: string):
   if (!special) {
     return 0;
   }
-  const family = contentEntities[defenderContentId]?.simulation.family;
+  const family = contentEntities[defenderContentId]?.family;
   return family && special.families.includes(family) ? special.amount : 0;
 }
 
@@ -2262,7 +2247,7 @@ function weakenLateEnemies(state: GameState): void {
     return;
   }
   for (const entity of state.entities) {
-    if (entity.kind !== "monster" || !entity.stats || contentEntities[entity.contentId]?.balance.tier === "boss") {
+    if (entity.kind !== "monster" || !entity.stats || contentEntities[entity.contentId]?.tier === "boss") {
       continue;
     }
     const nextMaxHp = Math.max(1, Math.floor(entity.stats.maxHp * 0.85));

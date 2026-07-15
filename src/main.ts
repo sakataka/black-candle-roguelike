@@ -2,8 +2,7 @@ import "./styles.css";
 import { chooseAutoplayAction, getAutoplayDebugState } from "./game/ai/autoplay";
 import { getGameConfig, loadBrowserGameConfig } from "./game/content/config";
 import { assetForContent } from "./game/content/assets";
-import { contentEntities, getContentName } from "./game/content/entities";
-import { worldBible } from "./game/content/worldBible";
+import { getContentName } from "./game/content/entities";
 import {
   calculateScore,
   chooseDecisionAction,
@@ -13,7 +12,6 @@ import {
   endingLabel,
   normalizeCampaignState,
   recordCampaignResult,
-  roleTruthLabel,
   temperamentDescription,
   temperamentLabel,
 } from "./game/core/autonomous";
@@ -26,7 +24,6 @@ import type {
   GameAction,
   GameState,
   RoleTruthId,
-  RunIdentity,
   RunLog,
   RunLogEntry,
   RunReview,
@@ -57,7 +54,7 @@ app.innerHTML = `
     <header class="observer-header">
       <div class="brand-block">
         <p class="eyebrow">灰灯院・遠征観測室</p>
-        <h1>${worldBible.title}</h1>
+        <h1>黒燭の迷宮</h1>
         <p class="brand-copy">探索者は自ら歩く。灯守は、運命の節目だけを選ぶ。</p>
       </div>
       <div class="header-actions">
@@ -650,7 +647,7 @@ function nextSeed(): number {
 }
 
 function applySprite(element: HTMLElement, asset: ReturnType<typeof assetForContent>, size: number): void {
-  if (!asset?.path || !asset.sheet) return;
+  if (!asset) return;
   const col = asset.sheet.index % asset.sheet.columns;
   const row = Math.floor(asset.sheet.index / asset.sheet.columns);
   element.style.backgroundImage = `url(${publicAssetPath(asset.path)})`;
