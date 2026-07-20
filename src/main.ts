@@ -50,7 +50,7 @@ const app = document.querySelector<HTMLDivElement>("#app");
 if (!app) throw new Error("Missing #app root");
 
 app.innerHTML = `
-  <main class="observer-shell">
+  <main class="observer-shell" tabindex="-1">
     <header class="observer-header">
       <div class="brand-block">
         <p class="eyebrow">灰灯院・遠征観測室</p>
@@ -162,6 +162,7 @@ app.innerHTML = `
 await loadBrowserGameConfig();
 
 const renderer = new PixiRoguelikeRenderer();
+const observerShell = requireElement<HTMLElement>(".observer-shell");
 const pixiRoot = requireElement<HTMLDivElement>("#pixi-root");
 const candidateDialog = requireElement<HTMLElement>("#candidate-dialog");
 const candidateList = requireElement<HTMLDivElement>("#candidate-list");
@@ -190,6 +191,7 @@ let speed = 1;
 let archivedRunId: string | null = null;
 let scheduledAction: GameAction = { type: "wait" };
 let scheduledDanger = false;
+let focusedModal: HTMLElement | null = null;
 
 installEvents();
 installDebugBridge();
@@ -225,6 +227,20 @@ function installEvents(): void {
     if (state.status === "playing" && !state.pendingDecision) scheduleAutoplay({ type: "resolveDecision", optionId: button.dataset.optionId ?? "" });
   });
   window.addEventListener("keydown", (event) => {
+    if (event.key === "Tab" && focusedModal) {
+      const focusable = [...focusedModal.querySelectorAll<HTMLButtonElement>("button:not(:disabled)")];
+      if (focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+      return;
+    }
     if (!["1", "2", "3", "4"].includes(event.key)) return;
     const index = Number(event.key) - 1;
     const visibleButtons = !candidateDialog.hidden
@@ -243,6 +259,7 @@ function openNewExpedition(): void {
   candidateSeed = nextSeed();
   renderCandidateSelection();
   candidateDialog.hidden = false;
+  syncModalAccessibility();
 }
 
 function startExpedition(roleId: string): void {
@@ -387,6 +404,7 @@ function render(): void {
   renderArchive();
   renderDecision(observation);
   renderEnd();
+  syncModalAccessibility();
 }
 
 function renderInventory(inventory: NonNullable<GameState["entities"][number]["inventory"]>): void {
@@ -570,6 +588,19 @@ function renderEnd(): void {
   scoreBreakdown.innerHTML = `${rows.map(([label, value]) => `<div><span>${label}</span><strong>${value.toLocaleString("ja-JP")}</strong></div>`).join("")}<div class="score-total"><span>総合</span><strong>${review.score.total.toLocaleString("ja-JP")}</strong></div>`;
   decisionHistory.innerHTML = `<h3>灯守の判断</h3>${review.decisions.length === 0 ? "<p>介入記録なし</p>" : `<ol>${review.decisions.map((entry) => `<li><span>F${entry.floor}</span><strong>${escapeHtml(entry.optionLabel)}</strong>${entry.usedRevelation ? "<em>啓示</em>" : ""}</li>`).join("")}</ol>`}`;
   endDialog.hidden = false;
+}
+
+function syncModalAccessibility(): void {
+  const nextModal = [candidateDialog, decisionDialog, endDialog].find((dialog) => !dialog.hidden) ?? null;
+  observerShell.inert = nextModal !== null;
+  if (nextModal === focusedModal) return;
+  focusedModal = nextModal;
+  if (!nextModal) {
+    observerShell.focus({ preventScroll: true });
+    return;
+  }
+  const preferred = nextModal.querySelector<HTMLButtonElement>(".is-default:not(:disabled), button:not(:disabled)");
+  requestAnimationFrame(() => preferred?.focus({ preventScroll: true }));
 }
 
 function installDebugBridge(): void {
