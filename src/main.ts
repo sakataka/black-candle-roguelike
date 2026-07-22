@@ -5,11 +5,16 @@ import { assetForContent } from "./game/content/assets";
 import { getContentName } from "./game/content/entities";
 import {
   calculateScore,
+  campaignProgress,
   chooseDecisionAction,
   createCampaignState,
   createRunIdentity,
+  defaultDirectiveForTemperament,
   directiveLabel,
   endingLabel,
+  expeditionMissions,
+  missionDefinition,
+  missionProgress,
   normalizeCampaignState,
   recordCampaignResult,
   temperamentDescription,
@@ -23,6 +28,7 @@ import type {
   EquipmentConfig,
   GameAction,
   GameState,
+  MissionId,
   RoleTruthId,
   RunLog,
   RunLogEntry,
@@ -73,6 +79,7 @@ app.innerHTML = `
       <div><span>探索者</span><strong id="run-delver">-</strong></div>
       <div><span>気質</span><strong id="run-temperament">-</strong></div>
       <div><span>方針</span><strong id="run-directive">-</strong></div>
+      <div><span>任務</span><strong id="run-mission">-</strong></div>
       <div><span>啓示</span><strong id="run-revelations">-</strong></div>
       <div><span>深度</span><strong id="run-floor">-</strong></div>
       <div><span>観測手</span><strong id="run-turn">-</strong></div>
@@ -105,7 +112,10 @@ app.innerHTML = `
           <ol id="message-list" class="message-list"></ol>
         </section>
         <section class="side-card truth-card">
-          <div class="section-heading"><h2>三つの真相</h2><span id="truth-count">0/3</span></div>
+          <div class="section-heading"><h2>物語進捗</h2><span id="story-progress-count">0/6</span></div>
+          <div class="story-progress"><i id="story-progress-fill"></i></div>
+          <div id="story-milestones" class="story-milestones"></div>
+          <div class="subsection-heading"><strong>三つの真相</strong><span id="truth-count">0/3</span></div>
           <div id="truth-list" class="truth-list"></div>
         </section>
       </aside>
@@ -121,7 +131,8 @@ app.innerHTML = `
         <ul id="inventory-list" class="inventory-list"></ul>
       </section>
       <section class="lower-card archive-card">
-        <div class="section-heading"><h2>最近の遠征</h2><span id="archive-count">0</span></div>
+        <div class="section-heading"><h2>遠征進捗</h2><span id="archive-count">0</span></div>
+        <div id="campaign-summary" class="campaign-summary"></div>
         <ol id="archive-list" class="archive-list"></ol>
       </section>
     </section>
@@ -131,7 +142,8 @@ app.innerHTML = `
     <div class="modal-panel candidate-panel" role="dialog" aria-modal="true" aria-labelledby="candidate-title">
       <p class="eyebrow">遠征者選定</p>
       <h2 id="candidate-title">誰を黒燭の迷宮へ送るか</h2>
-      <p>職業だけでなく、探索者自身の気質もAIの判断へ影響します。</p>
+      <p>先に遠征任務を定めます。職業と気質だけでなく、任務もAIが目指す一周の目的になります。</p>
+      <div id="mission-list" class="mission-list" aria-label="遠征任務"></div>
       <div id="candidate-list" class="candidate-list"></div>
     </div>
   </section>
@@ -152,6 +164,7 @@ app.innerHTML = `
       <p id="end-kicker" class="eyebrow">遠征終了</p>
       <h2 id="end-title">遠征記録</h2>
       <p id="end-summary"></p>
+      <div id="run-comparison" class="run-comparison"></div>
       <div id="score-breakdown" class="score-breakdown"></div>
       <div id="decision-history" class="decision-history"></div>
       <button id="end-new-expedition" class="primary-button" type="button">次の探索者を選ぶ</button>
@@ -165,6 +178,7 @@ const renderer = new PixiRoguelikeRenderer();
 const observerShell = requireElement<HTMLElement>(".observer-shell");
 const pixiRoot = requireElement<HTMLDivElement>("#pixi-root");
 const candidateDialog = requireElement<HTMLElement>("#candidate-dialog");
+const missionList = requireElement<HTMLDivElement>("#mission-list");
 const candidateList = requireElement<HTMLDivElement>("#candidate-list");
 const decisionDialog = requireElement<HTMLElement>("#decision-dialog");
 const decisionTitle = requireElement<HTMLHeadingElement>("#decision-title");
@@ -176,6 +190,7 @@ const endDialog = requireElement<HTMLElement>("#end-dialog");
 const endKicker = requireElement<HTMLParagraphElement>("#end-kicker");
 const endTitle = requireElement<HTMLHeadingElement>("#end-title");
 const endSummary = requireElement<HTMLParagraphElement>("#end-summary");
+const runComparison = requireElement<HTMLDivElement>("#run-comparison");
 const scoreBreakdown = requireElement<HTMLDivElement>("#score-breakdown");
 const decisionHistory = requireElement<HTMLDivElement>("#decision-history");
 
@@ -183,7 +198,8 @@ let campaign = loadCampaign();
 let candidateSeed = nextSeed();
 let selectedRoleId = playableRoles()[0].id;
 let selectedIdentity = createRunIdentity(candidateSeed, selectedRoleId);
-let state = createInitialGame(candidateSeed, selectedRoleId, { identity: selectedIdentity, knownRoleTruths: campaign.roleTruths });
+let selectedMissionId: MissionId = expeditionMissions[0].id;
+let state = createInitialGame(candidateSeed, selectedRoleId, { identity: selectedIdentity, knownRoleTruths: campaign.roleTruths, missionId: selectedMissionId });
 let runLog = createRunLog(state.seed, selectedRoleId, {}, selectedIdentity);
 let currentReview: RunReview | null = null;
 let autoplayTimer: number | null = null;
@@ -218,6 +234,12 @@ function installEvents(): void {
     const button = (event.target as HTMLElement).closest<HTMLButtonElement>("button[data-role-id]");
     if (!button) return;
     startExpedition(button.dataset.roleId ?? playableRoles()[0].id);
+  });
+  missionList.addEventListener("click", (event) => {
+    const button = (event.target as HTMLElement).closest<HTMLButtonElement>("button[data-mission-id]");
+    if (!button) return;
+    selectedMissionId = button.dataset.missionId as MissionId;
+    renderCandidateSelection();
   });
   decisionOptions.addEventListener("click", (event) => {
     const button = (event.target as HTMLElement).closest<HTMLButtonElement>("button[data-option-id]");
@@ -266,7 +288,7 @@ function startExpedition(roleId: string): void {
   stopAutoplay();
   selectedRoleId = roleId;
   selectedIdentity = createRunIdentity(candidateSeed, roleId);
-  state = createInitialGame(candidateSeed, roleId, { identity: selectedIdentity, knownRoleTruths: campaign.roleTruths });
+  state = createInitialGame(candidateSeed, roleId, { identity: selectedIdentity, knownRoleTruths: campaign.roleTruths, missionId: selectedMissionId });
   runLog = createRunLog(state.seed, roleId, {}, selectedIdentity);
   currentReview = null;
   archivedRunId = null;
@@ -278,6 +300,15 @@ function startExpedition(roleId: string): void {
 }
 
 function renderCandidateSelection(): void {
+  missionList.replaceChildren(...expeditionMissions.map((mission) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.dataset.missionId = mission.id;
+    button.className = mission.id === selectedMissionId ? "mission-option is-selected" : "mission-option";
+    button.setAttribute("aria-pressed", String(mission.id === selectedMissionId));
+    button.innerHTML = `<strong>${escapeHtml(mission.label)}</strong><small>${escapeHtml(mission.description)}</small><em>${escapeHtml(mission.targetLabel)} · 報酬 ${escapeHtml(mission.rewardLabel)}</em>`;
+    return button;
+  }));
   candidateList.replaceChildren(...playableRoles().map((role, index) => {
     const identity = createRunIdentity(candidateSeed, role.id);
     const button = document.createElement("button");
@@ -368,6 +399,9 @@ function render(): void {
   setText("#run-delver", `${state.runIdentity.name} / ${getContentName(state.runIdentity.roleId)}`);
   setText("#run-temperament", temperamentLabel(state.runIdentity.temperament));
   setText("#run-directive", directiveLabel(state.directive));
+  const runMission = missionDefinition(state.story.missionId);
+  const runMissionProgress = missionProgress(state);
+  setText("#run-mission", state.story.missionCompleted ? `${runMission.label} ✓` : `${runMission.label} ${runMissionProgress.current}/${runMissionProgress.target}`);
   setText("#run-revelations", `${state.revelationsRemaining}/${config.autonomous.revelationsPerRun}`);
   setText("#run-floor", `${state.floor}/${config.rules.maxFloor}`);
   setText("#run-turn", `${state.runTurn}/${config.rules.runTurnLimit}`);
@@ -427,6 +461,16 @@ function renderInventory(inventory: NonNullable<GameState["entities"][number]["i
 }
 
 function renderTruths(): void {
+  const progress = campaignProgress(campaign);
+  const unlockedMilestones = progress.milestones.filter((milestone) => milestone.unlocked).length;
+  setText("#story-progress-count", `${unlockedMilestones}/${progress.milestones.length}`);
+  requireElement<HTMLElement>("#story-progress-fill").style.width = `${unlockedMilestones / progress.milestones.length * 100}%`;
+  requireElement<HTMLDivElement>("#story-milestones").replaceChildren(...progress.milestones.map((milestone) => {
+    const item = document.createElement("span");
+    item.className = milestone.unlocked ? "is-unlocked" : "";
+    item.textContent = `${milestone.unlocked ? "◆" : "◇"} ${milestone.label}`;
+    return item;
+  }));
   const truths: Array<{ id: RoleTruthId; name: string; hint: string }> = [
     { id: "shared-oath", name: "分誓の碑文", hint: "誓約の探索者で6階から生還" },
     { id: "furnace-map", name: "炉脈全図", hint: "灰弓の斥候で6階から生還" },
@@ -444,6 +488,13 @@ function renderTruths(): void {
 
 function renderArchive(): void {
   setText("#archive-count", `${campaign.expeditions.length}件`);
+  const progress = campaignProgress(campaign);
+  requireElement<HTMLDivElement>("#campaign-summary").innerHTML = [
+    ["最高到達", progress.highestFloor > 0 ? `F${progress.highestFloor}` : "-"],
+    ["自己ベスト", progress.bestScore > 0 ? `${progress.bestScore.toLocaleString("ja-JP")}点` : "-"],
+    ["踏破", `${progress.completedRuns}回`],
+    ["達成任務", `${progress.completedMissionIds.length}/${expeditionMissions.length}`],
+  ].map(([label, value]) => `<div><span>${label}</span><strong>${value}</strong></div>`).join("");
   const list = requireElement<HTMLOListElement>("#archive-list");
   if (campaign.expeditions.length === 0) {
     list.innerHTML = '<li class="empty-state">まだ帰還記録はありません。</li>';
@@ -451,7 +502,8 @@ function renderArchive(): void {
   }
   list.replaceChildren(...campaign.expeditions.slice(0, 6).map((record) => {
     const item = document.createElement("li");
-    item.innerHTML = `<span class="archive-status status-${record.status}">${statusLabel(record.status)}</span><span><strong>${escapeHtml(record.identity.name)}</strong><small>${getContentName(record.identity.roleId)} / F${record.floor} / ${record.score.total.toLocaleString("ja-JP")}点</small></span>`;
+    const mission = missionDefinition(record.missionId);
+    item.innerHTML = `<span class="archive-status status-${record.status}">${statusLabel(record.status)}</span><span><strong>${escapeHtml(record.identity.name)}${record.missionCompleted ? " · 任務達成" : ""}</strong><small>${getContentName(record.identity.roleId)} / ${escapeHtml(mission.label)} / F${record.floor} / ${record.score.total.toLocaleString("ja-JP")}点</small></span>`;
     return item;
   }));
 }
@@ -466,7 +518,9 @@ function renderDecision(observation: ReturnType<typeof observeGame>): void {
   decisionTitle.textContent = decision.title;
   decisionBody.textContent = decision.body;
   renderDecisionContext(observation);
-  decisionHint.textContent = `現在の啓示: ${state.revelationsRemaining}。啓示を使わない選択は探索者の気質に沿います。`;
+  decisionHint.textContent = decision.kind === "context"
+    ? `現在の啓示: ${state.revelationsRemaining}。各案はこの場で効果を発揮し、啓示による危機介入は遠征評価へ記録されます。`
+    : `現在の啓示: ${state.revelationsRemaining}。啓示を使わない選択は探索者の気質に沿います。`;
   decisionOptions.replaceChildren(...decision.options.map((option, index) => {
     const button = document.createElement("button");
     button.type = "button";
@@ -475,9 +529,11 @@ function renderDecision(observation: ReturnType<typeof observeGame>): void {
     button.className = option.id === decision.defaultOptionId ? "decision-option is-default" : "decision-option";
     const costLabel = option.requiresRevelation
       ? "啓示を1消費"
-      : option.id === decision.defaultOptionId && decision.kind !== "final"
+      : option.id === decision.defaultOptionId && option.directive === defaultDirectiveForTemperament(state.runIdentity.temperament) && decision.kind !== "final"
         ? "気質どおり・消費なし"
-        : "消費なし";
+        : option.id === decision.defaultOptionId && decision.kind === "context"
+          ? "探索者の判断・消費なし"
+          : "消費なし";
     button.innerHTML = `<span>${index + 1}</span><strong>${escapeHtml(option.label)}</strong><small>${escapeHtml(option.description)}</small><em>${costLabel}</em>`;
     return button;
   }));
@@ -535,6 +591,7 @@ function renderDecisionContext(observation: ReturnType<typeof observeGame>): voi
       <div class="decision-meta-grid">
         <span>気質 <strong>${temperamentLabel(state.runIdentity.temperament)}</strong></span>
         <span>現在方針 <strong>${directiveLabel(state.directive)}</strong></span>
+        <span>任務 <strong>${missionDefinition(state.story.missionId).label}</strong></span>
         <span>所持金 <strong>${observation.playerProgress.gold}</strong></span>
         <span>暫定得点 <strong>${score.total.toLocaleString("ja-JP")}</strong></span>
       </div>
@@ -580,14 +637,42 @@ function renderEnd(): void {
   endSummary.textContent = state.story.endingId
     ? `${endingLabel(state.story.endingId)}の結末を遠征録へ刻みました。`
     : `${review.summaryText} 得点は${review.score.total.toLocaleString("ja-JP")}点です。`;
+  renderRunComparison();
   const rows: Array<[string, number]> = [
     ["進行", review.score.depth], ["守護者", review.score.guardians], ["職業目的", review.score.roleObjective],
     ["発見", review.score.discoveries], ["生還", review.score.survival], ["持帰り", review.score.recoveredValue],
-    ["迅速", review.score.tempo], ["自律", review.score.autonomy],
+    ["迅速", review.score.tempo], ["任務・介入", review.score.autonomy],
   ];
   scoreBreakdown.innerHTML = `${rows.map(([label, value]) => `<div><span>${label}</span><strong>${value.toLocaleString("ja-JP")}</strong></div>`).join("")}<div class="score-total"><span>総合</span><strong>${review.score.total.toLocaleString("ja-JP")}</strong></div>`;
-  decisionHistory.innerHTML = `<h3>灯守の判断</h3>${review.decisions.length === 0 ? "<p>介入記録なし</p>" : `<ol>${review.decisions.map((entry) => `<li><span>F${entry.floor}</span><strong>${escapeHtml(entry.optionLabel)}</strong>${entry.usedRevelation ? "<em>啓示</em>" : ""}</li>`).join("")}</ol>`}`;
+  decisionHistory.innerHTML = `<h3>灯守の判断</h3>${review.decisions.length === 0 ? "<p>介入記録なし</p>" : `<ol>${review.decisions.map((entry) => `<li><span>F${entry.floor}</span><strong>${escapeHtml(entry.optionLabel)}${entry.effectSummary ? `<small>${escapeHtml(entry.effectSummary)}</small>` : ""}</strong>${entry.usedRevelation ? "<em>啓示</em>" : ""}</li>`).join("")}</ol>`}`;
   endDialog.hidden = false;
+}
+
+function renderRunComparison(): void {
+  const current = campaign.expeditions[0];
+  if (!current || current.id !== archivedRunId) {
+    runComparison.innerHTML = "";
+    return;
+  }
+  const previous = campaign.expeditions[1];
+  const older = campaign.expeditions.slice(1);
+  const newDepthRecord = current.floor > older.reduce((best, record) => Math.max(best, record.floor), 0);
+  const newScoreRecord = current.score.total > older.reduce((best, record) => Math.max(best, record.score.total), 0);
+  const badges = [
+    newDepthRecord ? "最高到達階を更新" : "",
+    newScoreRecord ? "自己ベスト更新" : "",
+    current.missionCompleted ? `任務「${missionDefinition(current.missionId).label}」達成` : "",
+    current.truthRecovered ? "新たな真相を持帰り" : "",
+    current.endingId ? `結末「${endingLabel(current.endingId)}」を記録` : "",
+  ].filter(Boolean);
+  const comparison = previous
+    ? `前回比: 深度 ${signed(current.floor - previous.floor)}階 / 得点 ${signed(current.score.total - previous.score.total)}点`
+    : "最初の遠征記録です。ここから灯守の記録が始まります。";
+  runComparison.innerHTML = `<strong>${escapeHtml(missionDefinition(current.missionId).label)} ${current.missionCompleted ? "達成" : "未達"}</strong><p>${escapeHtml(comparison)}</p>${badges.length ? `<div>${badges.map((badge) => `<span>${escapeHtml(badge)}</span>`).join("")}</div>` : ""}`;
+}
+
+function signed(value: number): string {
+  return value > 0 ? `+${value.toLocaleString("ja-JP")}` : value.toLocaleString("ja-JP");
 }
 
 function syncModalAccessibility(): void {

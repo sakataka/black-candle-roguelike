@@ -138,7 +138,7 @@ button:focus-visible {
 
 .run-ribbon {
   display: grid;
-  grid-template-columns: repeat(6, minmax(84px, auto)) minmax(180px, 1fr);
+  grid-template-columns: repeat(7, minmax(84px, auto)) minmax(180px, 1fr);
   gap: 1px;
   margin: 14px 0;
   overflow: hidden;
@@ -193,6 +193,14 @@ button:focus-visible {
 .message-list .tone-system { border-left-color: #8c7ab1; }
 
 .truth-list { display: grid; gap: 7px; }
+.story-progress { height: 5px; margin-bottom: 9px; overflow: hidden; border-radius: 99px; background: #090806; }
+.story-progress i { display: block; width: 0; height: 100%; background: linear-gradient(90deg, #7d5737, var(--gold-bright)); transition: width 180ms ease-out; }
+.story-milestones { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 12px; }
+.story-milestones span { color: #686156; font-size: 0.58rem; }
+.story-milestones span.is-unlocked { color: var(--gold); }
+.subsection-heading { display: flex; justify-content: space-between; gap: 8px; margin: 10px 0 7px; padding-top: 9px; border-top: 1px solid rgba(255,255,255,0.06); }
+.subsection-heading strong { font-size: 0.68rem; }
+.subsection-heading span { color: var(--muted); font-size: 0.62rem; }
 .truth-item { display: grid; grid-template-columns: 20px 1fr; gap: 7px; align-items: center; padding: 8px; border: 1px solid rgba(255,255,255,0.05); border-radius: 8px; opacity: 0.58; }
 .truth-item.is-unlocked { border-color: rgba(212, 173, 98, 0.3); background: rgba(212, 173, 98, 0.07); opacity: 1; }
 .truth-item i { color: var(--gold); font-style: normal; }
@@ -220,6 +228,11 @@ button:focus-visible {
 .archive-list strong { font-size: 0.72rem; }
 .archive-list small { color: var(--muted); font-size: 0.61rem; }
 .archive-status { padding: 4px; border-radius: 5px; background: rgba(255,255,255,0.06); text-align: center; font-size: 0.62rem; }
+.campaign-summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; margin-bottom: 8px; overflow: hidden; border: 1px solid var(--line); border-radius: 8px; background: var(--line); }
+.campaign-summary div { min-width: 0; padding: 7px; background: #16130f; }
+.campaign-summary span, .campaign-summary strong { display: block; }
+.campaign-summary span { color: var(--muted); font-size: 0.58rem; }
+.campaign-summary strong { margin-top: 2px; overflow: hidden; font-size: 0.74rem; text-overflow: ellipsis; white-space: nowrap; }
 .status-won, .status-returned { color: #b5d2bb; }
 .status-lost, .status-stranded { color: #d69a91; }
 .empty-state { color: var(--muted); font-size: 0.72rem; }
@@ -253,6 +266,14 @@ button:focus-visible {
 
 .modal-panel > h2 { overflow-wrap: anywhere; font-size: clamp(1.45rem, 3vw, 2.15rem); line-height: 1.25; letter-spacing: 0.025em; }
 .modal-panel > p:not(.eyebrow) { max-width: 68ch; color: var(--muted); line-height: 1.75; }
+
+.mission-list { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 18px; }
+.mission-option { display: grid; gap: 4px; min-width: 0; padding: 11px 12px; border: 1px solid var(--line); border-radius: 10px; background: rgba(255,255,255,0.02); cursor: pointer; text-align: left; }
+.mission-option.is-selected { border-color: rgba(212,173,98,0.58); background: rgba(212,173,98,0.1); }
+.mission-option strong, .mission-option small, .mission-option em { display: block; }
+.mission-option strong { color: var(--ink); font-size: 0.76rem; }
+.mission-option small { color: var(--muted); font-size: 0.63rem; line-height: 1.45; }
+.mission-option em { color: var(--gold); font-size: 0.58rem; font-style: normal; }
 
 .candidate-list { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 24px; }
 .candidate-card { position: relative; display: grid; grid-template-rows: 84px 1fr; gap: 10px; min-width: 0; padding: 18px; border: 1px solid var(--line); border-radius: 13px; background: rgba(255,255,255,0.025); cursor: pointer; text-align: left; transition: transform 120ms ease-out, border-color 140ms ease-out, background-color 140ms ease-out, box-shadow 140ms ease-out; }
@@ -331,12 +352,18 @@ button:focus-visible {
 .score-breakdown strong { margin-top: 3px; font-size: 1rem; }
 .score-breakdown .score-total { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; background: rgba(212,173,98,0.12); }
 .score-breakdown .score-total strong { color: var(--gold-bright); font-size: 1.5rem; }
+.run-comparison { margin-top: 16px; padding: 12px; border: 1px solid rgba(212,173,98,0.3); border-radius: 10px; background: rgba(212,173,98,0.07); }
+.run-comparison > strong { color: var(--gold-bright); font-size: 0.82rem; }
+.run-comparison > p { margin: 5px 0 0; color: var(--muted); font-size: 0.7rem; }
+.run-comparison > div { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
+.run-comparison > div span { padding: 3px 6px; border: 1px solid rgba(212,173,98,0.25); border-radius: 99px; color: var(--gold); font-size: 0.6rem; }
 .decision-history { margin: 18px 0; }
 .decision-history h3 { margin: 0 0 8px; font-size: 0.8rem; }
 .decision-history ol { display: grid; gap: 5px; margin: 0; padding: 0; list-style: none; }
 .decision-history li { display: grid; grid-template-columns: 38px 1fr auto; gap: 8px; padding: 7px 9px; background: rgba(255,255,255,0.025); font-size: 0.7rem; }
 .decision-history li span { color: var(--muted); }
 .decision-history li em { color: var(--gold); font-style: normal; }
+.decision-history li strong small { display: block; margin-top: 2px; color: var(--muted); font-size: 0.58rem; font-weight: 400; }
 
 @keyframes veil-enter {
   from { opacity: 0; }
@@ -378,6 +405,7 @@ button:focus-visible {
   .modal-layer { align-items: start; padding: 10px; }
   .modal-panel { margin: 10px 0; padding: 20px 16px; border-radius: 14px; }
   .candidate-list { grid-template-columns: 1fr; gap: 8px; margin-top: 16px; }
+  .mission-list { grid-template-columns: 1fr; }
   .candidate-card { grid-template-columns: 64px 1fr; grid-template-rows: auto; padding: 12px; }
   .candidate-portrait { width: 64px; height: 64px; background-size: auto; }
   .candidate-body > small { margin-top: 5px; }
@@ -393,6 +421,7 @@ button:focus-visible {
   .decision-option { grid-template-columns: 24px 1fr; }
   .decision-option em { grid-column: 2; grid-row: auto; }
   .score-breakdown { grid-template-columns: repeat(2, 1fr); }
+  .campaign-summary { grid-template-columns: repeat(2, 1fr); }
 }
 
 @media (prefers-reduced-motion: reduce) {

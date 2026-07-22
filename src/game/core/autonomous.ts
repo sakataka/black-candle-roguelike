@@ -10,6 +10,7 @@ import type {
   GameObservation,
   GameState,
   PendingDecision,
+  MissionId,
   RoleTruthId,
   RunIdentity,
   RunStoryState,
@@ -25,6 +26,38 @@ const names = [
 
 const temperaments: TemperamentId[] = ["cautious", "seeker", "bold"];
 
+export type MissionDefinition = {
+  id: MissionId;
+  label: string;
+  description: string;
+  targetLabel: string;
+  rewardLabel: string;
+};
+
+export const expeditionMissions: MissionDefinition[] = [
+  {
+    id: "guardian-vow",
+    label: "守り手の誓約",
+    description: "二体の階層守護者を倒し、黒燭中枢へ封鎖突破の証を運ぶ。",
+    targetLabel: "守護者2体撃破後、F10到達",
+    rewardLabel: "紅蓮の大薬瓶",
+  },
+  {
+    id: "relic-ledger",
+    label: "遺物台帳の補完",
+    description: "六種の出来事を記録し、灰灯院の欠落した台帳を埋める。",
+    targetLabel: "発見 6種",
+    rewardLabel: "啓示 +1",
+  },
+  {
+    id: "swift-route",
+    label: "灯路の先駆け",
+    description: "700手以内に第六階へ到達し、短い帰還路を確立する。",
+    targetLabel: "700手以内に第6階",
+    rewardLabel: "退き風の巻物",
+  },
+];
+
 export function createRunIdentity(seed: number, roleId: string): RunIdentity {
   const value = stableHash(`${seed}:${roleId}`);
   return {
@@ -34,15 +67,41 @@ export function createRunIdentity(seed: number, roleId: string): RunIdentity {
   };
 }
 
-export function createRunStoryState(): RunStoryState {
+export function createRunStoryState(missionId: MissionId = "guardian-vow"): RunStoryState {
   return {
+    missionId,
+    missionCompleted: false,
     maxFloorReached: 1,
     bossesDefeated: 0,
     discoveries: [],
     decisions: [],
     contextActs: [],
+    crisisKinds: [],
+    interventionScore: 0,
     turnWarningShown: false,
   };
+}
+
+export function missionDefinition(missionId: MissionId): MissionDefinition {
+  return expeditionMissions.find((mission) => mission.id === missionId) ?? expeditionMissions[0];
+}
+
+export function defaultMissionForTemperament(temperament: TemperamentId): MissionId {
+  if (temperament === "cautious") return "swift-route";
+  if (temperament === "seeker") return "relic-ledger";
+  return "guardian-vow";
+}
+
+export function missionProgress(state: GameState): { current: number; target: number; completed: boolean; missed: boolean } {
+  if (state.story.missionId === "guardian-vow") {
+    const current = Math.min(2, state.story.bossesDefeated) + (state.story.maxFloorReached >= 10 ? 1 : 0);
+    return { current, target: 3, completed: state.story.bossesDefeated >= 2 && state.story.maxFloorReached >= 10, missed: false };
+  }
+  if (state.story.missionId === "relic-ledger") {
+    return { current: Math.min(6, state.story.discoveries.length), target: 6, completed: state.story.discoveries.length >= 6, missed: false };
+  }
+  const reached = state.story.maxFloorReached >= 6 && state.runTurn <= 700;
+  return { current: reached ? 6 : Math.min(6, state.story.maxFloorReached), target: 6, completed: reached, missed: state.runTurn > 700 && !reached };
 }
 
 export function temperamentLabel(temperament: TemperamentId): string {
@@ -116,21 +175,86 @@ export function createCheckpointDecision(state: GameState): PendingDecision {
 }
 
 export function createContextDecision(state: GameState, act: 1 | 2, sourceId = "black-candle-echo"): PendingDecision {
+  const crisis = crisisDecisionFor(state, act);
+  return { ...crisis, id: `context-${act}-${crisis.id}-${sourceId}` };
+}
+
+function crisisDecisionFor(state: GameState, act: 1 | 2): PendingDecision {
+  const player = state.entities.find((entity) => entity.id === state.playerId);
+  const hpRatio = player?.stats ? player.stats.hp / player.stats.maxHp : 1;
+  const hasAffliction = player?.conditions?.some((condition) => condition.kind === "bleeding" || condition.kind === "venomed") ?? false;
+  const rangedThreats = state.entities.filter((entity) => entity.kind === "monster" && getGameConfig().rangedMonsters.includes(entity.contentId)).length;
+  const inventoryCount = player?.inventory?.reduce((sum, entry) => sum + entry.quantity, 0) ?? 0;
+
+  if (hpRatio <= 0.52) return woundedCrisis(state, act);
+  if (hasAffliction) return afflictionCrisis(state, act);
+  if (rangedThreats >= 2) return rangedCrisis(state, act);
+  if (inventoryCount >= 12 || state.playerProgress.gold >= 90) return burdenCrisis(state, act);
+  if (act === 2 && state.runTurn >= 1050) return fadingRouteCrisis(state);
+  return act === 1 ? memoryCrisis(state) : furnaceCrisis(state);
+}
+
+function crisisBase(state: GameState, id: string, title: string, body: string, options: DecisionOption[]): PendingDecision {
   const defaultDirective = defaultDirectiveForTemperament(state.runIdentity.temperament);
-  const title = act === 1 ? "墓所から届く残響" : "炉脈を走る黒い火";
-  const body = act === 1
-    ? "死者の記憶が黒燭越しに流れ込む。探索者は足を止め、どの声を追うか迷っている。"
-    : "地上へ伸びる炉脈と、封印を守る敵影が同時に見えた。次に重く見るものを決める時だ。";
-  return {
-    id: `context-${act}-${sourceId}`,
-    kind: "context",
-    floor: state.floor,
-    title,
-    body,
-    defaultOptionId: `continue-${defaultDirective}`,
-    resume: "none",
-    options: directiveOptions(defaultDirective),
-  };
+  const defaultOption = options.find((option) => option.directive === defaultDirective && !option.requiresRevelation) ?? options[0];
+  return { id, kind: "context", floor: state.floor, title, body, defaultOptionId: defaultOption.id, resume: "none", options };
+}
+
+function woundedCrisis(state: GameState, act: 1 | 2): PendingDecision {
+  return crisisBase(state, "wounded", "薄れる命火", "黒燭に映る探索者の命火が細い。先を急げば真相へ近づくが、次の戦闘に耐えられる保証はない。", [
+    { id: "wounded-rest", label: "安全な陰で休ませる", description: "12HPを回復し、生還を優先する。", outcome: "continue", directive: "survival", effect: { heal: 12 } },
+    { id: "wounded-bargain", label: "血を灯へ変える", description: "最大HPを4失う代わりに20HPを回復し、探索を続ける。", outcome: "continue", directive: "discovery", effect: { maxHpCost: 4, heal: 20 } },
+    { id: "wounded-revelation", label: "啓示で傷を封じる", description: "啓示を使い、18HP回復と12ターンの護りを得る。", outcome: "continue", directive: act === 1 ? "discovery" : "conquest", requiresRevelation: true, effect: { heal: 18, guardedTurns: 12 } },
+  ]);
+}
+
+function afflictionCrisis(state: GameState, act: 1 | 2): PendingDecision {
+  return crisisBase(state, "affliction", "血と毒の残響", "出血か毒が黒燭の像を濁らせている。痛みを受け入れるか、足を止めて処置するかを決めなければならない。", [
+    { id: "affliction-cure", label: "傷を清める", description: "状態異常を除き、8HPを回復する。", outcome: "continue", directive: "survival", effect: { cureConditions: true, heal: 8 } },
+    { id: "affliction-map", label: "痛みを道標にする", description: "周囲12マスを記録し、探究を続ける。", outcome: "continue", directive: "discovery", effect: { revealRadius: 12 } },
+    { id: "affliction-revelation", label: "啓示で穢れを焼く", description: "啓示を使い、状態異常を除いて16ターン護る。", outcome: "continue", directive: act === 1 ? "discovery" : "conquest", requiresRevelation: true, effect: { cureConditions: true, guardedTurns: 16 } },
+  ]);
+}
+
+function rangedCrisis(state: GameState, act: 1 | 2): PendingDecision {
+  return crisisBase(state, "ranged", "射線の向こうの火", "複数の遠隔攻撃者が通路の先を押さえている。黒燭には、遮蔽へ潜る道と敵陣を崩す瞬間が同時に映った。", [
+    { id: "ranged-cover", label: "遮蔽を渡らせる", description: "12ターンの護りを得て、安全な進路を優先する。", outcome: "continue", directive: "survival", effect: { guardedTurns: 12 } },
+    { id: "ranged-survey", label: "射手の位置を記す", description: "周囲10マスを記録し、探索経路を組み直す。", outcome: "continue", directive: "discovery", effect: { revealRadius: 10 } },
+    { id: "ranged-revelation", label: "啓示で射線を砕く", description: "啓示を使って見えている敵を押し戻し、征圧へ転じる。", outcome: "continue", directive: act === 1 ? "conquest" : defaultDirectiveForTemperament(state.runIdentity.temperament), requiresRevelation: true, effect: { pushVisibleMonsters: true, guardedTurns: 8 } },
+  ]);
+}
+
+function burdenCrisis(state: GameState, act: 1 | 2): PendingDecision {
+  const offering = Math.min(40, state.playerProgress.gold);
+  return crisisBase(state, "burden", "持ち帰るものの重さ", "遺物と古銭が足取りを鈍らせる。戦果を守るか、一部を灯路へ捧げて先を急ぐか。", [
+    { id: "burden-guard", label: "戦果を抱えて進む", description: "生還を優先し、10ターンの護りを得る。", outcome: "continue", directive: "survival", effect: { guardedTurns: 10 } },
+    { id: "burden-offer", label: `${offering}Gを灯路へ捧げる`, description: "古銭を失う代わりに周囲14マスを記録する。", outcome: "continue", directive: "discovery", effect: { goldCost: offering, revealRadius: 14 } },
+    { id: "burden-revelation", label: "啓示で荷を軽くする", description: "啓示を使って敵を退け、征圧の速度を保つ。", outcome: "continue", directive: act === 1 ? "conquest" : defaultDirectiveForTemperament(state.runIdentity.temperament), requiresRevelation: true, effect: { pushVisibleMonsters: true, guardedTurns: 8 } },
+  ]);
+}
+
+function fadingRouteCrisis(state: GameState): PendingDecision {
+  return crisisBase(state, "fading-route", "途切れかけた灯路", "長い遠征で地上との像が揺らいでいる。このままでは黒燭との接続そのものが切れる。", [
+    { id: "route-stabilize", label: "灯路を安定させる", description: "16ターンの護りを得て、生還可能性を優先する。", outcome: "continue", directive: "survival", effect: { guardedTurns: 16 } },
+    { id: "route-chart", label: "残像を地図へ焼く", description: "周囲16マスを記録し、階段への道を探す。", outcome: "continue", directive: "discovery", effect: { revealRadius: 16 } },
+    { id: "route-revelation", label: "啓示で像を引き寄せる", description: "啓示を使い、敵を退けて18HP回復する。", outcome: "continue", directive: "conquest", requiresRevelation: true, effect: { heal: 18, pushVisibleMonsters: true } },
+  ]);
+}
+
+function memoryCrisis(state: GameState): PendingDecision {
+  return crisisBase(state, "memory", "墓所から届く残響", "死者の記憶が三つの道を映した。安全な巡礼路、碑文の眠る脇道、守り手へ続く近道だ。", [
+    { id: "memory-safe", label: "巡礼路をたどる", description: "12HPを回復し、生還を優先する。", outcome: "continue", directive: "survival", effect: { heal: 12 } },
+    { id: "memory-inscription", label: "碑文の脇道を記す", description: "周囲12マスを記録し、発見を優先する。", outcome: "continue", directive: "discovery", effect: { revealRadius: 12 } },
+    { id: "memory-revelation", label: "啓示で近道を開く", description: "啓示を使い、見える敵を押し戻して征圧へ向かう。", outcome: "continue", directive: "conquest", requiresRevelation: true, effect: { pushVisibleMonsters: true, guardedTurns: 8 } },
+  ]);
+}
+
+function furnaceCrisis(state: GameState): PendingDecision {
+  return crisisBase(state, "furnace", "炉脈を走る黒い火", "炉脈が探索者の装備と傷を照らした。火を守りへ回すか、地図へ焼くか、敵陣へ放つか。", [
+    { id: "furnace-ward", label: "火を鎧へ移す", description: "14ターンの護りを得て、生還を優先する。", outcome: "continue", directive: "survival", effect: { guardedTurns: 14 } },
+    { id: "furnace-map", label: "炉脈を地図へ焼く", description: "周囲14マスを記録し、深部の発見を優先する。", outcome: "continue", directive: "discovery", effect: { revealRadius: 14 } },
+    { id: "furnace-revelation", label: "啓示で黒火を放つ", description: "啓示を使い、敵を退けて10HP回復する。", outcome: "continue", directive: "conquest", requiresRevelation: true, effect: { pushVisibleMonsters: true, heal: 10 } },
+  ]);
 }
 
 export function createFinalDecision(state: GameState): PendingDecision {
@@ -215,26 +339,32 @@ export function calculateScore(state: GameState): ScoreBreakdown {
   const survival = state.status === "won" ? config.won : state.status === "returned" ? config.returned : 0;
   const recoveredValue = Math.min(config.recoveredValueCap, recoveredRaw);
   const tempo = Math.min(config.tempoCap, Math.max(0, state.story.maxFloorReached * config.tempoParPerFloor - state.runTurn) * config.tempoPerTurn);
-  const autonomy = state.revelationsRemaining * config.unusedRevelation;
+  const autonomy = (state.story.missionCompleted ? config.missionCompleted : 0) + state.story.interventionScore;
   const total = depth + guardians + roleObjective + discoveries + survival + recoveredValue + tempo + autonomy;
   return { depth, guardians, roleObjective, discoveries, survival, recoveredValue, tempo, autonomy, total };
 }
 
 export function createCampaignState(): CampaignState {
   return {
-    version: 1,
+    version: 2,
     roleTruths: [],
     expeditions: [],
   };
 }
 
 export function normalizeCampaignState(value: unknown): CampaignState {
-  if (!value || typeof value !== "object" || (value as { version?: unknown }).version !== 1) return createCampaignState();
-  const input = value as Partial<CampaignState>;
+  if (!value || typeof value !== "object") return createCampaignState();
+  const version = (value as { version?: unknown }).version;
+  if (version !== 1 && version !== 2) return createCampaignState();
+  const input = value as { roleTruths?: unknown; expeditions?: unknown };
+  const roleTruths = Array.isArray(input.roleTruths) ? input.roleTruths.filter(isRoleTruthId) : [];
+  const expeditions = Array.isArray(input.expeditions)
+    ? input.expeditions.flatMap((entry) => normalizeExpeditionRecord(entry)).slice(0, 100)
+    : [];
   return {
-    version: 1,
-    roleTruths: unique((input.roleTruths ?? []).filter(isRoleTruthId)),
-    expeditions: Array.isArray(input.expeditions) ? input.expeditions.slice(0, 100) as ExpeditionRecord[] : [],
+    version: 2,
+    roleTruths: unique(roleTruths),
+    expeditions,
   };
 }
 
@@ -253,14 +383,70 @@ export function recordCampaignResult(campaign: CampaignState, state: GameState, 
     score,
     decisions: state.story.decisions.map((entry) => ({ ...entry })),
     deathCause,
+    missionId: state.story.missionId,
+    missionCompleted: state.story.missionCompleted,
+    discoveryCount: state.story.discoveries.length,
+    interventionCount: state.story.decisions.filter((entry) => entry.effectSummary && entry.usedRevelation).length,
     truthRecovered,
     endingId: state.story.endingId,
   };
   return {
-    version: 1,
+    version: 2,
     roleTruths: truthRecovered ? unique([...campaign.roleTruths, truthRecovered]) : [...campaign.roleTruths],
     expeditions: [record, ...campaign.expeditions].slice(0, 100),
   };
+}
+
+export type CampaignProgress = {
+  highestFloor: number;
+  bestScore: number;
+  completedRuns: number;
+  completedMissionIds: MissionId[];
+  endingIds: EndingId[];
+  milestones: Array<{ label: string; unlocked: boolean }>;
+};
+
+export function campaignProgress(campaign: CampaignState): CampaignProgress {
+  const highestFloor = campaign.expeditions.reduce((best, record) => Math.max(best, record.floor), 0);
+  const bestScore = campaign.expeditions.reduce((best, record) => Math.max(best, record.score.total), 0);
+  const completedRuns = campaign.expeditions.filter((record) => record.status === "won").length;
+  const completedMissionIds = unique(campaign.expeditions.filter((record) => record.missionCompleted).map((record) => record.missionId));
+  const endingIds = unique(campaign.expeditions.flatMap((record) => record.endingId ? [record.endingId] : []));
+  return {
+    highestFloor,
+    bestScore,
+    completedRuns,
+    completedMissionIds,
+    endingIds,
+    milestones: [
+      { label: "初遠征", unlocked: campaign.expeditions.length > 0 },
+      { label: "第一灯路", unlocked: highestFloor >= 4 },
+      { label: "真相回収", unlocked: campaign.roleTruths.length > 0 },
+      { label: "黒燭中枢", unlocked: highestFloor >= 10 },
+      { label: "三つの真相", unlocked: campaign.roleTruths.length >= 3 },
+      { label: "結末", unlocked: endingIds.length > 0 },
+    ],
+  };
+}
+
+function normalizeExpeditionRecord(value: unknown): ExpeditionRecord[] {
+  if (!value || typeof value !== "object") return [];
+  const record = value as Partial<ExpeditionRecord>;
+  if (!record.id || !record.identity || !record.score || !record.status || typeof record.floor !== "number") return [];
+  const missionId = isMissionId(record.missionId) ? record.missionId : defaultMissionForTemperament(record.identity.temperament);
+  const decisions = Array.isArray(record.decisions) ? record.decisions.map((entry) => ({ ...entry })) : [];
+  return [{
+    ...record,
+    completedAt: record.completedAt ?? new Date(0).toISOString(),
+    seed: record.seed ?? 0,
+    runTurn: record.runTurn ?? 0,
+    decisions,
+    deathCause: record.deathCause ?? null,
+    missionId,
+    missionCompleted: record.missionCompleted ?? false,
+    discoveryCount: record.discoveryCount ?? 0,
+    interventionCount: record.interventionCount ?? decisions.filter((entry) => entry.usedRevelation && entry.id.startsWith("context-")).length,
+  } as ExpeditionRecord];
 }
 
 function stableHash(value: string): number {
@@ -278,4 +464,8 @@ function unique<T>(values: T[]): T[] {
 
 function isRoleTruthId(value: unknown): value is RoleTruthId {
   return value === "shared-oath" || value === "furnace-map" || value === "purified-flame";
+}
+
+function isMissionId(value: unknown): value is MissionId {
+  return value === "guardian-vow" || value === "relic-ledger" || value === "swift-route";
 }

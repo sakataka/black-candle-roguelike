@@ -27,6 +27,8 @@ export type RoleTruthId = "shared-oath" | "furnace-map" | "purified-flame";
 
 export type EndingId = "inherit-flame" | "extinguish-flame" | "divide-flame";
 
+export type MissionId = "guardian-vow" | "relic-ledger" | "swift-route";
+
 type DecisionKind = "checkpoint" | "context" | "final";
 
 export type RunIdentity = {
@@ -43,6 +45,15 @@ export type DecisionOption = {
   directive?: DirectiveId;
   endingId?: EndingId;
   requiresRevelation?: boolean;
+  effect?: {
+    heal?: number;
+    maxHpCost?: number;
+    guardedTurns?: number;
+    cureConditions?: boolean;
+    revealRadius?: number;
+    pushVisibleMonsters?: boolean;
+    goldCost?: number;
+  };
 };
 
 export type PendingDecision = {
@@ -56,20 +67,25 @@ export type PendingDecision = {
   options: DecisionOption[];
 };
 
-type RunDecisionRecord = {
+export type RunDecisionRecord = {
   id: string;
   floor: number;
   optionId: string;
   optionLabel: string;
   usedRevelation: boolean;
+  effectSummary?: string;
 };
 
 export type RunStoryState = {
+  missionId: MissionId;
+  missionCompleted: boolean;
   maxFloorReached: number;
   bossesDefeated: number;
   discoveries: string[];
   decisions: RunDecisionRecord[];
   contextActs: number[];
+  crisisKinds: string[];
+  interventionScore: number;
   carriedTruthId?: RoleTruthId;
   coreDisposition?: "research" | "relic";
   endingId?: EndingId;
@@ -99,12 +115,16 @@ export type ExpeditionRecord = {
   score: ScoreBreakdown;
   decisions: RunDecisionRecord[];
   deathCause: string | null;
+  missionId: MissionId;
+  missionCompleted: boolean;
+  discoveryCount: number;
+  interventionCount: number;
   truthRecovered?: RoleTruthId;
   endingId?: EndingId;
 };
 
 export type CampaignState = {
-  version: 1;
+  version: 2;
   roleTruths: RoleTruthId[];
   expeditions: ExpeditionRecord[];
 };
@@ -299,7 +319,8 @@ export type GameConfig = {
       tempoParPerFloor: number;
       tempoPerTurn: number;
       tempoCap: number;
-      unusedRevelation: number;
+      missionCompleted: number;
+      intervention: number;
     };
     pacingMs: {
       traversal: number;

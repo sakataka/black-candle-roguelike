@@ -82,6 +82,9 @@ export type SimulationRunResult = {
   decisions: number;
   discoveries: number;
   projectedDisplayMs: number;
+  missionId: GameState["story"]["missionId"];
+  missionCompleted: boolean;
+  interventions: number;
   profile?: SimulationProfile;
 };
 
@@ -232,6 +235,9 @@ export async function runSimulation(input: SimulationRunInput): Promise<Simulati
     decisions: state.story.decisions.length,
     discoveries: state.story.discoveries.length,
     projectedDisplayMs,
+    missionId: state.story.missionId,
+    missionCompleted: state.story.missionCompleted,
+    interventions: state.story.decisions.filter((entry) => entry.effectSummary && entry.usedRevelation).length,
   };
   if (profile) {
     result.profile = profile;

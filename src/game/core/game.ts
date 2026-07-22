@@ -12,6 +12,7 @@ import type {
   GameObservation,
   GameState,
   MerchantServiceId,
+  MissionId,
   PlayerProgress,
   Point,
   RunObjectiveFlags,
@@ -29,7 +30,10 @@ import {
   createFinalDecision,
   createRunIdentity,
   createRunStoryState,
+  defaultMissionForTemperament,
   defaultDirectiveForTemperament,
+  missionDefinition,
+  missionProgress,
   roleTruthFor,
 } from "./autonomous";
 
@@ -65,7 +69,7 @@ function roleTraits(roleId: string) {
 export function createInitialGame(
   seed = 20260504,
   roleId = "role.oathbound",
-  options: { identity?: RunIdentity; knownRoleTruths?: RoleTruthId[] } = {},
+  options: { identity?: RunIdentity; knownRoleTruths?: RoleTruthId[]; missionId?: MissionId } = {},
 ): GameState {
   const identity = options.identity ?? createRunIdentity(seed, roleId);
   return createFloorState(seed, 1, undefined, [], createInitialProgress(), roleId, createInitialRunObjectives(), {
@@ -74,7 +78,7 @@ export function createInitialGame(
     directive: defaultDirectiveForTemperament(identity.temperament),
     revelationsRemaining: getGameConfig().autonomous.revelationsPerRun,
     knownRoleTruths: [...(options.knownRoleTruths ?? [])],
-    story: createRunStoryState(),
+    story: createRunStoryState(options.missionId ?? defaultMissionForTemperament(identity.temperament)),
   });
 }
 
@@ -105,7 +109,7 @@ function createFloorState(
     directive: defaultDirectiveForTemperament(fallbackIdentity.temperament),
     revelationsRemaining: config.autonomous.revelationsPerRun,
     knownRoleTruths: [],
-    story: createRunStoryState(),
+    story: createRunStoryState(defaultMissionForTemperament(fallbackIdentity.temperament)),
   };
   const biome = biomeThemeForFloor(floor);
   const tiles = Array.from({ length: rules.mapWidth * rules.mapHeight }, (): Tile => ({
@@ -234,6 +238,7 @@ function createFloorState(
       discoveries: [...run.story.discoveries],
       decisions: run.story.decisions.map((entry) => ({ ...entry })),
       contextActs: [...run.story.contextActs],
+      crisisKinds: [...run.story.crisisKinds],
     },
     messages: [
       ...carriedMessages,
@@ -245,7 +250,9 @@ function createFloorState(
   const fallbackAct = floor === 5 ? 1 : floor === 8 ? 2 : null;
   if (fallbackAct && !next.story.contextActs.includes(fallbackAct)) {
     next.story.contextActs.push(fallbackAct);
-    next.pendingDecision = createContextDecision(next, fallbackAct, "fallback");
+    const decision = createContextDecision(next, fallbackAct, "fallback");
+    next.story.crisisKinds.push(decision.id);
+    next.pendingDecision = decision;
   }
   return next;
 }
@@ -312,6 +319,8 @@ export function applyAction(state: GameState, action: GameAction): GameState {
       break;
   }
 
+  next = resolveMissionCompletion(next);
+
   if (next.status === "playing" && !next.pendingDecision) {
     next = reevaluateEquipment(next);
     next = runMonsterTurn(next);
@@ -344,12 +353,17 @@ function resolveDecision(state: GameState, optionId: string): GameState {
   }
   if (option.requiresRevelation) state.revelationsRemaining -= 1;
   if (option.directive) state.directive = option.directive;
+  const effectSummary = applyDecisionEffect(state, option.effect);
+  if (decision.kind === "context" && option.requiresRevelation && option.effect) {
+    state.story.interventionScore += getGameConfig().autonomous.scoring.intervention;
+  }
   state.story.decisions.push({
     id: decision.id,
     floor: state.floor,
     optionId: option.id,
     optionLabel: option.label,
     usedRevelation: !!option.requiresRevelation,
+    effectSummary,
   });
   state.pendingDecision = null;
   state.messages = pushMessage(state, `${state.runIdentity.name}へ「${option.label}」を伝えた。`, "system");
@@ -389,6 +403,62 @@ function resolveDecision(state: GameState, optionId: string): GameState {
   return state;
 }
 
+function applyDecisionEffect(state: GameState, effect: NonNullable<NonNullable<GameState["pendingDecision"]>["options"][number]["effect"]> | undefined): string | undefined {
+  if (!effect) return undefined;
+  const player = getPlayer(state);
+  const applied: string[] = [];
+  if (effect.goldCost) {
+    const spent = Math.min(state.playerProgress.gold, effect.goldCost);
+    state.playerProgress.gold -= spent;
+    applied.push(`${spent}G消費`);
+  }
+  if (effect.maxHpCost && player.stats) {
+    player.stats.maxHp = Math.max(1, player.stats.maxHp - effect.maxHpCost);
+    player.stats.hp = Math.min(player.stats.hp, player.stats.maxHp);
+    applied.push(`最大HP-${effect.maxHpCost}`);
+  }
+  if (effect.heal && player.stats) {
+    const healed = Math.min(effect.heal, player.stats.maxHp - player.stats.hp);
+    player.stats.hp += healed;
+    applied.push(`HP+${healed}`);
+  }
+  if (effect.cureConditions) {
+    const before = player.conditions?.length ?? 0;
+    player.conditions = player.conditions?.filter((condition) => condition.kind === "guarded") ?? [];
+    if (before !== player.conditions.length) applied.push("出血・毒を除去");
+  }
+  if (effect.guardedTurns) {
+    player.conditions = upsertCondition(player.conditions, "guarded", effect.guardedTurns);
+    if (player.stats) player.stats.defense = baseDefense(state.playerProgress) + defenseBonus(player);
+    applied.push(`護り${effect.guardedTurns}T`);
+  }
+  if (effect.revealRadius) {
+    revealAround(state, player.pos, effect.revealRadius);
+    applied.push(`周囲${effect.revealRadius}マス記録`);
+  }
+  if (effect.pushVisibleMonsters) {
+    const pushed = pushVisibleMonstersAway(state, player.pos);
+    applied.push(`敵${pushed}体を押し戻す`);
+  }
+  if (applied.length > 0) state.messages = pushMessage(state, `灯守の介入: ${applied.join("、")}。`, "explore");
+  return applied.join(" / ") || undefined;
+}
+
+function resolveMissionCompletion(state: GameState): GameState {
+  if (state.story.missionCompleted || !missionProgress(state).completed) return state;
+  state.story.missionCompleted = true;
+  const mission = missionDefinition(state.story.missionId);
+  if (state.story.missionId === "guardian-vow") {
+    addInventoryItem(getPlayer(state), "item.greater-tonic", 1);
+  } else if (state.story.missionId === "relic-ledger") {
+    state.revelationsRemaining += 1;
+  } else {
+    addInventoryItem(getPlayer(state), "item.repulsion-scroll", 1);
+  }
+  state.messages = pushMessage(state, `遠征任務「${mission.label}」を達成した。報酬: ${mission.rewardLabel}。`, "loot");
+  return state;
+}
+
 function descendToNextFloor(state: GameState, messages: GameMessage[]): GameState {
   return createFloorState(
     state.seed + 101 * state.floor,
@@ -414,6 +484,7 @@ function carryRun(state: GameState): RunCarryState {
       discoveries: [...state.story.discoveries],
       decisions: state.story.decisions.map((entry) => ({ ...entry })),
       contextActs: [...state.story.contextActs],
+      crisisKinds: [...state.story.crisisKinds],
     },
   };
 }
@@ -1023,7 +1094,9 @@ function triggerEvent(state: GameState, eventEntity: Entity): GameState {
   const act = resolved.floor >= 4 && resolved.floor <= 6 ? 1 : resolved.floor >= 7 && resolved.floor <= 9 ? 2 : null;
   if (act && !resolved.story.contextActs.includes(act) && eventEntity.contentId !== "event.wayfarer-merchant") {
     resolved.story.contextActs.push(act);
-    resolved.pendingDecision = createContextDecision(resolved, act, eventEntity.contentId);
+    const decision = createContextDecision(resolved, act, eventEntity.contentId);
+    resolved.story.crisisKinds.push(decision.id);
+    resolved.pendingDecision = decision;
     resolved.messages = pushMessage(resolved, "黒燭が出来事の意味を映し返した。灯守の判断を待っている。", "system");
   }
   return resolved;
@@ -2395,6 +2468,7 @@ function cloneState(state: GameState): GameState {
       discoveries: [...state.story.discoveries],
       decisions: state.story.decisions.map((entry) => ({ ...entry })),
       contextActs: [...state.story.contextActs],
+      crisisKinds: [...state.story.crisisKinds],
     },
     tiles: state.tiles.map((tile) => ({ ...tile })),
     entities: state.entities.map((entity) => ({

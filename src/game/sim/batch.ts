@@ -55,6 +55,8 @@ type AggregateSummary = {
   averageScore: number;
   medianScore: number;
   averageDecisions: number;
+  missionCompletionRate: number;
+  averageInterventions: number;
   averageProjectedDisplayMs: number;
   averageFinalHp: number;
   averageLowHpTurns: number;
@@ -727,6 +729,8 @@ function summarizeRuns(runResults: SimulationRunResult[]): AggregateSummary {
     averageScore: average(runResults, (run) => run.score.total),
     medianScore: median(runResults.map((run) => run.score.total)),
     averageDecisions: average(runResults, (run) => run.decisions),
+    missionCompletionRate: ratio(runResults.filter((run) => run.missionCompleted).length, count),
+    averageInterventions: average(runResults, (run) => run.interventions),
     averageProjectedDisplayMs: average(runResults, (run) => run.projectedDisplayMs),
     averageFinalHp: average(runResults, (run) => run.review.stats.finalHp ?? 0),
     averageLowHpTurns: average(runResults, (run) => run.review.stats.lowHpTurns),
@@ -1038,8 +1042,8 @@ function renderMarkdownReport(report: BatchSimulationReport): string {
     "",
     "## Label x Role",
     "",
-    "| Label | Role | Runs | Won | Returned | Lost | Stranded | Playing | Avg Floor | Avg Turns | Avg Score | Median Score | Display min | Avg HP | Low HP | Stagnant | Trap Steps | Discoveries | Pickups | Attacks | Attacks/100T | Descents | Decisions | UseItem | Merchant | Avg ms/run | Runs/sec | Death Causes | Choices |",
-    "| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- | --- |",
+    "| Label | Role | Runs | Won | Returned | Lost | Stranded | Playing | Avg Floor | Avg Turns | Avg Score | Median Score | Mission % | Interventions | Display min | Avg HP | Low HP | Stagnant | Trap Steps | Discoveries | Pickups | Attacks | Attacks/100T | Descents | Decisions | UseItem | Merchant | Avg ms/run | Runs/sec | Death Causes | Choices |",
+    "| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- | --- |",
   );
 
   for (const config of report.inputs.configs) {
@@ -1058,6 +1062,8 @@ function renderMarkdownReport(report: BatchSimulationReport): string {
         formatNumber(summary.averageTurns),
         formatNumber(summary.averageScore),
         formatNumber(summary.medianScore),
+        formatNumber(summary.missionCompletionRate * 100),
+        formatNumber(summary.averageInterventions),
         formatNumber(summary.averageProjectedDisplayMs / 60_000),
         formatNumber(summary.averageFinalHp),
         formatNumber(summary.averageLowHpTurns),

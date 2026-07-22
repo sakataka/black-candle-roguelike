@@ -3,6 +3,7 @@ import { loadBunGameConfig } from "../content/config";
 import type { GameState } from "../types";
 import {
   calculateScore,
+  campaignProgress,
   createCampaignState,
   createCheckpointDecision,
   createContextDecision,
@@ -51,6 +52,29 @@ describe("自律遠征", () => {
     expect(next.pendingDecision).toBeNull();
   });
 
+  test("危機介入は即時効果と評価を記録する", () => {
+    const state = createInitialGame(20260504, "role.oathbound");
+    const player = state.entities.find((entry) => entry.id === state.playerId);
+    if (!player?.stats) throw new Error("Missing player stats");
+    player.stats.hp = 6;
+    state.pendingDecision = createContextDecision(state, 1, "test");
+    const option = state.pendingDecision.options.find((entry) => entry.requiresRevelation);
+    expect(option?.effect).toBeDefined();
+    const next = applyAction(state, { type: "resolveDecision", optionId: option?.id ?? "" });
+    expect(next.entities.find((entry) => entry.id === next.playerId)?.stats?.hp).toBeGreaterThan(6);
+    expect(next.story.interventionScore).toBe(250);
+    expect(next.story.decisions.at(-1)?.effectSummary).toBeTruthy();
+  });
+
+  test("遠征任務の達成で報酬と得点を得る", () => {
+    const state = createInitialGame(20260504, "role.ash-scout", { missionId: "relic-ledger" });
+    state.story.discoveries = ["a", "b", "c", "d", "e", "f"];
+    const next = applyAction(state, { type: "wait" });
+    expect(next.story.missionCompleted).toBe(true);
+    expect(next.revelationsRemaining).toBe(3);
+    expect(calculateScore(next).autonomy).toBe(1500);
+  });
+
   test("章間帰還は敵ターンを発生させず戦果を確定する", () => {
     const state = createInitialGame(20260504, "role.oathbound");
     const hp = state.entities.find((entry) => entry.id === state.playerId)?.stats?.hp;
@@ -96,12 +120,50 @@ describe("自律遠征", () => {
     state.story.carriedTruthId = "furnace-map";
     const campaign = recordCampaignResult(createCampaignState(), state, null);
     expect(campaign.roleTruths).toEqual(["furnace-map"]);
+    expect(campaign.expeditions[0].missionId).toBe(state.story.missionId);
     const lost = structuredClone(state) as GameState;
     lost.status = "lost";
     expect(recordCampaignResult(createCampaignState(), lost, "combat").roleTruths).toEqual([]);
   });
 
-  test("不正な保存データはversion 1の初期状態へ戻す", () => {
+  test("遠征録から最高到達階、自己ベスト、物語進捗を集計する", () => {
+    const state = createInitialGame(20260504, "role.oathbound", { missionId: "guardian-vow" });
+    state.status = "won";
+    state.floor = 10;
+    state.story.maxFloorReached = 10;
+    state.story.missionCompleted = true;
+    state.story.endingId = "inherit-flame";
+    const campaign = recordCampaignResult(createCampaignState(), state, null);
+    const progress = campaignProgress(campaign);
+    expect(progress.highestFloor).toBe(10);
+    expect(progress.bestScore).toBeGreaterThan(0);
+    expect(progress.completedMissionIds).toEqual(["guardian-vow"]);
+    expect(progress.milestones.find((entry) => entry.label === "結末")?.unlocked).toBe(true);
+  });
+
+  test("version 1の遠征録は失わずversion 2へ移行する", () => {
+    const state = createInitialGame(20260504, "role.ash-scout");
+    state.status = "returned";
+    state.floor = 4;
+    state.story.maxFloorReached = 4;
+    const currentRecord = recordCampaignResult(createCampaignState(), state, null).expeditions[0];
+    const {
+      missionId: _missionId,
+      missionCompleted: _missionCompleted,
+      discoveryCount: _discoveryCount,
+      interventionCount: _interventionCount,
+      ...legacyRecord
+    } = currentRecord;
+    const migrated = normalizeCampaignState({ version: 1, roleTruths: ["shared-oath"], expeditions: [legacyRecord] });
+    expect(migrated.version).toBe(2);
+    expect(migrated.roleTruths).toEqual(["shared-oath"]);
+    expect(migrated.expeditions).toHaveLength(1);
+    expect(migrated.expeditions[0].floor).toBe(4);
+    expect(migrated.expeditions[0].missionId).toBe("swift-route");
+    expect(migrated.expeditions[0].missionCompleted).toBe(false);
+  });
+
+  test("不正な保存データはversion 2の初期状態へ戻す", () => {
     expect(normalizeCampaignState({ version: 9, roleTruths: ["shared-oath"] })).toEqual(createCampaignState());
   });
 });

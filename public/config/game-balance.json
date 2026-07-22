@@ -55,7 +55,8 @@
       "tempoParPerFloor": 150,
       "tempoPerTurn": 5,
       "tempoCap": 1500,
-      "unusedRevelation": 300
+      "missionCompleted": 1500,
+      "intervention": 250
     },
     "pacingMs": {
       "traversal": 300,
