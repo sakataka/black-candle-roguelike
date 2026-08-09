@@ -1,7 +1,7 @@
 import { defineConfig } from "vite";
 
 export default defineConfig({
-  base: "/black-candle-roguelike/",
+  base: "./",
   build: {
     target: "esnext",
   },
