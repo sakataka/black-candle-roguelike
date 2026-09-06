@@ -1,21 +1,22 @@
 import { Application, Assets, Container, Graphics, Rectangle, Sprite, Text, Texture } from "pixi.js";
 import { assetCatalog, assetIdForContent } from "../content/assets";
-import type { BiomeTheme, Entity, GameState, TileKind } from "../types";
+import { facingAfterStep } from "./characterFacing";
+import type { BiomeTheme, Direction, Entity, GameState, TileKind } from "../types";
 
 const TILE_SIZE = 64;
 const VIEWPORT_WIDTH = 16;
 const VIEWPORT_HEIGHT = 10;
 
 type TextureKey = TileKind | string;
-type CharacterFacing = "south" | "north" | "east" | "west";
 
 export class PixiRoguelikeRenderer {
   readonly app = new Application();
   private readonly stageLayer = new Container();
   private readonly textures = new Map<TextureKey, Texture>();
-  private readonly characterFacing = new Map<string, CharacterFacing>();
+  private readonly characterFacing = new Map<string, Direction>();
   private readonly characterLastPos = new Map<string, { x: number; y: number }>();
   private readonly characterLastContentId = new Map<string, string>();
+  private lastScene: { seed: number; floor: number; runTurn: number } | null = null;
   private ready = false;
 
   async mount(container: HTMLElement): Promise<void> {
@@ -37,7 +38,13 @@ export class PixiRoguelikeRenderer {
     if (!this.ready) {
       return;
     }
-    this.stageLayer.removeChildren();
+    for (const child of this.stageLayer.removeChildren()) child.destroy();
+    if (this.lastScene && (this.lastScene.seed !== state.seed || this.lastScene.floor !== state.floor || state.runTurn < this.lastScene.runTurn)) {
+      this.characterFacing.clear();
+      this.characterLastPos.clear();
+      this.characterLastContentId.clear();
+    }
+    this.lastScene = { seed: state.seed, floor: state.floor, runTurn: state.runTurn };
 
     const camera = cameraForState(state);
     for (let vy = 0; vy < VIEWPORT_HEIGHT; vy += 1) {
@@ -49,7 +56,11 @@ export class PixiRoguelikeRenderer {
           this.drawUnexploredTile(vx, vy);
           continue;
         }
+        if (tile.kind === "cover" || tile.kind === "stairsDown") {
+          this.drawSprite(`floor:${state.biome}`, vx, vy, 1);
+        }
         this.drawSprite(tileTextureKey(tile.kind, state.biome), vx, vy, 1);
+        if (tile.kind === "wall") this.drawWallEdges(state, x, y, vx, vy);
       }
     }
 
@@ -73,25 +84,7 @@ export class PixiRoguelikeRenderer {
 
   private async buildTextures(): Promise<void> {
     this.textures.set("void", this.makeTile("#050504", "#050504", ""));
-    this.textures.set("floor:memory", await this.loadSheetFrame("/assets/sprites/dungeon-terrain-sheet.png", 4, 2, 1));
-    this.textures.set("wall:memory", await this.loadSheetFrame("/assets/sprites/dungeon-terrain-sheet.png", 4, 2, 3));
-    this.textures.set("floor:visible", await this.loadSheetFrame("/assets/sprites/dungeon-terrain-sheet.png", 4, 2, 0));
-    this.textures.set("wall:visible", await this.loadSheetFrame("/assets/sprites/dungeon-terrain-sheet.png", 4, 2, 2));
-    this.textures.set("stairsDown:visible", await this.loadSheetFrame("/assets/sprites/dungeon-terrain-sheet.png", 4, 2, 4));
-    this.textures.set("stairsDown:memory", await this.loadSheetFrame("/assets/sprites/dungeon-terrain-sheet.png", 4, 2, 4));
     this.textures.set("trap.risk-panel", await this.loadTexture("/assets/sprites/fate-sigil-tile.png"));
-    this.textures.set("floor:blackstone", await this.loadSheetFrame("/assets/sprites/dungeon-biomes-sheet.png", 4, 2, 0));
-    this.textures.set("wall:blackstone", await this.loadSheetFrame("/assets/sprites/dungeon-biomes-sheet.png", 4, 2, 4));
-    this.textures.set("floor:crypt", await this.loadSheetFrame("/assets/sprites/dungeon-biomes-sheet.png", 4, 2, 1));
-    this.textures.set("wall:crypt", await this.loadSheetFrame("/assets/sprites/dungeon-biomes-sheet.png", 4, 2, 5));
-    this.textures.set("floor:furnace", await this.loadSheetFrame("/assets/sprites/dungeon-biomes-sheet.png", 4, 2, 2));
-    this.textures.set("wall:furnace", await this.loadSheetFrame("/assets/sprites/dungeon-biomes-sheet.png", 4, 2, 6));
-    this.textures.set("floor:black-candle", await this.loadSheetFrame("/assets/sprites/dungeon-biomes-sheet.png", 4, 2, 3));
-    this.textures.set("wall:black-candle", await this.loadSheetFrame("/assets/sprites/dungeon-biomes-sheet.png", 4, 2, 7));
-    this.textures.set("cover:blackstone", await this.loadSheetFrame("/assets/sprites/dungeon-cover-sheet.png", 4, 1, 0));
-    this.textures.set("cover:crypt", await this.loadSheetFrame("/assets/sprites/dungeon-cover-sheet.png", 4, 1, 1));
-    this.textures.set("cover:furnace", await this.loadSheetFrame("/assets/sprites/dungeon-cover-sheet.png", 4, 1, 2));
-    this.textures.set("cover:black-candle", await this.loadSheetFrame("/assets/sprites/dungeon-cover-sheet.png", 4, 1, 3));
     for (const [id, asset] of Object.entries(assetCatalog)) {
       this.textures.set(id, await this.loadSheetFrame(asset.path, asset.sheet.columns, asset.sheet.rows, asset.sheet.index));
     }
@@ -130,11 +123,11 @@ export class PixiRoguelikeRenderer {
   private playerTextureKey(entity: Entity): TextureKey {
     const facing = this.updateCharacterFacing(entity);
     const defaultKey = assetIdForContent(entity.contentId);
-    const directionalKey = defaultKey.replace(/\.(south|north|east|west)$/, `.${facing}`);
+    const directionalKey = defaultKey.replace(/\.(southwest|southeast|northwest|northeast|south|north|east|west)$/, `.${facing}`);
     return this.textures.has(directionalKey) ? directionalKey : defaultKey;
   }
 
-  private updateCharacterFacing(entity: Entity): CharacterFacing {
+  private updateCharacterFacing(entity: Entity): Direction {
     const lastPos = this.characterLastPos.get(entity.id);
     const lastContentId = this.characterLastContentId.get(entity.id);
     let facing = this.characterFacing.get(entity.id) ?? "south";
@@ -143,22 +136,32 @@ export class PixiRoguelikeRenderer {
     } else if (lastPos) {
       const dx = entity.pos.x - lastPos.x;
       const dy = entity.pos.y - lastPos.y;
-      if (Math.abs(dx) + Math.abs(dy) > 1) {
-        facing = "south";
-      } else if (dx > 0) {
-        facing = "east";
-      } else if (dx < 0) {
-        facing = "west";
-      } else if (dy < 0) {
-        facing = "north";
-      } else if (dy > 0) {
-        facing = "south";
-      }
+      facing = facingAfterStep(dx, dy, facing);
     }
     this.characterFacing.set(entity.id, facing);
     this.characterLastPos.set(entity.id, { ...entity.pos });
     this.characterLastContentId.set(entity.id, entity.contentId);
     return facing;
+  }
+
+  private drawWallEdges(state: GameState, x: number, y: number, vx: number, vy: number): void {
+    const edge = new Graphics();
+    const sides = [
+      { dx: 0, dy: -1, sx: 0, sy: 0, w: TILE_SIZE, h: 2 },
+      { dx: 0, dy: 1, sx: 0, sy: TILE_SIZE - 3, w: TILE_SIZE, h: 3 },
+      { dx: -1, dy: 0, sx: 0, sy: 0, w: 2, h: TILE_SIZE },
+      { dx: 1, dy: 0, sx: TILE_SIZE - 2, sy: 0, w: 2, h: TILE_SIZE },
+    ];
+    for (const side of sides) {
+      const nx = x + side.dx;
+      const ny = y + side.dy;
+      if (nx < 0 || ny < 0 || nx >= state.width || ny >= state.height) continue;
+      const neighbor = state.tiles[ny * state.width + nx];
+      // Outline only known walkable ground: hidden neighbors must not leak map information.
+      if (!(neighbor.explored || neighbor.visible) || neighbor.kind === "wall" || neighbor.kind === "void") continue;
+      edge.rect(vx * TILE_SIZE + side.sx, vy * TILE_SIZE + side.sy, side.w, side.h).fill({ color: "#8b8271", alpha: 0.48 });
+    }
+    this.stageLayer.addChild(edge);
   }
 
   private drawHealthPip(entity: Entity, camera: { x: number; y: number }): void {
