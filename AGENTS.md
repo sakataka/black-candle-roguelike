@@ -2,7 +2,7 @@
 
 このリポジトリでは、回答・作業報告は日本語で行う。
 
-Codex は、明示依頼がない限り formatter / format check / import sort の新規導入・設定追加・実行をしない。
+Codex は、明示依頼がない限り formatter / format check / import sort の新規導入・設定変更や、フォーマットだけを目的とした実行をしない。既存プロジェクトの標準的な検証に含まれるものは実行してよい。
 
 ## プロジェクト方針
 
@@ -74,7 +74,7 @@ Codex は、明示依頼がない限り formatter / format check / import sort �
 
 ## 検証
 
-- 変更後は最低限 `bun run build` を実行する。
+- コード・依存関係・ビルド設定の変更後は `bun run build` と標準testを通す。文書・指示文だけで実行成果物に影響しない変更は、記述・参照先・差分を確認する。
 - AIやcore変更後は、headless simulationでクラッシュせず進行することを確認する。
 - ゲーム性・バランス・AI判断・出現テーブル・職業・敵・アイテムに関わる変更後は、`simulate:batch` で複数seed/職業の到達分布を確認し、必要なら候補config比較でPDCA/PDCMを回す。
 - 見た目を変えた場合は、起動中の `http://127.0.0.1:1420/` をブラウザでリロードしてスクリーンショット確認する。
