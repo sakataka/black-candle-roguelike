@@ -9,6 +9,7 @@ TypeScript + Vite + PixiJS で作っている自律遠征ローグライクで�
 3. **節目で未来を見比べる**: 3階・6階の帰還判断や危機介入では、各選択肢ごとに12本の未来をWeb Workerで先読みし、生還・死亡・未帰還の割合と平均到達階を表示する。3階・6階では作戦カードを組み替えられ、組み替えると先読みが再計算される。
 4. **結果を振り返る**: HP推移・階層・判断・灯介入を1本の軌跡で振り返り、最も激しい被弾や命火が3割を切った瞬間などの転機と、次に効きそうな作戦・灯を示す。作戦はその場で次回に採用できる。
 5. **遠征団が育つ**: 生還者は古参として残り位階が上がる（最大HP・攻撃が伸びる）。瀕死で帰ると古傷（判断や能力の悪い癖）を負い、倒れた者は戻らない。
+6. **クリア後も続く**: 第十層を踏破すると次の燭階（5段）が開き、制約が重なる代わりに灯片が上乗せされる。結末を選ぶと周期が進み、継燭（残した探索者が「堕ちた灯守」として第十層に立つ）・消燭（闇と鋭い敵、灯片+25%）・分灯（灯火増・敵増）の余波が次の迷宮を変える。倒れた探索者は倒れた階に墓標を残し、後の遠征で弔うと遺品と灯火を受け継げる。
 
 ## 現状
 
@@ -77,6 +78,8 @@ bun run build
 - `scars`: 古参が瀕死で帰還した時に負う古傷（作戦カードと同じ形）
 - `campaign`: 灯片の獲得量、古参の位階ボーナス、古傷の条件、遠征団の上限、療房の費用、施設の費用と効果
 - `lantern`: 灯火の開始数・上限・回復量、4種の介入の費用と効果、batch用の灯守AIの介入閾値
+- `ascension`: 燭階ごとの制約（ルール値への加算、灯火の増減）と灯片の上乗せ率
+- `aftermath`: 結末ごとの周期の余波（ルール値への加算、灯火の増減、第十層のボス差し替え、灯片の上乗せ率）
 - `autonomous`: 啓示回数、先読みの本数、任務・危機介入を含む得点係数、観戦速度の基準時間（calm / traversal / exploration / danger）
 - `roles`: 開始職の初期ステータス、初期インベントリ、職業特性、画面表示用の特徴説明
 - `monsterStats`: 敵ごとの HP、攻撃、防御、階層補正
@@ -111,6 +114,8 @@ bun run simulate:batch -- --seeds 20260504:20260533 --turns 1800 --roles all --t
 
 出力は `tmp/sim-reports/*.json` と `tmp/sim-reports/*.md` に保存され、毎回 `tmp/sim-reports/latest.json` と `tmp/sim-reports/latest.md` も更新されます。`tmp/` はGit管理外です。職業別・気質別の勝敗、帰還・未帰還、得点中央値、発見、拾得、100ターン当たりの戦闘、方針選択分布、想定表示時間を比較できます。
 
+`--heat N` は燭階、`--aftermath inherit-flame|extinguish-flame|divide-flame` は周期の余波を指定します（灯守AIありの勝率目安: 燭階0で約4割、燭階3で約2割、燭階5で約1割）。
+
 `--watcher lantern` は人間の灯介入を模した灯守AI（`src/game/ai/watcher.ts`、閾値は `lantern.watcher`）を有効にします。`--tactics` は作戦カードを指定して遠征させます。難易度の目安は、30seed×3職業で介入なし勝率約20%、灯守AIありで約40%、未帰還1割前後です。
 
 preset は用途で使い分けます。`smoke` は機能追加直後の短時間確認、`standard` は完了前の標準確認、`compare` は baseline/candidate の同一seed比較、`deep` は問題seedの長ターン再現と `--trace` / `--profile` 付き深掘りです。通常batchは `--log-limit 40` で直近ログだけ保持し、集計値は保持します。完全な直近以上の run log が必要な時は `--log-limit none` を指定します。CPU負荷を下げたい時は `--jobs 4`、単純な再現確認では `--jobs 1` を指定します。
@@ -123,11 +128,24 @@ preset は用途で使い分けます。`smoke` は機能追加直後の短時�
 4. Markdown summary の `PDCA Alerts` と `Top Run Regressions` から悪化seedを見る。
 5. AIの判断ミスが目立つなら `src/game/ai/autoplay.ts`、数値の偏りなら `public/config/game-balance.json` を直す。
 
+## 音
+
+- 効果音は `sfx.json` を注文書として SFX Forge（`/Users/sakataka/Documents/sfx-forge`）で生成し、`public/sfx/` に置いています。作り直す場合は次を実行します。候補WAV（`public/sfx/_candidates/`）はGit管理外です。
+
+  ```sh
+  bun run --cwd /Users/sakataka/Documents/sfx-forge sfx build "$PWD/sfx.json" --out "$PWD/public/sfx"
+  ```
+
+- 環境音楽は `src/game/audio/soundscape.ts` で Web Audio により合成しています。階層ごとに調が変わり、敵が見えている時やHPが少ない時は緊張感が増します。
+- `M` キーまたはヘッダーの音ボタンで音を切り替えます。
+- ライセンス: AI生成部分は Woosh（Sony AI、CC-BY-NC 4.0）を使っているため非商用で扱い、クレジット「Sound effects generated with Woosh (Sony AI)」を画面下部に表示しています。一部に Sonniss #GameAudioGDC Bundle の素材を含みます（素材そのものの再配布は不可）。販売する場合は `engine: "synth"` で作り直すか差し替えます。
+
 ## 操作
 
 - 灰灯院: 施設カードで強化、療房のボタンで古傷を癒やす、作戦カードをクリックで選択（枠数まで）
 - 古参・志願者カードをクリックまたは `1`〜`4`: 探索者を選び、自律遠征を開始
 - `Q` 閃灯 / `W` 癒灯 / `E` 導灯 / `R` 護灯（または灯火バーのボタン）: 灯を捧げて介入する。黒燭が揺れている時は効きそうな灯が光る
+- `M` または音ボタン: 効果音と環境音楽のオン・オフ
 - `Space` または一時停止ボタン: 観戦を止めて考える（止めたまま灯を捧げられる）
 - 選択カードをクリックまたは `1`〜`4`: 気質どおりに見守る、帰還させる、啓示で方針を上書きする。3階・6階では作戦カードも組み替えられる
 - `0.5×` / `1×` / `2×` / `3×`: 観測速度を変更

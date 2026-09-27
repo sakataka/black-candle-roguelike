@@ -2,7 +2,7 @@ import "./styles.css";
 import { chooseAutoplayAction, describeAutoplayIntent, getAutoplayDebugState, type AutoplayIntent } from "./game/ai/autoplay";
 import { getGameConfig, loadBrowserGameConfig, runRules } from "./game/content/config";
 import { assetForContent } from "./game/content/assets";
-import { getContentName } from "./game/content/entities";
+import { contentEntities, getContentName } from "./game/content/entities";
 import {
   calculateScore,
   campaignRunModifiers,
@@ -37,6 +37,7 @@ import { deriveVisualEvents, type VisualEvent } from "./game/core/visualEvents";
 import type { LookaheadProgress, LookaheadRequest } from "./game/sim/lookahead.worker";
 import type { LookaheadSummary } from "./game/sim/rollout";
 import { PixiRoguelikeRenderer } from "./game/renderer/PixiRoguelikeRenderer";
+import { Soundscape } from "./game/audio/soundscape";
 import type {
   CampaignState,
   EquipmentConfig,
@@ -55,6 +56,9 @@ import type {
 
 const CAMPAIGN_STORAGE_KEY = "black-candle-campaign-v1";
 const TACTICS_STORAGE_KEY = "black-candle-tactics";
+const SOUND_STORAGE_KEY = "black-candle-sound";
+const SOUND_ON_ICON = '<svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true"><path d="M3 7.5h3l4-3.5v12l-4-3.5H3z" fill="currentColor"/><path d="M13 7a4 4 0 0 1 0 6M15.2 4.8a7 7 0 0 1 0 10.4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>';
+const SOUND_OFF_ICON = '<svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true"><path d="M3 7.5h3l4-3.5v12l-4-3.5H3z" fill="currentColor"/><path d="M13.5 7.5l5 5M18.5 7.5l-5 5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>';
 const PAUSE_ICON = '<svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true"><rect x="3" y="2" width="3.5" height="12" rx="1" fill="currentColor"/><rect x="9.5" y="2" width="3.5" height="12" rx="1" fill="currentColor"/></svg>';
 const PLAY_ICON = '<svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true"><path d="M4 2.2v11.6c0 .6.7 1 1.2.6l8.3-5.8c.4-.3.4-.9 0-1.2L5.2 1.6C4.7 1.2 4 1.6 4 2.2z" fill="currentColor"/></svg>';
 const lanternRiteOrder: LanternRiteId[] = ["flare", "mend", "guide", "ward"];
@@ -94,6 +98,7 @@ app.innerHTML = `
           <button type="button" data-speed="2" aria-pressed="false">2×</button>
           <button type="button" data-speed="3" aria-pressed="false">3×</button>
         </div>
+        <button id="sound-toggle" class="secondary-button sound-toggle" type="button" aria-pressed="true" aria-label="音を消す" title="音のオン・オフ (M)"></button>
         <button id="new-expedition" class="secondary-button" type="button">新しい遠征</button>
       </div>
     </header>
@@ -180,6 +185,7 @@ app.innerHTML = `
         <ol id="archive-list" class="archive-list"></ol>
       </section>
     </section>
+    <footer class="observer-footer">効果音: SFX Forge で生成（一部は Sound effects generated with Woosh (Sony AI)、Sonniss #GameAudioGDC Bundle の素材を含む）。環境音楽: Web Audio による合成。</footer>
   </main>
 
   <section id="candidate-dialog" class="modal-layer" aria-live="polite">
@@ -235,6 +241,7 @@ app.innerHTML = `
 await loadBrowserGameConfig();
 
 const renderer = new PixiRoguelikeRenderer();
+const soundscape = new Soundscape(`${import.meta.env.BASE_URL}sfx/`, loadSoundPreference());
 const observerShell = requireElement<HTMLElement>(".observer-shell");
 const pixiRoot = requireElement<HTMLDivElement>("#pixi-root");
 const candidateDialog = requireElement<HTMLElement>("#candidate-dialog");
@@ -278,6 +285,8 @@ let pendingVisualEvents: VisualEvent[] = [];
 let pendingIntent: AutoplayIntent | null = null;
 let lookahead: { decisionKey: string; workers: Worker[]; results: Map<string, LookaheadSummary> } | null = null;
 let paused = false;
+const pendingSounds = new Set<string>();
+let lastDecisionSoundKey: string | null = null;
 let selectedTactics: string[] = loadSelectedTactics();
 let draftTactics: string[] | null = null;
 let draftDecisionId: string | null = null;
@@ -291,6 +300,7 @@ await renderer.mount(pixiRoot);
 syncViewport();
 window.addEventListener("resize", syncViewport);
 requireElement<HTMLButtonElement>("#pause-toggle").innerHTML = PAUSE_ICON;
+syncSoundToggle();
 render();
 
 function syncViewport(): void {
@@ -312,6 +322,16 @@ function installEvents(): void {
     if (autoplayTimer !== null) scheduleAutoplay(scheduledPace);
   });
   requireElement<HTMLButtonElement>("#pause-toggle").addEventListener("click", () => setPaused(!paused));
+  const unlockAudio = () => soundscape.unlock();
+  window.addEventListener("pointerdown", unlockAudio);
+  window.addEventListener("keydown", unlockAudio);
+  requireElement<HTMLButtonElement>("#sound-toggle").addEventListener("click", toggleSound);
+  document.addEventListener("click", (event) => {
+    const button = (event.target as HTMLElement).closest<HTMLButtonElement>("button");
+    if (!button || button.id === "sound-toggle") return;
+    if (button.matches("[data-tactic-id], [data-heat], [data-mission-id], [data-speed]")) soundscape.play("ui_move", 0.7);
+    else if (button.matches("[data-option-id], [data-role-id], [data-veteran-id], [data-facility-id], [data-treat-veteran], [data-adopt-tactic], #new-expedition, #end-new-expedition")) soundscape.play("ui_confirm", 0.8);
+  });
   requireElement<HTMLDivElement>("#lantern-rites").addEventListener("click", (event) => {
     const button = (event.target as HTMLElement).closest<HTMLButtonElement>("button[data-rite]");
     if (!button || button.disabled) return;
@@ -412,8 +432,13 @@ function installEvents(): void {
         if (state.status === "playing") setPaused(!paused);
         return;
       }
+      if (event.key.toLowerCase() === "m") {
+        toggleSound();
+        return;
+      }
       const rite = lanternRiteOrder.find((candidate) => lanternRiteKeys[candidate].toLowerCase() === event.key.toLowerCase());
       if (rite) {
+        if (!canInvokeLantern(state, rite)) soundscape.play("ui_error", 0.6);
         invokeLanternRite(rite);
         return;
       }
@@ -643,6 +668,10 @@ function applyLoggedAction(action: GameAction, actor: "player" | "ai", aiDebug?:
   if (state === before) return null;
   pendingVisualEvents.push(...deriveVisualEvents(before, state));
   const entry = recordTurn({ log: runLog, before, action, after: state, actor, aiDebug });
+  if (entry.eventKinds.includes("trap")) pendingSounds.add("trap");
+  if ((state.story.recoveredGraves?.length ?? 0) > (before.story.recoveredGraves?.length ?? 0)) pendingSounds.add("grave");
+  if (action.type === "invokeLantern") pendingSounds.add(`rite_${action.rite}`);
+  if (before.status === "playing" && state.status !== "playing") pendingSounds.add(state.status === "lost" || state.status === "stranded" ? "death" : "returned");
   currentReview = state.status === "playing" ? null : analyzeRun(runLog, state);
   if (state.status !== "playing") archiveCompletedRun();
   return entry;
@@ -659,7 +688,9 @@ function archiveCompletedRun(): void {
 
 function render(): void {
   // デバッグで一気に進めた時などに大量の演出が重ならないよう、直近分だけ描く。
-  renderer.render(state, { events: pendingVisualEvents.slice(-24), intent: pendingIntent, stepMs: currentStepMs(), lightStrength: lightStrengthFor(state) });
+  const recentEvents = pendingVisualEvents.slice(-24);
+  renderer.render(state, { events: recentEvents, intent: pendingIntent, stepMs: currentStepMs(), lightStrength: lightStrengthFor(state) });
+  playFrameSounds(recentEvents);
   pendingVisualEvents = [];
   pendingIntent = null;
   const observation = observeGame(state);
@@ -710,6 +741,57 @@ function lightStrengthFor(current: GameState): number {
   const emberRatio = current.lantern.maxEmbers > 0 ? current.lantern.embers / current.lantern.maxEmbers : 1;
   const routeLeft = Math.max(0, rules.runTurnLimit - current.runTurn) / Math.max(1, rules.runTurnLimit - rules.runTurnWarning);
   return Math.min(0.55 + emberRatio * 0.45, 0.35 + Math.min(1, routeLeft) * 0.65);
+}
+
+function playFrameSounds(events: VisualEvent[]): void {
+  for (const event of events) {
+    if (event.kind === "strike") {
+      if (event.attackerId === state.playerId) pendingSounds.add(event.ranged ? "dart_throw" : "hero_hit");
+      else if (event.ranged) pendingSounds.add("arrow_shot");
+    } else if (event.kind === "damage" && event.isPlayer) {
+      pendingSounds.add("hero_hurt");
+    } else if (event.kind === "death") {
+      pendingSounds.add(contentEntities[event.contentId]?.tier === "boss" ? "boss_down" : "enemy_down");
+    } else if (event.kind === "levelUp") {
+      pendingSounds.add("level_up");
+    } else if (event.kind === "pickup") {
+      pendingSounds.add("pickup");
+    } else if (event.kind === "floorChanged") {
+      pendingSounds.add("descend");
+    }
+  }
+  // 一度に鳴らすのは数音まで。重要な音を優先する。
+  const priority = ["death", "returned", "boss_down", "decision", "level_up", "grave", "rite_flare", "rite_mend", "rite_guide", "rite_ward", "hero_hurt", "trap", "enemy_down", "hero_hit", "arrow_shot", "dart_throw", "descend", "pickup"];
+  [...pendingSounds].sort((a, b) => priority.indexOf(a) - priority.indexOf(b)).slice(0, 4).forEach((key) => soundscape.play(key));
+  pendingSounds.clear();
+  soundscape.setBiome(state.biome);
+  const player = state.entities.find((entity) => entity.id === state.playerId);
+  const visibleHostiles = state.entities.filter((entity) => entity.kind === "monster" && entity.hostile && state.tiles[entity.pos.y * state.width + entity.pos.x]?.visible).length;
+  const hpRatio = player?.stats ? player.stats.hp / player.stats.maxHp : 1;
+  soundscape.setTension(state.status === "playing" ? Math.min(1, visibleHostiles * 0.22 + (hpRatio <= 0.35 ? 0.45 : 0)) : 0);
+}
+
+function syncSoundToggle(): void {
+  const toggle = requireElement<HTMLButtonElement>("#sound-toggle");
+  toggle.innerHTML = soundscape.isEnabled ? SOUND_ON_ICON : SOUND_OFF_ICON;
+  toggle.setAttribute("aria-pressed", String(soundscape.isEnabled));
+  toggle.setAttribute("aria-label", soundscape.isEnabled ? "音を消す" : "音を出す");
+}
+
+function loadSoundPreference(): boolean {
+  try {
+    return window.localStorage.getItem(SOUND_STORAGE_KEY) !== "off";
+  } catch {
+    return true;
+  }
+}
+
+function saveSoundPreference(enabled: boolean): void {
+  try {
+    window.localStorage.setItem(SOUND_STORAGE_KEY, enabled ? "on" : "off");
+  } catch {
+    // 音の設定は利便のためだけなので、保存できなくても遊べる。
+  }
 }
 
 function renderVitals(observation: ReturnType<typeof observeGame>): void {
@@ -845,6 +927,12 @@ function invokeLanternRite(rite: LanternRiteId): void {
   render();
 }
 
+function toggleSound(): void {
+  soundscape.setEnabled(!soundscape.isEnabled);
+  saveSoundPreference(soundscape.isEnabled);
+  syncSoundToggle();
+}
+
 function setPaused(value: boolean): void {
   paused = value;
   const toggle = requireElement<HTMLButtonElement>("#pause-toggle");
@@ -968,6 +1056,11 @@ function renderDecision(observation: ReturnType<typeof observeGame>): void {
     setText("#decision-tactic-count", `${draftTactics.length}/${state.modifiers.tacticSlots}`);
   }
   const lookaheadTactics = editableTactics && draftTactics ? draftTactics : state.tactics;
+  const decisionSoundKey = `${state.seed}:${state.runTurn}:${decision.id}`;
+  if (lastDecisionSoundKey !== decisionSoundKey) {
+    lastDecisionSoundKey = decisionSoundKey;
+    soundscape.play("decision");
+  }
   const decisionKey = `${state.seed}:${state.runTurn}:${decision.id}:${lookaheadTactics.join(",")}`;
   if (lookahead?.decisionKey !== decisionKey) startLookahead(decisionKey, lookaheadTactics);
   renderForecasts();

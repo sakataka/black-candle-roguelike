@@ -1,0 +1,2314 @@
+{
+  "version": 1,
+  "title": "黒燭の迷宮",
+  "style": "fantasy",
+  "world": "grim dark medieval fantasy dungeon crawler, black candles, gothic crypt stone halls, restrained and atmospheric",
+  "sampleRate": 48000,
+  "createdAt": "2026-09-27T12:08:51.937Z",
+  "license": "woosh を含む音は Sony AI の Woosh（重み: CC-BY-NC 4.0）で生成した素材を使っている。非商用で使い、クレジットに Woosh (Sony AI) を記載すること。library の素材は Sonniss #GameAudioGDC Bundle（ロイヤリティフリー、商用可、クレジット不要。素材そのものの再配布と AI 学習への利用は禁止）。synth の部分は制限なし",
+  "sounds": [
+    {
+      "key": "hero_hit",
+      "name": "探索者の斬撃",
+      "group": "武器（当たる）",
+      "parts": "slash@0.00(AI) + thump@0.00 + ring@0.01",
+      "files": [
+        "hero_hit_1.wav",
+        "hero_hit_2.wav",
+        "hero_hit_3.wav"
+      ],
+      "engine": "design",
+      "recipe": "hit",
+      "prompt": "sword slash cutting flesh",
+      "tier": "normal",
+      "durationSec": 0.6,
+      "playbackRandom": {
+        "pitch": 0.06,
+        "volume": 0.12
+      },
+      "candidates": [
+        {
+          "file": "_candidates/hero_hit/01.wav",
+          "engine": "design",
+          "seed": 1082329905,
+          "score": 0.385,
+          "relevance": 0.122,
+          "styleMatch": null,
+          "penalty": 0,
+          "durationSec": 0.6,
+          "source": "slash=library:Epic Stock Media - Halloween Game - Haunted House and Horror Audio Scare Kit/GORESplt_Gore Designed Transient Heavy Impact Smash 01_ESM_HALG.wav@0.00"
+        },
+        {
+          "file": "_candidates/hero_hit/02.wav",
+          "engine": "design",
+          "seed": 1082329906,
+          "score": 0.165,
+          "relevance": 0.148,
+          "styleMatch": null,
+          "penalty": 0,
+          "durationSec": 0.6,
+          "source": "slash=woosh"
+        },
+        {
+          "file": "_candidates/hero_hit/03.wav",
+          "engine": "design",
+          "seed": 1082329907,
+          "score": 0.174,
+          "relevance": 0.17,
+          "styleMatch": null,
+          "penalty": 0,
+          "durationSec": 0.6,
+          "source": "slash=woosh"
+        },
+        {
+          "file": "_candidates/hero_hit/04.wav",
+          "engine": "design",
+          "seed": 1082329908,
+          "score": 0.138,
+          "relevance": 0.102,
+          "styleMatch": null,
+          "penalty": 0,
+          "durationSec": 0.6,
+          "source": "slash=woosh"
+        },
+        {
+          "file": "_candidates/hero_hit/05.wav",
+          "engine": "design",
+          "seed": 1082329909,
+          "score": 0.173,
+          "relevance": 0.175,
+          "styleMatch": null,
+          "penalty": 0,
+          "durationSec": 0.6,
+          "source": "slash=woosh"
+        },
+        {
+          "file": "_candidates/hero_hit/06.wav",
+          "engine": "design",
+          "seed": 1082329910,
+          "score": 0.184,
+          "relevance": 0.199,
+          "styleMatch": null,
+          "penalty": 0,
+          "durationSec": 0.6,
+          "source": "slash=woosh"
+        },
+        {
+          "file": "_candidates/hero_hit/07.wav",
+          "engine": "design",
+          "seed": 1082329911,
+          "score": 0.175,
+          "relevance": 0.19,
+          "styleMatch": null,
+          "penalty": 0,
+          "durationSec": 0.6,
+          "source": "slash=woosh"
+        },
+        {
+          "file": "_candidates/hero_hit/08.wav",
+          "engine": "design",
+          "seed": 1082329912,
+          "score": 0.164,
+          "relevance": 0.189,
+          "styleMatch": null,
+          "penalty": 0,
+          "durationSec": 0.6,
+          "source": "slash=woosh"
+        }
+      ],
+      "chosen": [
+        0,
+        5,
+        6
+      ]
+    },
+    {
+      "key": "hero_hurt",
+      "name": "探索者の被弾",
+      "files": [
+        "hero_hurt_1.wav",
+        "hero_hurt_2.wav",
+        "hero_hurt_3.wav"
+      ],
+      "engine": "hybrid",
+      "recipe": "hit",
+      "prompt": "heavy blow striking chainmail armor, grunt-less, dull metallic thud",
+      "tier": "normal",
+      "durationSec": 0.5,
+      "playbackRandom": {
+        "pitch": 0.06,
+        "volume": 0.12
+      },
+      "candidates": [
+        {
+          "file": "_candidates/hero_hurt/01.wav",
+          "engine": "hybrid",
+          "seed": 1305440010,
+          "score": -0.056,
+          "relevance": 0.065,
+          "styleMatch": -0.118,
+          "penalty": 0.08,
+          "durationSec": 0.5,
+          "source": "woosh"
+        },
+        {
+          "file": "_candidates/hero_hurt/02.wav",
+          "engine": "hybrid",
+          "seed": 1305440011,
+          "score": -0.046,
+          "relevance": 0.067,
+          "styleMatch": -0.095,
+          "penalty": 0.08,
+          "durationSec": 0.5,
+          "source": "woosh"
+        },
+        {
+          "file": "_candidates/hero_hurt/03.wav",
+          "engine": "hybrid",
+          "seed": 1305440012,
+          "score": -0.088,
+          "relevance": 0.039,
+          "styleMatch": -0.136,
+          "penalty": 0.08,
+          "durationSec": 0.5,
+          "source": "woosh"
+        },
+        {
+          "file": "_candidates/hero_hurt/04.wav",
+          "engine": "hybrid",
+          "seed": 1305440013,
+          "score": -0.079,
+          "relevance": 0.031,
+          "styleMatch": 0.001,
+          "penalty": 0.11,
+          "durationSec": 0.5,
+          "source": "woosh"
+        },
+        {
+          "file": "_candidates/hero_hurt/05.wav",
+          "engine": "hybrid",
+          "seed": 1305440014,
+          "score": -0.101,
+          "relevance": 0.013,
+          "styleMatch": -0.097,
+          "penalty": 0.08,
+          "durationSec": 0.5,
+          "source": "woosh"
+        },
+        {
+          "file": "_candidates/hero_hurt/06.wav",
+          "engine": "hybrid",
+          "seed": 1305440015,
+          "score": -0.093,
+          "relevance": 0.005,
+          "styleMatch": -0.05,
+          "penalty": 0.08,
+          "durationSec": 0.5,
+          "source": "woosh"
+        },
+        {
+          "file": "_candidates/hero_hurt/07.wav",
+          "engine": "hybrid",
+          "seed": 1305440016,
+          "score": -0.131,
+          "relevance": 0.003,
+          "styleMatch": -0.153,
+          "penalty": 0.08,
+          "durationSec": 0.5,
+          "source": "woosh"
+        },
+        {
+          "file": "_candidates/hero_hurt/08.wav",
+          "engine": "hybrid",
+          "seed": 1305440017,
+          "score": -0.084,
+          "relevance": 0,
+          "styleMatch": -0.125,
+          "penalty": 0.04,
+          "durationSec": 0.5,
+          "source": "woosh"
+        }
+      ],
+      "chosen": [
+        1,
+        0,
+        3
+      ]
+    },
+    {
+      "key": "enemy_down",
+      "name": "敵撃破",
+      "files": [
+        "enemy_down_1.wav",
+        "enemy_down_2.wav"
+      ],
+      "engine": "synth",
+      "recipe": "defeat",
+      "prompt": "creature collapsing into dust, bones rattling to the stone floor",
+      "tier": "normal",
+      "durationSec": 1,
+      "playbackRandom": {
+        "pitch": 0.02,
+        "volume": 0.05
+      },
+      "candidates": [
+        {
+          "file": "_candidates/enemy_down/01.wav",
+          "engine": "synth",
+          "seed": 1876292748,
+          "score": -0.019,
+          "relevance": 0.002,
+          "styleMatch": -0.184,
+          "penalty": 0,
+          "durationSec": 1,
+          "source": "synth"
+        },
+        {
+          "file": "_candidates/enemy_down/02.wav",
+          "engine": "synth",
+          "seed": 1876292749,
+          "score": -0.03,
+          "relevance": -0.03,
+          "styleMatch": -0.198,
+          "penalty": 0,
+          "durationSec": 1,
+          "source": "synth"
+        },
+        {
+          "file": "_candidates/enemy_down/03.wav",
+          "engine": "synth",
+          "seed": 1876292750,
+          "score": -0.03,
+          "relevance": -0.02,
+          "styleMatch": -0.227,
+          "penalty": 0,
+          "durationSec": 1,
+          "source": "synth"
+        },
+        {
+          "file": "_candidates/enemy_down/04.wav",
+          "engine": "synth",
+          "seed": 1876292751,
+          "score": -0.019,
+          "relevance": 0.001,
+          "styleMatch": -0.186,
+          "penalty": 0,
+          "durationSec": 1,
+          "source": "synth"
+        },
+        {
+          "file": "_candidates/enemy_down/05.wav",
+          "engine": "synth",
+          "seed": 1876292752,
+          "score": -0.03,
+          "relevance": -0.029,
+          "styleMatch": -0.2,
+          "penalty": 0,
+          "durationSec": 1,
+          "source": "synth"
+        },
+        {
+          "file": "_candidates/enemy_down/06.wav",
+          "engine": "synth",
+          "seed": 1876292753,
+          "score": -0.028,
+          "relevance": -0.016,
+          "styleMatch": -0.224,
+          "penalty": 0,
+          "durationSec": 1,
+          "source": "synth"
+        },
+        {
+          "file": "_candidates/enemy_down/07.wav",
+          "engine": "synth",
+          "seed": 1876292754,
+          "score": -0.03,
+          "relevance": -0.028,
+          "styleMatch": -0.206,
+          "penalty": 0,
+          "durationSec": 1,
+          "source": "synth"
+        },
+        {
+          "file": "_candidates/enemy_down/08.wav",
+          "engine": "synth",
+          "seed": 1876292755,
+          "score": -0.032,
+          "relevance": -0.033,
+          "styleMatch": -0.214,
+          "penalty": 0,
+          "durationSec": 1,
+          "source": "synth"
+        }
+      ],
+      "chosen": [
+        0,
+        3
+      ]
+    },
+    {
+      "key": "boss_down",
+      "name": "守り手撃破",
+      "files": [
+        "boss_down.wav"
+      ],
+      "engine": "hybrid",
+      "recipe": "explosion",
+      "prompt": "huge stone guardian crumbling, deep rumble and falling rubble in a cathedral hall",
+      "tier": "heavy",
+      "durationSec": 2.491,
+      "playbackRandom": {
+        "pitch": 0.06,
+        "volume": 0.12
+      },
+      "candidates": [
+        {
+          "file": "_candidates/boss_down/01.wav",
+          "engine": "hybrid",
+          "seed": 1303413629,
+          "score": 0.033,
+          "relevance": 0.125,
+          "styleMatch": -0.033,
+          "penalty": 0.08,
+          "durationSec": 2.491,
+          "source": "woosh"
+        },
+        {
+          "file": "_candidates/boss_down/02.wav",
+          "engine": "hybrid",
+          "seed": 1303413630,
+          "score": 0.015,
+          "relevance": 0.088,
+          "styleMatch": -0.01,
+          "penalty": 0.07,
+          "durationSec": 2.541,
+          "source": "woosh"
+        },
+        {
+          "file": "_candidates/boss_down/03.wav",
+          "engine": "hybrid",
+          "seed": 1303413631,
+          "score": -0.044,
+          "relevance": 0.026,
+          "styleMatch": 0.028,
+          "penalty": 0.08,
+          "durationSec": 2.46,
+          "source": "woosh"
+        },
+        {
+          "file": "_candidates/boss_down/04.wav",
+          "engine": "hybrid",
+          "seed": 1303413632,
+          "score": -0.061,
+          "relevance": 0.019,
+          "styleMatch": -0.001,
+          "penalty": 0.08,
+          "durationSec": 2.924,
+          "source": "woosh"
+        },
+        {
+          "file": "_candidates/boss_down/05.wav",
+          "engine": "hybrid",
+          "seed": 1303413633,
+          "score": -0.051,
+          "relevance": 0.041,
+          "styleMatch": -0.032,
+          "penalty": 0.08,
+          "durationSec": 3,
+          "source": "woosh"
+        },
+        {
+          "file": "_candidates/boss_down/06.wav",
+          "engine": "hybrid",
+          "seed": 1303413634,
+          "score": -0.122,
+          "relevance": -0.027,
+          "styleMatch": -0.041,
+          "penalty": 0.08,
+          "durationSec": 2.57,
+          "source": "woosh"
+        },
+        {
+          "file": "_candidates/boss_down/07.wav",
+          "engine": "hybrid",
+          "seed": 1303413635,
+          "score": -0.023,
+          "relevance": 0.087,
+          "styleMatch": -0.087,
+          "penalty": 0.08,
+          "durationSec": 2.51,
+          "source": "woosh"
+        },
+        {
+          "file": "_candidates/boss_down/08.wav",
+          "engine": "hybrid",
+          "seed": 1303413636,
+          "score": -0.132,
+          "relevance": -0.057,
+          "styleMatch": 0.013,
+          "penalty": 0.08,
+          "durationSec": 2.477,
+          "source": "woosh"
+        }
+      ],
+      "chosen": [
+        0
+      ]
+    },
+    {
+      "key": "arrow_shot",
+      "name": "敵の射撃",
+      "files": [
+        "arrow_shot_1.wav",
+        "arrow_shot_2.wav"
+      ],
+      "engine": "ai",
+      "recipe": "swing",
+      "prompt": "bow string release and arrow whoosh flying past",
+      "tier": "light",
+      "durationSec": 0.5,
+      "playbackRandom": {
+        "pitch": 0.06,
+        "volume": 0.12
+      },
+      "candidates": [
+        {
+          "file": "_candidates/arrow_shot/01.wav",
+          "engine": "ai",
+          "seed": 950334719,
+          "score": -0.171,
+          "relevance": -0.044,
+          "styleMatch": -0.136,
+          "penalty": 0.08,
+          "durationSec": 0.5,
+          "source": "woosh"
+        },
+        {
+          "file": "_candidates/arrow_shot/02.wav",
+          "engine": "ai",
+          "seed": 950334720,
+          "score": -0.115,
+          "relevance": -0.011,
+          "styleMatch": -0.068,
+          "penalty": 0.08,
+          "durationSec": 0.5,
+          "source": "woosh"
+        },
+        {
+          "file": "_candidates/arrow_shot/03.wav",
+          "engine": "ai",
+          "seed": 950334721,
+          "score": -0.154,
+          "relevance": -0.04,
+          "styleMatch": -0.099,
+          "penalty": 0.08,
+          "durationSec": 0.5,
+          "source": "woosh"
+        },
+        {
+          "file": "_candidates/arrow_shot/04.wav",
+          "engine": "ai",
+          "seed": 950334722,
+          "score": -0.17,
+          "relevance": -0.052,
+          "styleMatch": -0.109,
+          "penalty": 0.08,
+          "durationSec": 0.5,
+          "source": "woosh"
+        },
+        {
+          "file": "_candidates/arrow_shot/05.wav",
+          "engine": "ai",
+          "seed": 950334723,
+          "score": -0.202,
+          "relevance": -0.089,
+          "styleMatch": -0.096,
+          "penalty": 0.08,
+          "durationSec": 0.5,
+          "source": "woosh"
+        },
+        {
+          "file": "_candidates/arrow_shot/06.wav",
+          "engine": "ai",
+          "seed": 950334724,
+          "score": -0.188,
+          "relevance": -0.066,
+          "styleMatch": -0.121,
+          "penalty": 0.08,
+          "durationSec": 0.5,
+          "source": "woosh"
+        },
+        {
+          "file": "_candidates/arrow_shot/07.wav",
+          "engine": "ai",
+          "seed": 950334725,
+          "score": -0.16,
+          "relevance": -0.048,
+          "styleMatch": -0.091,
+          "penalty": 0.08,
+          "durationSec": 0.5,
+          "source": "woosh"
+        },
+        {
+          "file": "_candidates/arrow_shot/08.wav",
+          "engine": "ai",
+          "seed": 950334726,
+          "score": -0.204,
+          "relevance": -0.091,
+          "styleMatch": -0.095,
+          "penalty": 0.08,
+          "durationSec": 0.5,
+          "source": "woosh"
+        }
+      ],
+      "chosen": [
+        1,
+        2
+      ]
+    },
+    {
+      "key": "dart_throw",
+      "name": "投げ針",
+      "files": [
+        "dart_throw.wav"
+      ],
+      "engine": "ai",
+      "recipe": "swing",
+      "prompt": "small iron dart thrown with a sharp whistle and ember crackle",
+      "tier": "light",
+      "durationSec": 0.4,
+      "playbackRandom": {
+        "pitch": 0.06,
+        "volume": 0.12
+      },
+      "candidates": [
+        {
+          "file": "_candidates/dart_throw/01.wav",
+          "engine": "ai",
+          "seed": 157681378,
+          "score": -0.045,
+          "relevance": 0.054,
+          "styleMatch": -0.055,
+          "penalty": 0.08,
+          "durationSec": 0.4,
+          "source": "woosh"
+        },
+        {
+          "file": "_candidates/dart_throw/02.wav",
+          "engine": "ai",
+          "seed": 157681379,
+          "score": -0.086,
+          "relevance": 0.018,
+          "styleMatch": -0.067,
+          "penalty": 0.08,
+          "durationSec": 0.4,
+          "source": "woosh"
+        },
+        {
+          "file": "_candidates/dart_throw/03.wav",
+          "engine": "ai",
+          "seed": 157681380,
+          "score": 0.022,
+          "relevance": 0.084,
+          "styleMatch": -0.063,
+          "penalty": 0.04,
+          "durationSec": 0.4,
+          "source": "woosh"
+        },
+        {
+          "file": "_candidates/dart_throw/04.wav",
+          "engine": "ai",
+          "seed": 157681381,
+          "score": -0.086,
+          "relevance": 0.042,
+          "styleMatch": -0.137,
+          "penalty": 0.08,
+          "durationSec": 0.4,
+          "source": "woosh"
+        },
+        {
+          "file": "_candidates/dart_throw/05.wav",
+          "engine": "ai",
+          "seed": 157681382,
+          "score": -0.069,
+          "relevance": 0.044,
+          "styleMatch": -0.096,
+          "penalty": 0.08,
+          "durationSec": 0.4,
+          "source": "woosh"
+        },
+        {
+          "file": "_candidates/dart_throw/06.wav",
+          "engine": "ai",
+          "seed": 157681383,
+          "score": -0.016,
+          "relevance": 0.051,
+          "styleMatch": -0.078,
+          "penalty": 0.04,
+          "durationSec": 0.4,
+          "source": "woosh"
+        },
+        {
+          "file": "_candidates/dart_throw/07.wav",
+          "engine": "ai",
+          "seed": 157681384,
+          "score": -0.009,
+          "relevance": 0.104,
+          "styleMatch": -0.093,
+          "penalty": 0.08,
+          "durationSec": 0.4,
+          "source": "woosh"
+        },
+        {
+          "file": "_candidates/dart_throw/08.wav",
+          "engine": "ai",
+          "seed": 157681385,
+          "score": -0.055,
+          "relevance": 0.062,
+          "styleMatch": -0.105,
+          "penalty": 0.08,
+          "durationSec": 0.4,
+          "source": "woosh"
+        }
+      ],
+      "chosen": [
+        2
+      ]
+    },
+    {
+      "key": "pickup",
+      "name": "拾得",
+      "files": [
+        "pickup.wav"
+      ],
+      "engine": "synth",
+      "recipe": "coin",
+      "prompt": "picking up small items, soft leather pouch and clinking old coins",
+      "tier": "ui",
+      "durationSec": 0.46,
+      "playbackRandom": {
+        "pitch": 0.02,
+        "volume": 0.05
+      },
+      "candidates": [
+        {
+          "file": "_candidates/pickup/01.wav",
+          "engine": "synth",
+          "seed": 1768436424,
+          "score": -0.017,
+          "relevance": -0.023,
+          "styleMatch": -0.099,
+          "penalty": 0,
+          "durationSec": 0.459,
+          "source": "synth"
+        },
+        {
+          "file": "_candidates/pickup/02.wav",
+          "engine": "synth",
+          "seed": 1768436425,
+          "score": -0.007,
+          "relevance": 0.012,
+          "styleMatch": -0.104,
+          "penalty": 0,
+          "durationSec": 0.46,
+          "source": "synth"
+        },
+        {
+          "file": "_candidates/pickup/03.wav",
+          "engine": "synth",
+          "seed": 1768436426,
+          "score": -0.021,
+          "relevance": -0.034,
+          "styleMatch": -0.108,
+          "penalty": 0,
+          "durationSec": 0.452,
+          "source": "synth"
+        },
+        {
+          "file": "_candidates/pickup/04.wav",
+          "engine": "synth",
+          "seed": 1768436427,
+          "score": -0.009,
+          "relevance": 0.009,
+          "styleMatch": -0.108,
+          "penalty": 0,
+          "durationSec": 0.451,
+          "source": "synth"
+        },
+        {
+          "file": "_candidates/pickup/05.wav",
+          "engine": "synth",
+          "seed": 1768436428,
+          "score": -0.021,
+          "relevance": -0.034,
+          "styleMatch": -0.102,
+          "penalty": 0,
+          "durationSec": 0.5,
+          "source": "synth"
+        },
+        {
+          "file": "_candidates/pickup/06.wav",
+          "engine": "synth",
+          "seed": 1768436429,
+          "score": -0.011,
+          "relevance": -0.001,
+          "styleMatch": -0.101,
+          "penalty": 0,
+          "durationSec": 0.465,
+          "source": "synth"
+        },
+        {
+          "file": "_candidates/pickup/07.wav",
+          "engine": "synth",
+          "seed": 1768436430,
+          "score": -0.01,
+          "relevance": 0,
+          "styleMatch": -0.097,
+          "penalty": 0,
+          "durationSec": 0.5,
+          "source": "synth"
+        },
+        {
+          "file": "_candidates/pickup/08.wav",
+          "engine": "synth",
+          "seed": 1768436431,
+          "score": -0.015,
+          "relevance": -0.012,
+          "styleMatch": -0.107,
+          "penalty": 0,
+          "durationSec": 0.47,
+          "source": "synth"
+        }
+      ],
+      "chosen": [
+        1
+      ]
+    },
+    {
+      "key": "level_up",
+      "name": "レベルアップ",
+      "files": [
+        "level_up.wav"
+      ],
+      "engine": "synth",
+      "recipe": "powerup",
+      "prompt": "solemn rising choir chime with warm candle glow",
+      "tier": "normal",
+      "durationSec": 1.154,
+      "playbackRandom": {
+        "pitch": 0.02,
+        "volume": 0.05
+      },
+      "candidates": [
+        {
+          "file": "_candidates/level_up/01.wav",
+          "engine": "synth",
+          "seed": 205638495,
+          "score": -0.024,
+          "relevance": -0.018,
+          "styleMatch": -0.174,
+          "penalty": 0,
+          "durationSec": 1.2,
+          "source": "synth"
+        },
+        {
+          "file": "_candidates/level_up/02.wav",
+          "engine": "synth",
+          "seed": 205638496,
+          "score": -0.019,
+          "relevance": -0.006,
+          "styleMatch": -0.167,
+          "penalty": 0,
+          "durationSec": 1.143,
+          "source": "synth"
+        },
+        {
+          "file": "_candidates/level_up/03.wav",
+          "engine": "synth",
+          "seed": 205638497,
+          "score": -0.021,
+          "relevance": -0.012,
+          "styleMatch": -0.171,
+          "penalty": 0,
+          "durationSec": 1.173,
+          "source": "synth"
+        },
+        {
+          "file": "_candidates/level_up/04.wav",
+          "engine": "synth",
+          "seed": 205638498,
+          "score": -0.021,
+          "relevance": -0.01,
+          "styleMatch": -0.172,
+          "penalty": 0,
+          "durationSec": 1.173,
+          "source": "synth"
+        },
+        {
+          "file": "_candidates/level_up/05.wav",
+          "engine": "synth",
+          "seed": 205638499,
+          "score": -0.022,
+          "relevance": -0.014,
+          "styleMatch": -0.174,
+          "penalty": 0,
+          "durationSec": 1.184,
+          "source": "synth"
+        },
+        {
+          "file": "_candidates/level_up/06.wav",
+          "engine": "synth",
+          "seed": 205638500,
+          "score": -0.028,
+          "relevance": -0.03,
+          "styleMatch": -0.182,
+          "penalty": 0,
+          "durationSec": 1.197,
+          "source": "synth"
+        },
+        {
+          "file": "_candidates/level_up/07.wav",
+          "engine": "synth",
+          "seed": 205638501,
+          "score": -0.028,
+          "relevance": -0.028,
+          "styleMatch": -0.189,
+          "penalty": 0,
+          "durationSec": 1.184,
+          "source": "synth"
+        },
+        {
+          "file": "_candidates/level_up/08.wav",
+          "engine": "synth",
+          "seed": 205638502,
+          "score": -0.018,
+          "relevance": -0.004,
+          "styleMatch": -0.166,
+          "penalty": 0,
+          "durationSec": 1.154,
+          "source": "synth"
+        }
+      ],
+      "chosen": [
+        7
+      ]
+    },
+    {
+      "key": "descend",
+      "name": "階段を降りる",
+      "files": [
+        "descend.wav"
+      ],
+      "engine": "ai",
+      "recipe": "footstep",
+      "prompt": "footsteps descending stone stairs echoing into darkness",
+      "tier": "light",
+      "durationSec": 1.253,
+      "playbackRandom": {
+        "pitch": 0.06,
+        "volume": 0.12
+      },
+      "candidates": [
+        {
+          "file": "_candidates/descend/01.wav",
+          "engine": "ai",
+          "seed": 1072249416,
+          "score": -0.137,
+          "relevance": -0.084,
+          "styleMatch": -0.037,
+          "penalty": 0.04,
+          "durationSec": 1.213,
+          "source": "woosh"
+        },
+        {
+          "file": "_candidates/descend/02.wav",
+          "engine": "ai",
+          "seed": 1072249417,
+          "score": -0.027,
+          "relevance": 0.024,
+          "styleMatch": -0.031,
+          "penalty": 0.04,
+          "durationSec": 1.121,
+          "source": "woosh"
+        },
+        {
+          "file": "_candidates/descend/03.wav",
+          "engine": "ai",
+          "seed": 1072249418,
+          "score": -0.107,
+          "relevance": -0.014,
+          "styleMatch": -0.034,
+          "penalty": 0.08,
+          "durationSec": 1.4,
+          "source": "woosh"
+        },
+        {
+          "file": "_candidates/descend/04.wav",
+          "engine": "ai",
+          "seed": 1072249419,
+          "score": -0.098,
+          "relevance": -0.023,
+          "styleMatch": 0.014,
+          "penalty": 0.08,
+          "durationSec": 1.4,
+          "source": "woosh"
+        },
+        {
+          "file": "_candidates/descend/05.wav",
+          "engine": "ai",
+          "seed": 1072249420,
+          "score": 0.014,
+          "relevance": 0.068,
+          "styleMatch": -0.04,
+          "penalty": 0.04,
+          "durationSec": 1.253,
+          "source": "woosh"
+        },
+        {
+          "file": "_candidates/descend/06.wav",
+          "engine": "ai",
+          "seed": 1072249421,
+          "score": -0.07,
+          "relevance": 0.001,
+          "styleMatch": -0.002,
+          "penalty": 0.07,
+          "durationSec": 1.308,
+          "source": "woosh"
+        },
+        {
+          "file": "_candidates/descend/07.wav",
+          "engine": "ai",
+          "seed": 1072249422,
+          "score": -0.038,
+          "relevance": 0.006,
+          "styleMatch": -0.011,
+          "penalty": 0.04,
+          "durationSec": 1.13,
+          "source": "woosh"
+        },
+        {
+          "file": "_candidates/descend/08.wav",
+          "engine": "ai",
+          "seed": 1072249423,
+          "score": -0.1,
+          "relevance": -0.015,
+          "styleMatch": -0.014,
+          "penalty": 0.08,
+          "durationSec": 1.143,
+          "source": "woosh"
+        }
+      ],
+      "chosen": [
+        4
+      ]
+    },
+    {
+      "key": "trap",
+      "name": "罠",
+      "files": [
+        "trap.wav"
+      ],
+      "engine": "hybrid",
+      "recipe": "metal",
+      "prompt": "hidden iron spike trap snapping up from a stone floor",
+      "tier": "normal",
+      "durationSec": 0.531,
+      "playbackRandom": {
+        "pitch": 0.06,
+        "volume": 0.12
+      },
+      "candidates": [
+        {
+          "file": "_candidates/trap/01.wav",
+          "engine": "hybrid",
+          "seed": 1620038981,
+          "score": 0.058,
+          "relevance": 0.08,
+          "styleMatch": -0.063,
+          "penalty": 0,
+          "durationSec": 0.531,
+          "source": "woosh"
+        },
+        {
+          "file": "_candidates/trap/02.wav",
+          "engine": "hybrid",
+          "seed": 1620038982,
+          "score": 0.026,
+          "relevance": 0.104,
+          "styleMatch": -0.11,
+          "penalty": 0.04,
+          "durationSec": 0.7,
+          "source": "woosh"
+        },
+        {
+          "file": "_candidates/trap/03.wav",
+          "engine": "hybrid",
+          "seed": 1620038983,
+          "score": -0.014,
+          "relevance": 0.058,
+          "styleMatch": -0.091,
+          "penalty": 0.04,
+          "durationSec": 0.586,
+          "source": "woosh"
+        },
+        {
+          "file": "_candidates/trap/04.wav",
+          "engine": "hybrid",
+          "seed": 1620038984,
+          "score": -0.052,
+          "relevance": 0.045,
+          "styleMatch": -0.05,
+          "penalty": 0.08,
+          "durationSec": 0.7,
+          "source": "woosh"
+        },
+        {
+          "file": "_candidates/trap/05.wav",
+          "engine": "hybrid",
+          "seed": 1620038985,
+          "score": 0.013,
+          "relevance": 0.107,
+          "styleMatch": -0.041,
+          "penalty": 0.08,
+          "durationSec": 0.7,
+          "source": "woosh"
+        },
+        {
+          "file": "_candidates/trap/06.wav",
+          "engine": "hybrid",
+          "seed": 1620038986,
+          "score": -0.123,
+          "relevance": 0.005,
+          "styleMatch": -0.138,
+          "penalty": 0.08,
+          "durationSec": 0.7,
+          "source": "woosh"
+        },
+        {
+          "file": "_candidates/trap/07.wav",
+          "engine": "hybrid",
+          "seed": 1620038987,
+          "score": 0.046,
+          "relevance": 0.12,
+          "styleMatch": -0.098,
+          "penalty": 0.04,
+          "durationSec": 0.505,
+          "source": "woosh"
+        },
+        {
+          "file": "_candidates/trap/08.wav",
+          "engine": "hybrid",
+          "seed": 1620038988,
+          "score": -0.048,
+          "relevance": 0.04,
+          "styleMatch": -0.137,
+          "penalty": 0.04,
+          "durationSec": 0.539,
+          "source": "woosh"
+        }
+      ],
+      "chosen": [
+        0
+      ]
+    },
+    {
+      "key": "rite_flare",
+      "name": "閃灯",
+      "files": [
+        "rite_flare.wav"
+      ],
+      "engine": "ai",
+      "recipe": "magic",
+      "prompt": "blinding burst of holy candle light, bright magical flash",
+      "tier": "light",
+      "durationSec": 1.052,
+      "playbackRandom": {
+        "pitch": 0.02,
+        "volume": 0.05
+      },
+      "candidates": [
+        {
+          "file": "_candidates/rite_flare/01.wav",
+          "engine": "ai",
+          "seed": 1824968391,
+          "score": 0.294,
+          "relevance": 0.223,
+          "styleMatch": -0.084,
+          "penalty": 0,
+          "durationSec": 1.052,
+          "source": "library:Epic Stock Media - Anime Game/DSGNStngr_Power Up Bright Positive Successful Light Saturation Crash Shimmer 05_ESM_AG.wav@0.04"
+        },
+        {
+          "file": "_candidates/rite_flare/02.wav",
+          "engine": "ai",
+          "seed": 1824968392,
+          "score": 0.036,
+          "relevance": 0.048,
+          "styleMatch": -0.033,
+          "penalty": 0,
+          "durationSec": 1.2,
+          "source": "woosh"
+        },
+        {
+          "file": "_candidates/rite_flare/03.wav",
+          "engine": "ai",
+          "seed": 1824968393,
+          "score": 0.036,
+          "relevance": 0.066,
+          "styleMatch": -0.085,
+          "penalty": 0,
+          "durationSec": 1.059,
+          "source": "woosh"
+        },
+        {
+          "file": "_candidates/rite_flare/04.wav",
+          "engine": "ai",
+          "seed": 1824968394,
+          "score": 0.052,
+          "relevance": 0.07,
+          "styleMatch": -0.05,
+          "penalty": 0,
+          "durationSec": 1.2,
+          "source": "woosh"
+        },
+        {
+          "file": "_candidates/rite_flare/05.wav",
+          "engine": "ai",
+          "seed": 1824968395,
+          "score": 0.077,
+          "relevance": 0.111,
+          "styleMatch": -0.098,
+          "penalty": 0,
+          "durationSec": 1.2,
+          "source": "woosh"
+        },
+        {
+          "file": "_candidates/rite_flare/06.wav",
+          "engine": "ai",
+          "seed": 1824968396,
+          "score": 0.096,
+          "relevance": 0.109,
+          "styleMatch": -0.039,
+          "penalty": 0,
+          "durationSec": 1.2,
+          "source": "woosh"
+        },
+        {
+          "file": "_candidates/rite_flare/07.wav",
+          "engine": "ai",
+          "seed": 1824968397,
+          "score": 0.037,
+          "relevance": 0.065,
+          "styleMatch": -0.079,
+          "penalty": 0,
+          "durationSec": 1.185,
+          "source": "woosh"
+        },
+        {
+          "file": "_candidates/rite_flare/08.wav",
+          "engine": "ai",
+          "seed": 1824968398,
+          "score": 0.053,
+          "relevance": 0.07,
+          "styleMatch": -0.05,
+          "penalty": 0,
+          "durationSec": 1.067,
+          "source": "woosh"
+        }
+      ],
+      "chosen": [
+        0
+      ]
+    },
+    {
+      "key": "rite_mend",
+      "name": "癒灯",
+      "files": [
+        "rite_mend.wav"
+      ],
+      "engine": "ai",
+      "recipe": "magic",
+      "prompt": "gentle healing flame, soft shimmering warm chime",
+      "tier": "light",
+      "durationSec": 1.249,
+      "playbackRandom": {
+        "pitch": 0.02,
+        "volume": 0.05
+      },
+      "candidates": [
+        {
+          "file": "_candidates/rite_mend/01.wav",
+          "engine": "ai",
+          "seed": 1723153447,
+          "score": 0.184,
+          "relevance": 0.121,
+          "styleMatch": -0.105,
+          "penalty": 0,
+          "durationSec": 1.296,
+          "source": "library:Epic Stock Media - Strange Game Ambient Loops 3/MAGShim_Shimmer Loop Small Bell Metal Taps_ESM_SGA3.wav@15.00"
+        },
+        {
+          "file": "_candidates/rite_mend/02.wav",
+          "engine": "ai",
+          "seed": 1723153448,
+          "score": 0.167,
+          "relevance": 0.087,
+          "styleMatch": -0.06,
+          "penalty": 0,
+          "durationSec": 1.242,
+          "source": "library:Epic Stock Media - Strange Game Ambient Loops 3/MAGShim_Shimmer Loop Small Bell Metal Taps_ESM_SGA3.wav@30.00"
+        },
+        {
+          "file": "_candidates/rite_mend/03.wav",
+          "engine": "ai",
+          "seed": 1723153449,
+          "score": 0.197,
+          "relevance": 0.128,
+          "styleMatch": -0.086,
+          "penalty": 0,
+          "durationSec": 1.249,
+          "source": "library:Epic Stock Media - Strange Game Ambient Loops 3/MAGShim_Shimmer Loop Small Bell Metal Taps_ESM_SGA3.wav@25.00"
+        },
+        {
+          "file": "_candidates/rite_mend/04.wav",
+          "engine": "ai",
+          "seed": 1723153450,
+          "score": 0.028,
+          "relevance": 0.07,
+          "styleMatch": -0.12,
+          "penalty": 0,
+          "durationSec": 1.4,
+          "source": "woosh"
+        },
+        {
+          "file": "_candidates/rite_mend/05.wav",
+          "engine": "ai",
+          "seed": 1723153451,
+          "score": 0.056,
+          "relevance": 0.058,
+          "styleMatch": -0.007,
+          "penalty": 0,
+          "durationSec": 1.4,
+          "source": "woosh"
+        },
+        {
+          "file": "_candidates/rite_mend/06.wav",
+          "engine": "ai",
+          "seed": 1723153452,
+          "score": 0.155,
+          "relevance": 0.156,
+          "styleMatch": -0.003,
+          "penalty": 0,
+          "durationSec": 1.4,
+          "source": "woosh"
+        },
+        {
+          "file": "_candidates/rite_mend/07.wav",
+          "engine": "ai",
+          "seed": 1723153453,
+          "score": 0.079,
+          "relevance": 0.1,
+          "styleMatch": -0.06,
+          "penalty": 0,
+          "durationSec": 1.394,
+          "source": "woosh"
+        },
+        {
+          "file": "_candidates/rite_mend/08.wav",
+          "engine": "ai",
+          "seed": 1723153454,
+          "score": 0.078,
+          "relevance": 0.081,
+          "styleMatch": -0.008,
+          "penalty": 0,
+          "durationSec": 1.4,
+          "source": "woosh"
+        }
+      ],
+      "chosen": [
+        2
+      ]
+    },
+    {
+      "key": "rite_guide",
+      "name": "導灯",
+      "files": [
+        "rite_guide.wav"
+      ],
+      "engine": "ai",
+      "recipe": "magic",
+      "prompt": "lantern light sweeping outward revealing a dark corridor, airy shimmer",
+      "tier": "light",
+      "durationSec": 1.4,
+      "playbackRandom": {
+        "pitch": 0.02,
+        "volume": 0.05
+      },
+      "candidates": [
+        {
+          "file": "_candidates/rite_guide/01.wav",
+          "engine": "ai",
+          "seed": 1584320315,
+          "score": 0.128,
+          "relevance": 0.124,
+          "styleMatch": 0.013,
+          "penalty": 0,
+          "durationSec": 1.4,
+          "source": "woosh"
+        },
+        {
+          "file": "_candidates/rite_guide/02.wav",
+          "engine": "ai",
+          "seed": 1584320316,
+          "score": -0.023,
+          "relevance": -0.001,
+          "styleMatch": -0.064,
+          "penalty": 0,
+          "durationSec": 1.4,
+          "source": "woosh"
+        },
+        {
+          "file": "_candidates/rite_guide/03.wav",
+          "engine": "ai",
+          "seed": 1584320317,
+          "score": 0.078,
+          "relevance": 0.082,
+          "styleMatch": -0.011,
+          "penalty": 0,
+          "durationSec": 1.4,
+          "source": "woosh"
+        },
+        {
+          "file": "_candidates/rite_guide/04.wav",
+          "engine": "ai",
+          "seed": 1584320318,
+          "score": 0.097,
+          "relevance": 0.099,
+          "styleMatch": -0.006,
+          "penalty": 0,
+          "durationSec": 1.4,
+          "source": "woosh"
+        },
+        {
+          "file": "_candidates/rite_guide/05.wav",
+          "engine": "ai",
+          "seed": 1584320319,
+          "score": 0.082,
+          "relevance": 0.09,
+          "styleMatch": -0.023,
+          "penalty": 0,
+          "durationSec": 1.375,
+          "source": "woosh"
+        },
+        {
+          "file": "_candidates/rite_guide/06.wav",
+          "engine": "ai",
+          "seed": 1584320320,
+          "score": 0.005,
+          "relevance": 0.008,
+          "styleMatch": -0.008,
+          "penalty": 0,
+          "durationSec": 1.4,
+          "source": "woosh"
+        },
+        {
+          "file": "_candidates/rite_guide/07.wav",
+          "engine": "ai",
+          "seed": 1584320321,
+          "score": 0.049,
+          "relevance": 0.07,
+          "styleMatch": -0.06,
+          "penalty": 0,
+          "durationSec": 1.4,
+          "source": "woosh"
+        },
+        {
+          "file": "_candidates/rite_guide/08.wav",
+          "engine": "ai",
+          "seed": 1584320322,
+          "score": 0.041,
+          "relevance": 0.053,
+          "styleMatch": -0.035,
+          "penalty": 0,
+          "durationSec": 1.4,
+          "source": "woosh"
+        }
+      ],
+      "chosen": [
+        0
+      ]
+    },
+    {
+      "key": "rite_ward",
+      "name": "護灯",
+      "files": [
+        "rite_ward.wav"
+      ],
+      "engine": "ai",
+      "recipe": "charge",
+      "prompt": "protective ward of fire forming around a shield, deep hum and push of air",
+      "tier": "normal",
+      "durationSec": 1.2,
+      "playbackRandom": {
+        "pitch": 0.02,
+        "volume": 0.05
+      },
+      "candidates": [
+        {
+          "file": "_candidates/rite_ward/01.wav",
+          "engine": "ai",
+          "seed": 1856934766,
+          "score": 0.086,
+          "relevance": 0.102,
+          "styleMatch": -0.045,
+          "penalty": 0,
+          "durationSec": 1.2,
+          "source": "woosh"
+        },
+        {
+          "file": "_candidates/rite_ward/02.wav",
+          "engine": "ai",
+          "seed": 1856934767,
+          "score": 0.077,
+          "relevance": 0.078,
+          "styleMatch": -0.005,
+          "penalty": 0,
+          "durationSec": 1.2,
+          "source": "woosh"
+        },
+        {
+          "file": "_candidates/rite_ward/03.wav",
+          "engine": "ai",
+          "seed": 1856934768,
+          "score": 0.089,
+          "relevance": 0.103,
+          "styleMatch": -0.039,
+          "penalty": 0,
+          "durationSec": 1.2,
+          "source": "woosh"
+        },
+        {
+          "file": "_candidates/rite_ward/04.wav",
+          "engine": "ai",
+          "seed": 1856934769,
+          "score": 0.18,
+          "relevance": 0.173,
+          "styleMatch": 0.019,
+          "penalty": 0,
+          "durationSec": 1.2,
+          "source": "woosh"
+        },
+        {
+          "file": "_candidates/rite_ward/05.wav",
+          "engine": "ai",
+          "seed": 1856934770,
+          "score": 0.04,
+          "relevance": 0.049,
+          "styleMatch": -0.025,
+          "penalty": 0,
+          "durationSec": 1.2,
+          "source": "woosh"
+        },
+        {
+          "file": "_candidates/rite_ward/06.wav",
+          "engine": "ai",
+          "seed": 1856934771,
+          "score": 0.115,
+          "relevance": 0.121,
+          "styleMatch": -0.018,
+          "penalty": 0,
+          "durationSec": 1.2,
+          "source": "woosh"
+        },
+        {
+          "file": "_candidates/rite_ward/07.wav",
+          "engine": "ai",
+          "seed": 1856934772,
+          "score": 0.094,
+          "relevance": 0.106,
+          "styleMatch": -0.034,
+          "penalty": 0,
+          "durationSec": 1.2,
+          "source": "woosh"
+        },
+        {
+          "file": "_candidates/rite_ward/08.wav",
+          "engine": "ai",
+          "seed": 1856934773,
+          "score": 0.063,
+          "relevance": 0.074,
+          "styleMatch": -0.033,
+          "penalty": 0,
+          "durationSec": 1.2,
+          "source": "woosh"
+        }
+      ],
+      "chosen": [
+        3
+      ]
+    },
+    {
+      "key": "decision",
+      "name": "黒燭からの問い",
+      "files": [
+        "decision.wav"
+      ],
+      "engine": "ai",
+      "recipe": "magic",
+      "prompt": "single distant cathedral bell toll, ominous and low",
+      "tier": "light",
+      "durationSec": 2.12,
+      "playbackRandom": {
+        "pitch": 0.02,
+        "volume": 0.05
+      },
+      "candidates": [
+        {
+          "file": "_candidates/decision/01.wav",
+          "engine": "ai",
+          "seed": 1869934118,
+          "score": 0.199,
+          "relevance": 0.147,
+          "styleMatch": -0.138,
+          "penalty": 0,
+          "durationSec": 2.12,
+          "source": "library:Ivo Vicic - Church Bells/04 Church Bells, Near Distance, In Church Tower-3 Different Bell 02.wav@11.61"
+        },
+        {
+          "file": "_candidates/decision/02.wav",
+          "engine": "ai",
+          "seed": 1869934119,
+          "score": 0.17,
+          "relevance": 0.119,
+          "styleMatch": -0.141,
+          "penalty": 0,
+          "durationSec": 2.472,
+          "source": "library:Ivo Vicic - Church Bells/04 Church Bells, Near Distance, In Church Tower-3 Different Bell 02.wav@21.61"
+        },
+        {
+          "file": "_candidates/decision/03.wav",
+          "engine": "ai",
+          "seed": 1869934120,
+          "score": 0.106,
+          "relevance": 0.049,
+          "styleMatch": -0.121,
+          "penalty": 0,
+          "durationSec": 2.474,
+          "source": "library:Ivo Vicic - Church Bells/04 Church Bells, Near Distance, In Church Tower-3 Different Bell 02.wav@46.61"
+        },
+        {
+          "file": "_candidates/decision/04.wav",
+          "engine": "ai",
+          "seed": 1869934121,
+          "score": 0.112,
+          "relevance": 0.127,
+          "styleMatch": -0.042,
+          "penalty": 0,
+          "durationSec": 2.475,
+          "source": "woosh"
+        },
+        {
+          "file": "_candidates/decision/05.wav",
+          "engine": "ai",
+          "seed": 1869934122,
+          "score": 0.108,
+          "relevance": 0.106,
+          "styleMatch": 0.005,
+          "penalty": 0,
+          "durationSec": 2.474,
+          "source": "woosh"
+        },
+        {
+          "file": "_candidates/decision/06.wav",
+          "engine": "ai",
+          "seed": 1869934123,
+          "score": 0.126,
+          "relevance": 0.128,
+          "styleMatch": -0.006,
+          "penalty": 0,
+          "durationSec": 2.474,
+          "source": "woosh"
+        },
+        {
+          "file": "_candidates/decision/07.wav",
+          "engine": "ai",
+          "seed": 1869934124,
+          "score": 0.078,
+          "relevance": 0.108,
+          "styleMatch": -0.085,
+          "penalty": 0,
+          "durationSec": 2.474,
+          "source": "woosh"
+        },
+        {
+          "file": "_candidates/decision/08.wav",
+          "engine": "ai",
+          "seed": 1869934125,
+          "score": 0.121,
+          "relevance": 0.105,
+          "styleMatch": 0.044,
+          "penalty": 0,
+          "durationSec": 2.474,
+          "source": "woosh"
+        }
+      ],
+      "chosen": [
+        0
+      ]
+    },
+    {
+      "key": "grave",
+      "name": "墓標を弔う",
+      "files": [
+        "grave.wav"
+      ],
+      "engine": "ai",
+      "recipe": "magic",
+      "prompt": "quiet mournful chime and a candle flame flickering to life",
+      "tier": "light",
+      "durationSec": 1.8,
+      "playbackRandom": {
+        "pitch": 0.02,
+        "volume": 0.05
+      },
+      "candidates": [
+        {
+          "file": "_candidates/grave/01.wav",
+          "engine": "ai",
+          "seed": 276299126,
+          "score": 0.054,
+          "relevance": 0.04,
+          "styleMatch": 0.04,
+          "penalty": 0,
+          "durationSec": 1.8,
+          "source": "woosh"
+        },
+        {
+          "file": "_candidates/grave/02.wav",
+          "engine": "ai",
+          "seed": 276299127,
+          "score": 0.03,
+          "relevance": 0.033,
+          "styleMatch": -0.01,
+          "penalty": 0,
+          "durationSec": 1.8,
+          "source": "woosh"
+        },
+        {
+          "file": "_candidates/grave/03.wav",
+          "engine": "ai",
+          "seed": 276299128,
+          "score": 0.082,
+          "relevance": 0.075,
+          "styleMatch": 0.021,
+          "penalty": 0,
+          "durationSec": 1.8,
+          "source": "woosh"
+        },
+        {
+          "file": "_candidates/grave/04.wav",
+          "engine": "ai",
+          "seed": 276299129,
+          "score": -0.006,
+          "relevance": 0.005,
+          "styleMatch": -0.03,
+          "penalty": 0,
+          "durationSec": 1.8,
+          "source": "woosh"
+        },
+        {
+          "file": "_candidates/grave/05.wav",
+          "engine": "ai",
+          "seed": 276299130,
+          "score": -0.02,
+          "relevance": -0.012,
+          "styleMatch": -0.024,
+          "penalty": 0,
+          "durationSec": 1.8,
+          "source": "woosh"
+        },
+        {
+          "file": "_candidates/grave/06.wav",
+          "engine": "ai",
+          "seed": 276299131,
+          "score": 0.069,
+          "relevance": 0.083,
+          "styleMatch": -0.041,
+          "penalty": 0,
+          "durationSec": 1.8,
+          "source": "woosh"
+        },
+        {
+          "file": "_candidates/grave/07.wav",
+          "engine": "ai",
+          "seed": 276299132,
+          "score": -0.045,
+          "relevance": -0.022,
+          "styleMatch": -0.066,
+          "penalty": 0,
+          "durationSec": 1.795,
+          "source": "woosh"
+        },
+        {
+          "file": "_candidates/grave/08.wav",
+          "engine": "ai",
+          "seed": 276299133,
+          "score": 0.025,
+          "relevance": 0.022,
+          "styleMatch": 0.011,
+          "penalty": 0,
+          "durationSec": 1.8,
+          "source": "woosh"
+        }
+      ],
+      "chosen": [
+        2
+      ]
+    },
+    {
+      "key": "death",
+      "name": "探索者が倒れる",
+      "files": [
+        "death.wav"
+      ],
+      "engine": "synth",
+      "recipe": "defeat",
+      "prompt": "armored body falling to stone floor, final breath, candle snuffed out",
+      "tier": "heavy",
+      "durationSec": 1.771,
+      "playbackRandom": {
+        "pitch": 0.02,
+        "volume": 0.05
+      },
+      "candidates": [
+        {
+          "file": "_candidates/death/01.wav",
+          "engine": "synth",
+          "seed": 1027080081,
+          "score": -0.04,
+          "relevance": -0.065,
+          "styleMatch": -0.192,
+          "penalty": 0,
+          "durationSec": 1.954,
+          "source": "synth"
+        },
+        {
+          "file": "_candidates/death/02.wav",
+          "engine": "synth",
+          "seed": 1027080082,
+          "score": -0.037,
+          "relevance": -0.053,
+          "styleMatch": -0.204,
+          "penalty": 0,
+          "durationSec": 1.871,
+          "source": "synth"
+        },
+        {
+          "file": "_candidates/death/03.wav",
+          "engine": "synth",
+          "seed": 1027080083,
+          "score": -0.034,
+          "relevance": -0.058,
+          "styleMatch": -0.154,
+          "penalty": 0,
+          "durationSec": 1.87,
+          "source": "synth"
+        },
+        {
+          "file": "_candidates/death/04.wav",
+          "engine": "synth",
+          "seed": 1027080084,
+          "score": -0.041,
+          "relevance": -0.07,
+          "styleMatch": -0.194,
+          "penalty": 0,
+          "durationSec": 1.975,
+          "source": "synth"
+        },
+        {
+          "file": "_candidates/death/05.wav",
+          "engine": "synth",
+          "seed": 1027080085,
+          "score": -0.033,
+          "relevance": -0.047,
+          "styleMatch": -0.178,
+          "penalty": 0,
+          "durationSec": 1.85,
+          "source": "synth"
+        },
+        {
+          "file": "_candidates/death/06.wav",
+          "engine": "synth",
+          "seed": 1027080086,
+          "score": -0.029,
+          "relevance": -0.037,
+          "styleMatch": -0.166,
+          "penalty": 0,
+          "durationSec": 1.771,
+          "source": "synth"
+        },
+        {
+          "file": "_candidates/death/07.wav",
+          "engine": "synth",
+          "seed": 1027080087,
+          "score": -0.034,
+          "relevance": -0.05,
+          "styleMatch": -0.185,
+          "penalty": 0,
+          "durationSec": 1.994,
+          "source": "synth"
+        },
+        {
+          "file": "_candidates/death/08.wav",
+          "engine": "synth",
+          "seed": 1027080088,
+          "score": -0.038,
+          "relevance": -0.057,
+          "styleMatch": -0.196,
+          "penalty": 0,
+          "durationSec": 2.032,
+          "source": "synth"
+        }
+      ],
+      "chosen": [
+        5
+      ]
+    },
+    {
+      "key": "returned",
+      "name": "帰還・踏破",
+      "files": [
+        "returned.wav"
+      ],
+      "engine": "synth",
+      "recipe": "powerup",
+      "prompt": "warm triumphant bell chord with rising candle light",
+      "tier": "normal",
+      "durationSec": 1.163,
+      "playbackRandom": {
+        "pitch": 0.02,
+        "volume": 0.05
+      },
+      "candidates": [
+        {
+          "file": "_candidates/returned/01.wav",
+          "engine": "synth",
+          "seed": 1561737921,
+          "score": 0.013,
+          "relevance": 0.105,
+          "styleMatch": -0.172,
+          "penalty": 0,
+          "durationSec": 1.201,
+          "source": "synth"
+        },
+        {
+          "file": "_candidates/returned/02.wav",
+          "engine": "synth",
+          "seed": 1561737922,
+          "score": 0.01,
+          "relevance": 0.093,
+          "styleMatch": -0.171,
+          "penalty": 0,
+          "durationSec": 1.137,
+          "source": "synth"
+        },
+        {
+          "file": "_candidates/returned/03.wav",
+          "engine": "synth",
+          "seed": 1561737923,
+          "score": 0.014,
+          "relevance": 0.106,
+          "styleMatch": -0.175,
+          "penalty": 0,
+          "durationSec": 1.177,
+          "source": "synth"
+        },
+        {
+          "file": "_candidates/returned/04.wav",
+          "engine": "synth",
+          "seed": 1561737924,
+          "score": 0.015,
+          "relevance": 0.107,
+          "styleMatch": -0.167,
+          "penalty": 0,
+          "durationSec": 1.163,
+          "source": "synth"
+        },
+        {
+          "file": "_candidates/returned/05.wav",
+          "engine": "synth",
+          "seed": 1561737925,
+          "score": 0.015,
+          "relevance": 0.108,
+          "styleMatch": -0.17,
+          "penalty": 0,
+          "durationSec": 1.185,
+          "source": "synth"
+        },
+        {
+          "file": "_candidates/returned/06.wav",
+          "engine": "synth",
+          "seed": 1561737926,
+          "score": 0.013,
+          "relevance": 0.104,
+          "styleMatch": -0.177,
+          "penalty": 0,
+          "durationSec": 1.172,
+          "source": "synth"
+        },
+        {
+          "file": "_candidates/returned/07.wav",
+          "engine": "synth",
+          "seed": 1561737927,
+          "score": 0.014,
+          "relevance": 0.109,
+          "styleMatch": -0.175,
+          "penalty": 0,
+          "durationSec": 1.174,
+          "source": "synth"
+        },
+        {
+          "file": "_candidates/returned/08.wav",
+          "engine": "synth",
+          "seed": 1561737928,
+          "score": 0.012,
+          "relevance": 0.099,
+          "styleMatch": -0.17,
+          "penalty": 0,
+          "durationSec": 1.17,
+          "source": "synth"
+        }
+      ],
+      "chosen": [
+        3
+      ]
+    },
+    {
+      "key": "ui_confirm",
+      "name": "決定",
+      "files": [
+        "ui_confirm.wav"
+      ],
+      "engine": "synth",
+      "recipe": "ui-confirm",
+      "prompt": "UI confirm sound, positive two-note",
+      "tier": "ui",
+      "durationSec": 0.448,
+      "playbackRandom": {
+        "pitch": 0,
+        "volume": 0
+      },
+      "candidates": [
+        {
+          "file": "_candidates/ui_confirm/01.wav",
+          "engine": "synth",
+          "seed": 998413624,
+          "score": 0.033,
+          "relevance": 0.153,
+          "styleMatch": -0.121,
+          "penalty": 0,
+          "durationSec": 0.448,
+          "source": "synth"
+        },
+        {
+          "file": "_candidates/ui_confirm/02.wav",
+          "engine": "synth",
+          "seed": 998413625,
+          "score": 0.029,
+          "relevance": 0.142,
+          "styleMatch": -0.127,
+          "penalty": 0,
+          "durationSec": 0.448,
+          "source": "synth"
+        },
+        {
+          "file": "_candidates/ui_confirm/03.wav",
+          "engine": "synth",
+          "seed": 998413626,
+          "score": 0.033,
+          "relevance": 0.151,
+          "styleMatch": -0.119,
+          "penalty": 0,
+          "durationSec": 0.447,
+          "source": "synth"
+        },
+        {
+          "file": "_candidates/ui_confirm/04.wav",
+          "engine": "synth",
+          "seed": 998413627,
+          "score": 0.032,
+          "relevance": 0.149,
+          "styleMatch": -0.123,
+          "penalty": 0,
+          "durationSec": 0.426,
+          "source": "synth"
+        },
+        {
+          "file": "_candidates/ui_confirm/05.wav",
+          "engine": "synth",
+          "seed": 998413628,
+          "score": 0.031,
+          "relevance": 0.141,
+          "styleMatch": -0.107,
+          "penalty": 0,
+          "durationSec": 0.448,
+          "source": "synth"
+        },
+        {
+          "file": "_candidates/ui_confirm/06.wav",
+          "engine": "synth",
+          "seed": 998413629,
+          "score": 0.028,
+          "relevance": 0.134,
+          "styleMatch": -0.117,
+          "penalty": 0,
+          "durationSec": 0.448,
+          "source": "synth"
+        },
+        {
+          "file": "_candidates/ui_confirm/07.wav",
+          "engine": "synth",
+          "seed": 998413630,
+          "score": 0.031,
+          "relevance": 0.142,
+          "styleMatch": -0.112,
+          "penalty": 0,
+          "durationSec": 0.448,
+          "source": "synth"
+        },
+        {
+          "file": "_candidates/ui_confirm/08.wav",
+          "engine": "synth",
+          "seed": 998413631,
+          "score": 0.031,
+          "relevance": 0.145,
+          "styleMatch": -0.124,
+          "penalty": 0,
+          "durationSec": 0.448,
+          "source": "synth"
+        }
+      ],
+      "chosen": [
+        0
+      ]
+    },
+    {
+      "key": "ui_move",
+      "name": "選択",
+      "files": [
+        "ui_move.wav"
+      ],
+      "engine": "synth",
+      "recipe": "ui-move",
+      "prompt": "subtle UI cursor tick",
+      "tier": "ui",
+      "durationSec": 0.174,
+      "playbackRandom": {
+        "pitch": 0,
+        "volume": 0
+      },
+      "candidates": [
+        {
+          "file": "_candidates/ui_move/01.wav",
+          "engine": "synth",
+          "seed": 342829885,
+          "score": -0.01,
+          "relevance": 0.006,
+          "styleMatch": -0.116,
+          "penalty": 0,
+          "durationSec": 0.174,
+          "source": "synth"
+        },
+        {
+          "file": "_candidates/ui_move/02.wav",
+          "engine": "synth",
+          "seed": 342829886,
+          "score": -0.008,
+          "relevance": 0.016,
+          "styleMatch": -0.118,
+          "penalty": 0,
+          "durationSec": 0.174,
+          "source": "synth"
+        },
+        {
+          "file": "_candidates/ui_move/03.wav",
+          "engine": "synth",
+          "seed": 342829887,
+          "score": -0.01,
+          "relevance": 0.006,
+          "styleMatch": -0.11,
+          "penalty": 0,
+          "durationSec": 0.174,
+          "source": "synth"
+        },
+        {
+          "file": "_candidates/ui_move/04.wav",
+          "engine": "synth",
+          "seed": 342829888,
+          "score": -0.011,
+          "relevance": 0.003,
+          "styleMatch": -0.115,
+          "penalty": 0,
+          "durationSec": 0.174,
+          "source": "synth"
+        },
+        {
+          "file": "_candidates/ui_move/05.wav",
+          "engine": "synth",
+          "seed": 342829889,
+          "score": -0.008,
+          "relevance": 0.017,
+          "styleMatch": -0.127,
+          "penalty": 0,
+          "durationSec": 0.174,
+          "source": "synth"
+        },
+        {
+          "file": "_candidates/ui_move/06.wav",
+          "engine": "synth",
+          "seed": 342829890,
+          "score": -0.008,
+          "relevance": 0.019,
+          "styleMatch": -0.134,
+          "penalty": 0,
+          "durationSec": 0.174,
+          "source": "synth"
+        },
+        {
+          "file": "_candidates/ui_move/07.wav",
+          "engine": "synth",
+          "seed": 342829891,
+          "score": -0.011,
+          "relevance": 0.006,
+          "styleMatch": -0.125,
+          "penalty": 0,
+          "durationSec": 0.174,
+          "source": "synth"
+        },
+        {
+          "file": "_candidates/ui_move/08.wav",
+          "engine": "synth",
+          "seed": 342829892,
+          "score": -0.01,
+          "relevance": 0.012,
+          "styleMatch": -0.133,
+          "penalty": 0,
+          "durationSec": 0.174,
+          "source": "synth"
+        }
+      ],
+      "chosen": [
+        1
+      ]
+    },
+    {
+      "key": "ui_error",
+      "name": "使えない",
+      "files": [
+        "ui_error.wav"
+      ],
+      "engine": "synth",
+      "recipe": "ui-error",
+      "prompt": "UI error buzzer, low double buzz",
+      "tier": "ui",
+      "durationSec": 0.322,
+      "playbackRandom": {
+        "pitch": 0,
+        "volume": 0
+      },
+      "candidates": [
+        {
+          "file": "_candidates/ui_error/01.wav",
+          "engine": "synth",
+          "seed": 458473470,
+          "score": 0.046,
+          "relevance": 0.216,
+          "styleMatch": -0.176,
+          "penalty": 0,
+          "durationSec": 0.322,
+          "source": "synth"
+        },
+        {
+          "file": "_candidates/ui_error/02.wav",
+          "engine": "synth",
+          "seed": 458473471,
+          "score": 0.047,
+          "relevance": 0.218,
+          "styleMatch": -0.179,
+          "penalty": 0,
+          "durationSec": 0.322,
+          "source": "synth"
+        },
+        {
+          "file": "_candidates/ui_error/03.wav",
+          "engine": "synth",
+          "seed": 458473472,
+          "score": 0.044,
+          "relevance": 0.213,
+          "styleMatch": -0.185,
+          "penalty": 0,
+          "durationSec": 0.322,
+          "source": "synth"
+        },
+        {
+          "file": "_candidates/ui_error/04.wav",
+          "engine": "synth",
+          "seed": 458473473,
+          "score": 0.045,
+          "relevance": 0.212,
+          "styleMatch": -0.181,
+          "penalty": 0,
+          "durationSec": 0.322,
+          "source": "synth"
+        },
+        {
+          "file": "_candidates/ui_error/05.wav",
+          "engine": "synth",
+          "seed": 458473474,
+          "score": 0.045,
+          "relevance": 0.213,
+          "styleMatch": -0.175,
+          "penalty": 0,
+          "durationSec": 0.322,
+          "source": "synth"
+        },
+        {
+          "file": "_candidates/ui_error/06.wav",
+          "engine": "synth",
+          "seed": 458473475,
+          "score": 0.045,
+          "relevance": 0.215,
+          "styleMatch": -0.182,
+          "penalty": 0,
+          "durationSec": 0.322,
+          "source": "synth"
+        },
+        {
+          "file": "_candidates/ui_error/07.wav",
+          "engine": "synth",
+          "seed": 458473476,
+          "score": 0.046,
+          "relevance": 0.215,
+          "styleMatch": -0.177,
+          "penalty": 0,
+          "durationSec": 0.322,
+          "source": "synth"
+        },
+        {
+          "file": "_candidates/ui_error/08.wav",
+          "engine": "synth",
+          "seed": 458473477,
+          "score": 0.044,
+          "relevance": 0.214,
+          "styleMatch": -0.187,
+          "penalty": 0,
+          "durationSec": 0.322,
+          "source": "synth"
+        }
+      ],
+      "chosen": [
+        1
+      ]
+    }
+  ]
+}

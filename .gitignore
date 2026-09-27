@@ -4,3 +4,4 @@ dist/
 logs/
 tmp/
 .DS_Store
+public/sfx/_candidates/

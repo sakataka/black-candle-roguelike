@@ -280,6 +280,8 @@ button:focus-visible {
 }
 
 .pause-toggle { display: inline-grid; place-items: center; }
+.sound-toggle { display: inline-grid; min-width: 44px; place-items: center; }
+.observer-footer { margin-top: 18px; padding: 12px 4px 0; border-top: 1px solid var(--line); color: #6f685c; font-size: 0.6rem; line-height: 1.6; }
 
 .vitals-card { display: grid; gap: 10px; }
 .vitals-heading { display: grid; grid-template-columns: 44px 1fr auto; gap: 10px; align-items: center; }
