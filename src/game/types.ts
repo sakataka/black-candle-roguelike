@@ -345,6 +345,8 @@ export type GameConfig = {
   };
   autonomous: {
     revelationsPerRun: number;
+    /** 判断画面で各選択肢ごとに走らせる先読みの本数。0で無効。 */
+    lookaheadRollouts: number;
     scoring: {
       depthPerFloor: number;
       guardian: number;

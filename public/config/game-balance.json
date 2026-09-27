@@ -65,6 +65,7 @@
   },
   "autonomous": {
     "revelationsPerRun": 2,
+    "lookaheadRollouts": 12,
     "scoring": {
       "depthPerFloor": 1000,
       "guardian": 1500,

@@ -71,3 +71,22 @@ describe("描画演出イベント", () => {
     expect(events.some((event) => (event.kind === "damage" && event.entityId === "test-rat") || (event.kind === "death" && event.entityId === "test-rat"))).toBe(true);
   });
 });
+
+describe("先読み", () => {
+  test("同じ判断・同じ本番号の先読みは同じ結果になり、帰還は必ず生還になる", async () => {
+    const { runRollout } = await import("../sim/rollout");
+    const { chooseAutoplayAction, resetAutoplayState } = await import("../ai/autoplay");
+    const { observeGame } = await import("./game");
+    resetAutoplayState();
+    let state = createInitialGame(20260504, "role.oathbound");
+    for (let step = 0; step < 3000 && state.status === "playing" && !state.pendingDecision; step += 1) {
+      state = applyAction(state, chooseAutoplayAction(observeGame(state)));
+    }
+    expect(state.pendingDecision?.id).toBe("checkpoint-3");
+    const first = runRollout(state, "continue-conquest", 3);
+    const second = runRollout(state, "continue-conquest", 3);
+    expect(first).toEqual(second);
+    expect(runRollout(state, "return", 0).status).toBe("returned");
+    expect(state.pendingDecision).not.toBeNull();
+  });
+});

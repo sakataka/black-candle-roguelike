@@ -25,6 +25,8 @@ import { applyAction, biomeThemeName, canInvokeLantern, createInitialGame, lante
 import { paceDelayMs, paceKindFor, type PaceKind } from "./game/core/pacing";
 import { analyzeRun, createRunLog, recordTurn } from "./game/core/runLog";
 import { deriveVisualEvents, type VisualEvent } from "./game/core/visualEvents";
+import type { LookaheadProgress, LookaheadRequest } from "./game/sim/lookahead.worker";
+import type { LookaheadSummary } from "./game/sim/rollout";
 import { PixiRoguelikeRenderer } from "./game/renderer/PixiRoguelikeRenderer";
 import type {
   CampaignState,
@@ -237,6 +239,7 @@ let archivedRunId: string | null = null;
 let scheduledPace: PaceKind = "exploration";
 let pendingVisualEvents: VisualEvent[] = [];
 let pendingIntent: AutoplayIntent | null = null;
+let lookahead: { decisionKey: string; workers: Worker[]; results: Map<string, LookaheadSummary> } | null = null;
 let paused = false;
 let focusedModal: HTMLElement | null = null;
 
@@ -451,7 +454,8 @@ function archiveCompletedRun(): void {
 }
 
 function render(): void {
-  renderer.render(state, { events: pendingVisualEvents, intent: pendingIntent, stepMs: currentStepMs() });
+  // デバッグで一気に進めた時などに大量の演出が重ならないよう、直近分だけ描く。
+  renderer.render(state, { events: pendingVisualEvents.slice(-24), intent: pendingIntent, stepMs: currentStepMs() });
   pendingVisualEvents = [];
   pendingIntent = null;
   const observation = observeGame(state);
@@ -662,6 +666,7 @@ function renderDecision(observation: ReturnType<typeof observeGame>): void {
   const decision = state.pendingDecision;
   if (!decision || state.status !== "playing") {
     decisionDialog.hidden = true;
+    stopLookahead();
     return;
   }
   stopAutoplay();
@@ -684,10 +689,79 @@ function renderDecision(observation: ReturnType<typeof observeGame>): void {
         : option.id === decision.defaultOptionId && decision.kind === "context"
           ? "探索者の判断・消費なし"
           : "消費なし";
-    button.innerHTML = `<span>${index + 1}</span><strong>${escapeHtml(option.label)}</strong><small>${escapeHtml(option.description)}</small><em>${costLabel}</em>`;
+    button.innerHTML = `<span>${index + 1}</span><strong>${escapeHtml(option.label)}</strong><small>${escapeHtml(option.description)}</small><em>${costLabel}</em>${decision.kind === "final" ? "" : `<div class="option-forecast" data-forecast-for="${escapeHtml(option.id)}"></div>`}`;
     return button;
   }));
+  const decisionKey = `${state.seed}:${state.runTurn}:${decision.id}`;
+  if (lookahead?.decisionKey !== decisionKey) startLookahead(decisionKey);
+  renderForecasts();
   decisionDialog.hidden = false;
+}
+
+function startLookahead(decisionKey: string): void {
+  stopLookahead();
+  const decision = state.pendingDecision;
+  if (!decision || decision.kind === "final") return;
+  const rollouts = getGameConfig().autonomous.lookaheadRollouts;
+  if (rollouts <= 0) return;
+  const results = new Map<string, LookaheadSummary>();
+  const snapshot = structuredClone(state);
+  const config = getGameConfig();
+  const workers = decision.options.filter((option) => option.outcome === "continue").map((option) => {
+    const worker = new Worker(new URL("./game/sim/lookahead.worker.ts", import.meta.url), { type: "module" });
+    worker.onmessage = (event: MessageEvent<LookaheadProgress>) => {
+      if (!lookahead || lookahead.decisionKey !== decisionKey) return;
+      results.set(event.data.summary.optionId, event.data.summary);
+      renderForecasts();
+      if (event.data.done) worker.terminate();
+    };
+    worker.postMessage({ requestId: decisionKey, config, state: snapshot, optionId: option.id, rollouts } satisfies LookaheadRequest);
+    return worker;
+  });
+  lookahead = { decisionKey, workers, results };
+}
+
+function stopLookahead(): void {
+  if (!lookahead) return;
+  for (const worker of lookahead.workers) worker.terminate();
+  lookahead = null;
+}
+
+function renderForecasts(): void {
+  const decision = state.pendingDecision;
+  if (!decision) return;
+  const rollouts = getGameConfig().autonomous.lookaheadRollouts;
+  const summaries = decision.options.map((option) => lookahead?.results.get(option.id)).filter((summary): summary is LookaheadSummary => !!summary && summary.rollouts === rollouts);
+  const survivalRates = summaries.map((summary) => summary.survived / summary.rollouts);
+  const bestSurvival = summaries.length > 1 && new Set(survivalRates).size > 1 ? Math.max(...survivalRates) : null;
+  for (const option of decision.options) {
+    const slot = decisionOptions.querySelector<HTMLElement>(`[data-forecast-for="${CSS.escape(option.id)}"]`);
+    if (!slot) continue;
+    if (option.outcome === "return") {
+      slot.innerHTML = forecastMarkup({ survived: 1, lost: 0, stranded: 0 }, "生還確定・ここまでの戦果で得点を確定");
+      continue;
+    }
+    const summary = lookahead?.results.get(option.id);
+    if (!summary) {
+      slot.innerHTML = `<span class="forecast-pending">未来を先読み中…</span>`;
+      continue;
+    }
+    const survived = summary.survived / summary.rollouts;
+    const lost = summary.lost / summary.rollouts;
+    const stranded = summary.stranded / summary.rollouts;
+    const complete = summary.rollouts >= rollouts;
+    const label = `生還 ${percent(survived)}・死亡 ${percent(lost)}${stranded > 0 ? `・未帰還 ${percent(stranded)}` : ""}・平均到達 F${summary.averageMaxFloor.toFixed(1)}${summary.reachedCore > 0 ? `・中枢到達 ${percent(summary.reachedCore / summary.rollouts)}` : ""}`;
+    slot.innerHTML = forecastMarkup({ survived, lost, stranded }, complete ? label : `${label}（${summary.rollouts}/${rollouts}本）`);
+    slot.classList.toggle("is-best", complete && bestSurvival !== null && survived === bestSurvival);
+  }
+}
+
+function forecastMarkup(ratio: { survived: number; lost: number; stranded: number }, label: string): string {
+  return `<span class="forecast-bar" aria-hidden="true"><i class="is-survived" style="width:${ratio.survived * 100}%"></i><i class="is-lost" style="width:${ratio.lost * 100}%"></i><i class="is-stranded" style="width:${ratio.stranded * 100}%"></i></span><span class="forecast-label">${escapeHtml(label)}</span>`;
+}
+
+function percent(value: number): string {
+  return `${Math.round(value * 100)}%`;
 }
 
 function renderDecisionContext(observation: ReturnType<typeof observeGame>): void {
