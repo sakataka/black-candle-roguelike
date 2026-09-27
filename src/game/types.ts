@@ -55,6 +55,8 @@ export type AutoplayPolicyValues = {
   avoidRiskPanels: boolean;
   /** 既知の罠を踏んででも進むまでに待つ停滞手数。 */
   trapPatience: number;
+  /** 灯路断絶まで残りこの手数になったら、寄り道をやめて階段を急ぐ。 */
+  urgencyTurnsLeft: number;
 };
 
 type NumericPolicyKey = { [K in keyof AutoplayPolicyValues]: AutoplayPolicyValues[K] extends number ? K : never }[keyof AutoplayPolicyValues];
@@ -374,6 +376,10 @@ export type GameConfig = {
     levelUpMaxHp: number;
     levelUpHeal: number;
     monsterCountBase: number;
+    /** 階層ごとの敵HP増加（hpPerDanger）に掛ける倍率。 */
+    monsterHpScale: number;
+    /** 階層ごとの敵攻撃力の増加量（端数切り捨て）。 */
+    monsterAttackPerFloor: number;
     monsterCountFloorCap: number;
     itemCountBase: number;
     itemCountFloorDivisor: number;

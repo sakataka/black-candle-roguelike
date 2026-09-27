@@ -1012,10 +1012,9 @@ function uniquePoints(points: Point[]): Point[] {
 
 function statsForMonster(contentId: string, dangerBoost: number, floor = 1, runObjectives: RunObjectiveFlags = createInitialRunObjectives()): Stats {
   const config = getGameConfig();
-  const halfBoost = Math.floor(dangerBoost / 2);
   const base = config.monsterStats[contentId] ?? { hp: 5, attack: 1, defense: 0 };
-  let hp = base.hp + dangerBoost * (base.hpPerDanger ?? 1);
-  let attack = base.attack + halfBoost;
+  let hp = base.hp + Math.round(dangerBoost * (base.hpPerDanger ?? 1) * config.rules.monsterHpScale);
+  let attack = base.attack + Math.floor(dangerBoost * config.rules.monsterAttackPerFloor);
   if (runObjectives.lateEnemiesWeakened && floor >= 7 && contentEntities[contentId]?.tier !== "boss") {
     hp = Math.max(1, Math.floor(hp * 0.85));
     attack = Math.max(1, attack - 1);

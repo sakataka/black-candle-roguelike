@@ -184,7 +184,7 @@ export function chooseAutoplayAction(observation: GameObservation): GameAction {
   }
 
 
-  if (observation.runTurn >= 1000 && !urgentRangedPressure) {
+  if (observation.runTurn >= getGameConfig().rules.runTurnLimit - policy.urgencyTurnsLeft && !urgentRangedPressure) {
     const urgentObjectiveStep = stepTowardCurrentObjective(observation, allowRiskyTraversal, Math.max(progress.stagnantTurns, LOOP_ESCAPE_TURNS), hp);
     if (urgentObjectiveStep) {
       return urgentObjectiveStep;
@@ -292,7 +292,7 @@ export function chooseAutoplayAction(observation: GameObservation): GameAction {
   const knownStairs = observation.exploration.reachableStairs;
   const exploredEnough = observation.exploration.exploredTileRatio >= policy.exploreBeforeStairs
     || progress.stagnantTurns >= STAGNANT_EXPLORATION_TURNS
-    || observation.runTurn >= 1000
+    || observation.runTurn >= getGameConfig().rules.runTurnLimit - policy.urgencyTurnsLeft
     || observation.exploration.reachableFrontierCount === 0;
   if (knownStairs && !observation.bossAlive && exploredEnough) {
     const stairsStep = stepTowardKnownReachable(observation, knownStairs, { allowHostileBlockers: true }) ?? (allowRiskyTraversal ? stepTowardKnownReachable(observation, knownStairs, { avoidTraps: false, allowHostileBlockers: true }) : null);

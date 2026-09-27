@@ -194,7 +194,7 @@ function crisisDecisionFor(state: GameState, act: 1 | 2): PendingDecision {
   if (hasAffliction) return afflictionCrisis(state, act);
   if (rangedThreats >= 2) return rangedCrisis(state, act);
   if (inventoryCount >= 12 || state.playerProgress.gold >= 90) return burdenCrisis(state, act);
-  if (act === 2 && state.runTurn >= 1050) return fadingRouteCrisis(state);
+  if (act === 2 && state.runTurn >= getGameConfig().rules.runTurnLimit - 550) return fadingRouteCrisis(state);
   return act === 1 ? memoryCrisis(state) : furnaceCrisis(state);
 }
 

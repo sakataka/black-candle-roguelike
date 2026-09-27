@@ -6,7 +6,7 @@
     "maxFloor": 10,
     "inventorySlotLimit": 16,
     "xpThresholds": [0, 0, 20, 55, 105, 170, 250, 350, 480, 640, 830],
-    "descentHeal": 10,
+    "descentHeal": 6,
     "baseAttack": 7,
     "attackPerLevel": 1,
     "baseDefense": 1,
@@ -14,6 +14,8 @@
     "levelUpMaxHp": 5,
     "levelUpHeal": 9,
     "monsterCountBase": 7,
+    "monsterHpScale": 1.55,
+    "monsterAttackPerFloor": 0.7,
     "monsterCountFloorCap": 10,
     "itemCountBase": 5,
     "itemCountFloorDivisor": 2,
@@ -38,12 +40,12 @@
     "moonlitMailRegenAmount": 1,
     "bleedingDamage": 1,
     "venomedDamage": 1,
-    "runTurnWarning": 1350,
-    "runTurnLimit": 1600
+    "runTurnWarning": 1550,
+    "runTurnLimit": 1800
   },
   "aiPolicy": {
     "base": {
-      "healBonus": 0,
+      "healBonus": -0.07,
       "potionCalm": 0.42,
       "potionCombat": 0.57,
       "salveCalm": 0.21,
@@ -62,7 +64,8 @@
       "coverApproach": false,
       "rangedPriority": false,
       "avoidRiskPanels": false,
-      "trapPatience": 24
+      "trapPatience": 24,
+      "urgencyTurnsLeft": 600
     },
     "temperaments": {
       "cautious": { "add": { "healBonus": 0.06 }, "set": { "riskyTraversalHp": 0.48 } },
@@ -78,15 +81,15 @@
   "tactics": {
     "slots": 2,
     "definitions": {
-      "tactic.early-care": { "label": "早めの手当て", "description": "回復薬を早めに使い、深手を負う前に立て直す。薬の回復量+30%。", "add": { "healBonus": 0.1 }, "perks": { "healPercent": 30 } },
-      "tactic.hoard": { "label": "薬を温存", "description": "回復は瀕死まで待ち、持ち帰る戦果と深層用の薬を残す。", "add": { "healBonus": -0.15 } },
+      "tactic.early-care": { "label": "早めの手当て", "description": "回復薬を少し早めに使い、深手を負う前に立て直す。薬の回復量+40%。", "add": { "healBonus": 0.05 }, "perks": { "healPercent": 40 } },
+      "tactic.hoard": { "label": "薬を温存", "description": "回復は瀕死まで待ち、持ち帰る戦果と深層用の薬を残す。", "add": { "healBonus": -0.08 } },
       "tactic.archer-hunt": { "label": "射手狩り", "description": "遠隔の敵を最優先で追い詰め、投げ針も射手へ向ける。", "set": { "rangedPriority": true, "chaseRanged": true } },
-      "tactic.cover-dance": { "locked": true, "label": "遮蔽を渡る", "description": "盾を掲げ、壁や遮蔽の陰を伝って射手へ詰め寄る。遠隔防御+1。", "set": { "coverApproach": true, "chaseRanged": true }, "perks": { "rangedDefense": 1 } },
+      "tactic.cover-dance": { "locked": true, "label": "遮蔽を渡る", "description": "盾を掲げ、壁や遮蔽の陰を伝って射手へ詰め寄る。遠隔防御+2。", "set": { "coverApproach": true, "chaseRanged": true }, "perks": { "rangedDefense": 2 } },
       "tactic.straight-path": { "label": "最短路", "description": "寄り道をせず、階段が見えたらすぐ降りる。", "set": { "discoveryDetour": false, "exploreBeforeStairs": 0 } },
       "tactic.thorough": { "locked": true, "label": "隅々まで", "description": "階の七割を歩き、遺物と碑文を拾ってから降りる。", "set": { "discoveryDetour": true, "exploreBeforeStairs": 0.7 } },
       "tactic.duelist": { "locked": true, "label": "果敢に挑む", "description": "手負いでも敵と守り手へ斬り込み、経験を稼ぐ。", "add": { "combatHp": -0.12, "bossEngageHp": -0.12 }, "set": { "huntWeakEnemies": true } },
       "tactic.trap-reader": { "locked": true, "label": "罠を読む", "description": "運命の標に手を出さず、既知の罠は長く行き詰まるまで踏まない。罠回避+15%。", "set": { "avoidRiskPanels": true, "trapPatience": 45 }, "perks": { "trapAvoidPercent": 15 } },
-      "tactic.dart-volley": { "locked": true, "label": "投げ針を惜しまない", "description": "燠火の投げ針を3本余分に携え、見えた敵へ遠くからでも放つ。", "add": { "dartMinHp": -0.15, "dartRange": 2 }, "grantItems": [{ "contentId": "item.ember-dart", "quantity": 3 }] }
+      "tactic.dart-volley": { "locked": true, "label": "投げ針を惜しまない", "description": "燠火の投げ針を5本余分に携え、見えた敵へ遠くからでも放つ。", "add": { "dartMinHp": -0.2, "dartRange": 2 }, "grantItems": [{ "contentId": "item.ember-dart", "quantity": 5 }] }
     }
   },
   "scars": {
@@ -179,7 +182,7 @@
     },
     {
       "id": "role.ash-scout",
-      "stats": { "hp": 30, "maxHp": 30, "attack": 7, "defense": 0 },
+      "stats": { "hp": 34, "maxHp": 34, "attack": 7, "defense": 0 },
       "inventory": [
         { "contentId": "item.hunter-spear", "quantity": 1, "equipped": true },
         { "contentId": "item.ember-dart", "quantity": 2 },
@@ -197,7 +200,7 @@
     },
     {
       "id": "role.lantern-priest",
-      "stats": { "hp": 32, "maxHp": 32, "attack": 6, "defense": 1 },
+      "stats": { "hp": 36, "maxHp": 36, "attack": 6, "defense": 1 },
       "inventory": [
         { "contentId": "item.oath-knife", "quantity": 1, "equipped": true },
         { "contentId": "item.ember-tonic", "quantity": 1 },
