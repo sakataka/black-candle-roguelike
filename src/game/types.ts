@@ -315,6 +315,7 @@ export type GameConfig = {
     eventExtraChancePercent: number;
     attackRandomBonusMax: number;
     rangedMonsterRange: number;
+    rangedRetreatCooldown: number;
     monsterChaseRange: number;
     guardedDefenseBonus: number;
     moonlitMailRegenEveryTurns: number;
@@ -409,6 +410,8 @@ export type Entity = {
   inventory?: InventoryEntry[];
   conditions?: StatusCondition[];
   goldAmount?: number;
+  /** 間合いを取り直せるようになるまでの残り手番（遠隔敵）。 */
+  retreatCooldown?: number;
 };
 
 export type PlayerProgress = {

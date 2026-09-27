@@ -110,7 +110,7 @@ export function chooseAutoplayAction(observation: GameObservation): GameAction {
   const itemHere = knownEntities.find(
     (entity) => (entity.kind === "item" || entity.kind === "event") && entity.pos.x === observation.player.pos.x && entity.pos.y === observation.player.pos.y,
   );
-  if (itemHere?.kind === "item") {
+  if (itemHere?.kind === "item" && canCarry(observation, itemHere.contentId)) {
     if (!combatPressure || hpRatio > 0.35 || isSurvivalPickup(itemHere.contentId)) {
       return { type: "pickup" };
     }
@@ -231,7 +231,7 @@ export function chooseAutoplayAction(observation: GameObservation): GameAction {
 
   if (policy.discovery && !combatPressure) {
     const discoveryTarget = nearest(
-      observation.visibleEntities.filter((entity) => isAutoplayTargetEntity(entity)),
+      observation.visibleEntities.filter((entity) => isAutoplayTargetEntity(entity, observation)),
       observation.player.pos,
     );
     if (discoveryTarget) {
@@ -287,7 +287,7 @@ export function chooseAutoplayAction(observation: GameObservation): GameAction {
   }
 
   const visibleItem = nearest(
-    observation.visibleEntities.filter((entity) => isAutoplayTargetEntity(entity)),
+    observation.visibleEntities.filter((entity) => isAutoplayTargetEntity(entity, observation)),
     observation.player.pos,
   );
   if (visibleItem) {
@@ -768,7 +768,7 @@ function stepTowardKnownSurvivalPickup(observation: GameObservation, hpRatio: nu
   }
 
   const candidates = observation.knownEntities
-    .filter((entity) => entity.kind === "item" && !samePoint(entity.pos, observation.player.pos) && isSurvivalPickup(entity.contentId))
+    .filter((entity) => entity.kind === "item" && !samePoint(entity.pos, observation.player.pos) && isSurvivalPickup(entity.contentId) && canCarry(observation, entity.contentId))
     .map((entity): KnownSurvivalPickupCandidate | null => {
       const safeDistance = pathDistanceFrom(observation, observation.player.pos, entity.pos, { allowHostileBlockers: true });
       const riskyDistance = safeDistance === null && allowRiskyTraversal
@@ -1084,8 +1084,16 @@ function isSurvivalPickup(contentId: string): boolean {
   return !!consumable && (!!consumable.heal || !!consumable.cureConditions || !!consumable.guardedTurns || !!consumable.pushVisibleMonsters);
 }
 
-function isAutoplayTargetEntity(entity: GameObservation["knownEntities"][number]): boolean {
-  return entity.kind === "item" || (entity.kind === "event" && entity.contentId !== "event.wayfarer-merchant");
+function isAutoplayTargetEntity(entity: GameObservation["knownEntities"][number], observation: GameObservation): boolean {
+  if (entity.kind === "item") return canCarry(observation, entity.contentId);
+  return entity.kind === "event" && entity.contentId !== "event.wayfarer-merchant";
+}
+
+/** 所持枠が埋まっていて拾えない品へは向かわない（拾得失敗の無限ループ防止）。 */
+function canCarry(observation: GameObservation, contentId: string): boolean {
+  if (contentId === "item.coin-pouch" || contentId === "item.mapping-scroll" || contentId === "item.glim-map") return true;
+  const inventory = observation.player.inventory ?? [];
+  return inventory.some((entry) => entry.contentId === contentId) || inventory.length < getGameConfig().rules.inventorySlotLimit;
 }
 
 function survivalPickupValue(contentId: string, needsRecovery: boolean): number {
@@ -1245,7 +1253,7 @@ export function describeAutoplayIntent(observation: GameObservation, action: Gam
   const boss = hostiles.find((entity) => contentEntities[entity.contentId]?.tier === "boss");
   if (boss) return { text: "守り手へ向かう", tone: "combat" };
   if (hostiles.some((entity) => distance(entity.pos, player.pos) <= 4)) return { text: "敵へ向き直る", tone: "combat" };
-  const itemAhead = observation.visibleEntities.find((entity) => entity.kind === "item" && distance(entity.pos, destination) < distance(entity.pos, player.pos));
+  const itemAhead = observation.visibleEntities.find((entity) => entity.kind === "item" && canCarry(observation, entity.contentId) && distance(entity.pos, destination) < distance(entity.pos, player.pos));
   if (itemAhead) return { text: "何か落ちている", tone: "loot" };
   if (observation.exploration.reachableStairs && !observation.bossAlive) return { text: "階段へ急ぐ", tone: "descend" };
   return null;

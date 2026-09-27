@@ -31,6 +31,7 @@
     "eventExtraChancePercent": 50,
     "attackRandomBonusMax": 2,
     "rangedMonsterRange": 3,
+    "rangedRetreatCooldown": 2,
     "monsterChaseRange": 7,
     "guardedDefenseBonus": 3,
     "moonlitMailRegenEveryTurns": 10,

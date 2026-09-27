@@ -2284,9 +2284,13 @@ function runMonsterTurn(state: GameState): GameState {
       continue;
     }
     const distance = chebyshev(monsterEntity.pos, player.pos);
-    if (shouldKeepDistance(monsterEntity.contentId) && distance <= 2 && hasLineOfSight(state, monsterEntity.pos, player.pos)) {
+    const retreatReady = (monsterEntity.retreatCooldown ?? 0) <= 0;
+    if (!retreatReady) monsterEntity.retreatCooldown = (monsterEntity.retreatCooldown ?? 0) - 1;
+    if (retreatReady && shouldKeepDistance(monsterEntity.contentId) && distance <= 2 && hasLineOfSight(state, monsterEntity.pos, player.pos)) {
       const escaped = stepMonsterAwayFromPlayer(state, monsterEntity, player.pos);
       if (escaped) {
+        // 退いた直後は再び退けない。追い詰めれば近接で捕まえられる余地を残す。
+        monsterEntity.retreatCooldown = getGameConfig().rules.rangedRetreatCooldown;
         state = escaped;
         continue;
       }
