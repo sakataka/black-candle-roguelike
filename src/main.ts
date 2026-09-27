@@ -21,7 +21,7 @@ import {
   temperamentLabel,
 } from "./game/core/autonomous";
 import { chooseWatcherAction } from "./game/ai/watcher";
-import { applyAction, biomeThemeName, canInvokeLantern, createInitialGame, lanternRiteLabel, observeGame, playableRoles } from "./game/core/game";
+import { applyAction, biomeThemeName, canInvokeLantern, createInitialGame, lanternRiteLabel, normalizeTactics, observeGame, playableRoles } from "./game/core/game";
 import { paceDelayMs, paceKindFor, type PaceKind } from "./game/core/pacing";
 import { analyzeRun, createRunLog, recordTurn } from "./game/core/runLog";
 import { deriveVisualEvents, type VisualEvent } from "./game/core/visualEvents";
@@ -43,6 +43,7 @@ import type {
 } from "./game/types";
 
 const CAMPAIGN_STORAGE_KEY = "black-candle-campaign-v1";
+const TACTICS_STORAGE_KEY = "black-candle-tactics";
 const PAUSE_ICON = '<svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true"><rect x="3" y="2" width="3.5" height="12" rx="1" fill="currentColor"/><rect x="9.5" y="2" width="3.5" height="12" rx="1" fill="currentColor"/></svg>';
 const PLAY_ICON = '<svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true"><path d="M4 2.2v11.6c0 .6.7 1 1.2.6l8.3-5.8c.4-.3.4-.9 0-1.2L5.2 1.6C4.7 1.2 4 1.6 4 2.2z" fill="currentColor"/></svg>';
 const lanternRiteOrder: LanternRiteId[] = ["flare", "mend", "guide", "ward"];
@@ -135,6 +136,7 @@ app.innerHTML = `
             <div class="vitals-hp-track"><i id="vitals-hp-fill"></i></div>
           </div>
           <div id="vitals-conditions" class="vitals-conditions"></div>
+          <div id="vitals-tactics" class="vitals-tactics"></div>
           <div id="hero-stats" class="stat-grid"></div>
         </section>
         <section class="side-card objective-card">
@@ -175,6 +177,8 @@ app.innerHTML = `
       <h2 id="candidate-title">誰を黒燭の迷宮へ送るか</h2>
       <p>先に遠征任務を定めます。職業と気質だけでなく、任務もAIが目指す一周の目的になります。</p>
       <div id="mission-list" class="mission-list" aria-label="遠征任務"></div>
+      <div class="tactic-heading"><strong>作戦カード</strong><span id="tactic-count">0/2</span><small>探索者の判断の癖を決めます。節目の判断でも組み替えられます。</small></div>
+      <div id="tactic-list" class="tactic-list" aria-label="作戦カード"></div>
       <div id="candidate-list" class="candidate-list"></div>
     </div>
   </section>
@@ -185,6 +189,10 @@ app.innerHTML = `
       <h2 id="decision-title">灯守の判断</h2>
       <p id="decision-body"></p>
       <section id="decision-context" class="decision-context" aria-label="判断材料"></section>
+      <section id="decision-tactics" class="decision-tactics" aria-label="作戦の組み替え" hidden>
+        <div class="tactic-heading"><strong>作戦を組み替える</strong><span id="decision-tactic-count">0/2</span><small>組み替えると下の先読みが更新されます。</small></div>
+        <div id="decision-tactic-list" class="tactic-list is-compact"></div>
+      </section>
       <div id="decision-options" class="decision-options"></div>
       <p id="decision-hint" class="modal-hint"></p>
     </div>
@@ -211,6 +219,9 @@ const pixiRoot = requireElement<HTMLDivElement>("#pixi-root");
 const candidateDialog = requireElement<HTMLElement>("#candidate-dialog");
 const missionList = requireElement<HTMLDivElement>("#mission-list");
 const candidateList = requireElement<HTMLDivElement>("#candidate-list");
+const tacticList = requireElement<HTMLDivElement>("#tactic-list");
+const decisionTactics = requireElement<HTMLElement>("#decision-tactics");
+const decisionTacticList = requireElement<HTMLDivElement>("#decision-tactic-list");
 const decisionDialog = requireElement<HTMLElement>("#decision-dialog");
 const decisionTitle = requireElement<HTMLHeadingElement>("#decision-title");
 const decisionBody = requireElement<HTMLParagraphElement>("#decision-body");
@@ -241,6 +252,9 @@ let pendingVisualEvents: VisualEvent[] = [];
 let pendingIntent: AutoplayIntent | null = null;
 let lookahead: { decisionKey: string; workers: Worker[]; results: Map<string, LookaheadSummary> } | null = null;
 let paused = false;
+let selectedTactics: string[] = normalizeTactics(loadSelectedTactics()).filter((id) => !getGameConfig().tactics.definitions[id]?.locked);
+let draftTactics: string[] | null = null;
+let draftDecisionId: string | null = null;
 let focusedModal: HTMLElement | null = null;
 
 installEvents();
@@ -284,6 +298,19 @@ function installEvents(): void {
     if (!button) return;
     startExpedition(button.dataset.roleId ?? playableRoles()[0].id);
   });
+  tacticList.addEventListener("click", (event) => {
+    const button = (event.target as HTMLElement).closest<HTMLButtonElement>("button[data-tactic-id]");
+    if (!button || button.disabled) return;
+    selectedTactics = toggleTactic(selectedTactics, button.dataset.tacticId ?? "");
+    saveSelectedTactics(selectedTactics);
+    renderCandidateSelection();
+  });
+  decisionTacticList.addEventListener("click", (event) => {
+    const button = (event.target as HTMLElement).closest<HTMLButtonElement>("button[data-tactic-id]");
+    if (!button || button.disabled || !draftTactics) return;
+    draftTactics = toggleTactic(draftTactics, button.dataset.tacticId ?? "");
+    render();
+  });
   missionList.addEventListener("click", (event) => {
     const button = (event.target as HTMLElement).closest<HTMLButtonElement>("button[data-mission-id]");
     if (!button) return;
@@ -293,7 +320,10 @@ function installEvents(): void {
   decisionOptions.addEventListener("click", (event) => {
     const button = (event.target as HTMLElement).closest<HTMLButtonElement>("button[data-option-id]");
     if (!button || button.disabled) return;
-    applyLoggedAction({ type: "resolveDecision", optionId: button.dataset.optionId ?? "" }, "player");
+    const tacticsChanged = draftTactics && state.pendingDecision?.kind === "checkpoint" && draftTactics.join(",") !== state.tactics.join(",");
+    applyLoggedAction({ type: "resolveDecision", optionId: button.dataset.optionId ?? "", ...(tacticsChanged && draftTactics ? { tactics: draftTactics } : {}) }, "player");
+    draftTactics = null;
+    draftDecisionId = null;
     render();
     if (state.status === "playing" && !state.pendingDecision) scheduleAutoplay("exploration");
   });
@@ -349,7 +379,7 @@ function startExpedition(roleId: string): void {
   stopAutoplay();
   selectedRoleId = roleId;
   selectedIdentity = createRunIdentity(candidateSeed, roleId);
-  state = createInitialGame(candidateSeed, roleId, { identity: selectedIdentity, knownRoleTruths: campaign.roleTruths, missionId: selectedMissionId });
+  state = createInitialGame(candidateSeed, roleId, { identity: selectedIdentity, knownRoleTruths: campaign.roleTruths, missionId: selectedMissionId, tactics: selectedTactics });
   runLog = createRunLog(state.seed, roleId, {}, selectedIdentity);
   currentReview = null;
   archivedRunId = null;
@@ -371,6 +401,8 @@ function renderCandidateSelection(): void {
     button.innerHTML = `<strong>${escapeHtml(mission.label)}</strong><small>${escapeHtml(mission.description)}</small><em>${escapeHtml(mission.targetLabel)} · 報酬 ${escapeHtml(mission.rewardLabel)}</em>`;
     return button;
   }));
+  renderTacticPicker(tacticList, selectedTactics);
+  setText("#tactic-count", `${selectedTactics.length}/${getGameConfig().tactics.slots}`);
   candidateList.replaceChildren(...playableRoles().map((role, index) => {
     const identity = createRunIdentity(candidateSeed, role.id);
     const button = document.createElement("button");
@@ -522,6 +554,9 @@ function renderVitals(observation: ReturnType<typeof observeGame>): void {
   requireElement<HTMLElement>("#vitals-conditions").innerHTML = conditions.length
     ? conditions.map((condition) => `<span class="condition-tag condition-${conditionTone(condition)}">${conditionLabel(condition)} ${condition.turns}手</span>`).join("")
     : '<span class="condition-tag condition-normal">異常なし</span>';
+  requireElement<HTMLElement>("#vitals-tactics").innerHTML = state.tactics.length
+    ? tacticLabels(state.tactics).map((label) => `<span>${escapeHtml(label)}</span>`).join("")
+    : '<span class="is-empty">作戦なし</span>';
   requireElement<HTMLDivElement>("#hero-stats").innerHTML = [
     ["攻撃", String(player.stats?.attack ?? "-")],
     ["防御", String(player.stats?.defense ?? "-")],
@@ -571,6 +606,56 @@ function renderLantern(observation: ReturnType<typeof observeGame>): void {
     button.setAttribute("aria-label", `${lanternRiteLabel(rite)}（灯火${cost}）: ${lanternRiteDescription(rite)}`);
     const costLabel = button.querySelector("em");
     if (costLabel) costLabel.textContent = `灯火 ${cost}`;
+  }
+}
+
+function availableTacticIds(): string[] {
+  return Object.entries(getGameConfig().tactics.definitions).filter(([, tactic]) => !tactic.locked).map(([id]) => id);
+}
+
+function toggleTactic(current: string[], tacticId: string): string[] {
+  if (current.includes(tacticId)) return current.filter((id) => id !== tacticId);
+  if (current.length >= getGameConfig().tactics.slots) return current;
+  return [...current, tacticId];
+}
+
+function renderTacticPicker(container: HTMLElement, selected: string[]): void {
+  const definitions = getGameConfig().tactics.definitions;
+  const full = selected.length >= getGameConfig().tactics.slots;
+  container.replaceChildren(...availableTacticIds().map((tacticId) => {
+    const tactic = definitions[tacticId];
+    const active = selected.includes(tacticId);
+    const button = document.createElement("button");
+    button.type = "button";
+    button.dataset.tacticId = tacticId;
+    button.className = active ? "tactic-card is-selected" : "tactic-card";
+    button.disabled = !active && full;
+    button.setAttribute("aria-pressed", String(active));
+    button.innerHTML = `<strong>${escapeHtml(tactic.label)}</strong><small>${escapeHtml(tactic.description)}</small>`;
+    return button;
+  }));
+}
+
+function tacticLabels(tactics: string[]): string[] {
+  const definitions = getGameConfig().tactics.definitions;
+  return tactics.map((id) => definitions[id]?.label ?? id);
+}
+
+function loadSelectedTactics(): string[] {
+  try {
+    const raw = window.localStorage.getItem(TACTICS_STORAGE_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed.filter((id): id is string => typeof id === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveSelectedTactics(value: string[]): void {
+  try {
+    window.localStorage.setItem(TACTICS_STORAGE_KEY, JSON.stringify(value));
+  } catch {
+    // 作戦の記憶は利便のためだけなので、保存できなくても遊べる。
   }
 }
 
@@ -692,13 +777,24 @@ function renderDecision(observation: ReturnType<typeof observeGame>): void {
     button.innerHTML = `<span>${index + 1}</span><strong>${escapeHtml(option.label)}</strong><small>${escapeHtml(option.description)}</small><em>${costLabel}</em>${decision.kind === "final" ? "" : `<div class="option-forecast" data-forecast-for="${escapeHtml(option.id)}"></div>`}`;
     return button;
   }));
-  const decisionKey = `${state.seed}:${state.runTurn}:${decision.id}`;
-  if (lookahead?.decisionKey !== decisionKey) startLookahead(decisionKey);
+  if (draftDecisionId !== decision.id) {
+    draftDecisionId = decision.id;
+    draftTactics = [...state.tactics];
+  }
+  const editableTactics = decision.kind === "checkpoint";
+  decisionTactics.hidden = !editableTactics;
+  if (editableTactics && draftTactics) {
+    renderTacticPicker(decisionTacticList, draftTactics);
+    setText("#decision-tactic-count", `${draftTactics.length}/${getGameConfig().tactics.slots}`);
+  }
+  const lookaheadTactics = editableTactics && draftTactics ? draftTactics : state.tactics;
+  const decisionKey = `${state.seed}:${state.runTurn}:${decision.id}:${lookaheadTactics.join(",")}`;
+  if (lookahead?.decisionKey !== decisionKey) startLookahead(decisionKey, lookaheadTactics);
   renderForecasts();
   decisionDialog.hidden = false;
 }
 
-function startLookahead(decisionKey: string): void {
+function startLookahead(decisionKey: string, tactics: string[]): void {
   stopLookahead();
   const decision = state.pendingDecision;
   if (!decision || decision.kind === "final") return;
@@ -715,7 +811,7 @@ function startLookahead(decisionKey: string): void {
       renderForecasts();
       if (event.data.done) worker.terminate();
     };
-    worker.postMessage({ requestId: decisionKey, config, state: snapshot, optionId: option.id, rollouts } satisfies LookaheadRequest);
+    worker.postMessage({ requestId: decisionKey, config, state: snapshot, optionId: option.id, rollouts, tactics } satisfies LookaheadRequest);
     return worker;
   });
   lookahead = { decisionKey, workers, results };

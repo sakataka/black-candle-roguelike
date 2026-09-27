@@ -1,6 +1,6 @@
 import { getGameConfig } from "../content/config";
 import { contentEntities } from "../content/entities";
-import type { Direction, GameAction, GameObservation, Point } from "../types";
+import type { AutoplayPolicyValues, Direction, GameAction, GameObservation, Point, PolicyModifier } from "../types";
 
 const directions: Array<{ action: GameAction; delta: Point }> = [
   { action: { type: "move", direction: "north" }, delta: { x: 0, y: -1 } },
@@ -66,8 +66,8 @@ export function chooseAutoplayAction(observation: GameObservation): GameAction {
   const hp = observation.player.stats?.hp ?? 1;
   const maxHp = observation.player.stats?.maxHp ?? 1;
   const hpRatio = hp / maxHp;
-  const policy = autoplayPolicy(observation);
-  const allowRiskyTraversal = progress.stagnantTurns >= LOOP_ESCAPE_TURNS && hpRatio > policy.riskyTraversalHp;
+  const policy = resolveAutoplayPolicy(observation);
+  const allowRiskyTraversal = progress.stagnantTurns >= Math.max(LOOP_ESCAPE_TURNS, policy.trapPatience) && hpRatio > policy.riskyTraversalHp;
   const visibleHostiles = observation.visibleEntities.filter((entity) => entity.kind === "monster" && entity.hostile);
   const visibleRangedThreats = visibleHostiles.filter((entity) => isRangedThreat(entity.contentId) && distance(entity.pos, observation.player.pos) <= 6);
   const visibleRangedThreat = nearest(visibleRangedThreats, observation.player.pos);
@@ -76,16 +76,16 @@ export function chooseAutoplayAction(observation: GameObservation): GameAction {
   const urgentRangedPressure = visibleRangedThreats.length >= 2 || (visibleRangedThreats.length >= 1 && hpRatio <= 0.35);
   const hasDamageCondition = observation.player.conditions?.some((condition) => condition.kind === "bleeding" || condition.kind === "venomed") ?? false;
   const salve = observation.player.inventory?.find((entry) => entry.contentId === "item.bloodmoss-salve" && entry.quantity > 0);
-  if (salve && (hasDamageCondition || hpRatio <= (combatPressure ? 0.35 : 0.25) + policy.healBonus)) {
+  if (salve && (hasDamageCondition || hpRatio <= (combatPressure ? policy.salveCombat : policy.salveCalm) + policy.healBonus)) {
     return { type: "useItem", contentId: "item.bloodmoss-salve" };
   }
   const graveSunCharm = observation.player.inventory?.find((entry) => entry.contentId === "item.grave-sun-charm" && entry.quantity > 0);
-  if (graveSunCharm && (hasDamageCondition || hpRatio <= (combatPressure ? 0.7 : 0.55) + policy.healBonus)) {
+  if (graveSunCharm && (hasDamageCondition || hpRatio <= (combatPressure ? policy.charmCombat : policy.charmCalm) + policy.healBonus)) {
     return { type: "useItem", contentId: "item.grave-sun-charm" };
   }
 
   const potion = bestHealingPotion(observation);
-  if (potion && hpRatio <= (combatPressure ? 0.65 : 0.5) + policy.healBonus) {
+  if (potion && hpRatio <= (combatPressure ? policy.potionCombat : policy.potionCalm) + policy.healBonus) {
     return { type: "useItem", contentId: potion.contentId };
   }
 
@@ -158,7 +158,7 @@ export function chooseAutoplayAction(observation: GameObservation): GameAction {
     observation.visibleEntities.filter((entity) => entity.kind === "monster" && entity.hostile && contentEntities[entity.contentId]?.tier === "boss"),
     observation.player.pos,
   );
-  if (visibleBoss && hpRatio > (policy.conquest ? 0.38 : 0.5)) {
+  if (visibleBoss && hpRatio > policy.bossEngageHp) {
     const bossStep = stepTowardAdjacentTarget(observation, visibleBoss.pos);
     if (bossStep) {
       return bossStep;
@@ -166,12 +166,21 @@ export function chooseAutoplayAction(observation: GameObservation): GameAction {
   }
 
   const dart = observation.player.inventory?.find((entry) => entry.contentId === "item.ember-dart" && entry.quantity > 0);
-  const rangedTarget = nearest(
-    observation.visibleEntities.filter((entity) => entity.kind === "monster" && entity.hostile && distance(entity.pos, observation.player.pos) <= 5),
-    observation.player.pos,
-  );
-  if (dart && rangedTarget && hpRatio > 0.35) {
+  const dartCandidates = visibleHostiles.filter((entity) => distance(entity.pos, observation.player.pos) <= policy.dartRange);
+  const rangedTarget = policy.rangedPriority
+    ? nearest(dartCandidates.filter((entity) => isRangedThreat(entity.contentId)), observation.player.pos)
+    : nearest(dartCandidates, observation.player.pos);
+  if (dart && rangedTarget && hpRatio > policy.dartMinHp) {
     return { type: "useItem", contentId: "item.ember-dart" };
+  }
+
+  if (visibleRangedThreat && policy.rangedPriority && hpRatio > 0.25) {
+    const huntStep = policy.coverApproach
+      ? stepTowardRangedThreatCovered(observation, visibleRangedThreat.pos, visibleRangedThreats)
+      : stepTowardAdjacentTarget(observation, visibleRangedThreat.pos);
+    if (huntStep) {
+      return huntStep;
+    }
   }
 
 
@@ -186,7 +195,7 @@ export function chooseAutoplayAction(observation: GameObservation): GameAction {
     observation.visibleEntities.filter((entity) => entity.kind === "monster" && entity.hostile && (contentEntities[entity.contentId]?.danger ?? 99) <= 4),
     observation.player.pos,
   );
-  if (weakEnemy && hpRatio > policy.combatHp && policy.conquest && progress.stagnantTurns < LOOP_ESCAPE_TURNS) {
+  if (weakEnemy && hpRatio > policy.combatHp && policy.huntWeakEnemies && progress.stagnantTurns < LOOP_ESCAPE_TURNS) {
     const attackStep = stepTowardAdjacentTarget(observation, weakEnemy.pos);
     if (attackStep) {
       return attackStep;
@@ -217,7 +226,7 @@ export function chooseAutoplayAction(observation: GameObservation): GameAction {
     }
   }
 
-  const riskPanelStep = stepOntoAdjacentRiskPanel(observation, hp, hpRatio, progress.stagnantTurns, combatPressure);
+  const riskPanelStep = policy.avoidRiskPanels ? null : stepOntoAdjacentRiskPanel(observation, hp, hpRatio, progress.stagnantTurns, combatPressure);
   if (riskPanelStep) {
     return riskPanelStep;
   }
@@ -229,7 +238,7 @@ export function chooseAutoplayAction(observation: GameObservation): GameAction {
     return survivalPickupStep;
   }
 
-  if (policy.discovery && !combatPressure) {
+  if (policy.discoveryDetour && !combatPressure) {
     const discoveryTarget = nearest(
       observation.visibleEntities.filter((entity) => isAutoplayTargetEntity(entity, observation)),
       observation.player.pos,
@@ -268,10 +277,12 @@ export function chooseAutoplayAction(observation: GameObservation): GameAction {
     }
   }
 
-  if (visibleRangedThreat && hpRatio > 0.25) {
+  if (visibleRangedThreat && policy.chaseRanged && hpRatio > 0.25) {
     const shouldChaseRangedThreat = progress.stagnantTurns < LOOP_ESCAPE_TURNS || hpRatio <= 0.5;
     if (shouldChaseRangedThreat) {
-      const rangedStep = stepTowardAdjacentTarget(observation, visibleRangedThreat.pos);
+      const rangedStep = policy.coverApproach
+        ? stepTowardRangedThreatCovered(observation, visibleRangedThreat.pos, visibleRangedThreats)
+        : stepTowardAdjacentTarget(observation, visibleRangedThreat.pos);
       if (rangedStep) {
         return rangedStep;
       }
@@ -279,7 +290,11 @@ export function chooseAutoplayAction(observation: GameObservation): GameAction {
   }
 
   const knownStairs = observation.exploration.reachableStairs;
-  if (knownStairs && !observation.bossAlive) {
+  const exploredEnough = observation.exploration.exploredTileRatio >= policy.exploreBeforeStairs
+    || progress.stagnantTurns >= STAGNANT_EXPLORATION_TURNS
+    || observation.runTurn >= 1000
+    || observation.exploration.reachableFrontierCount === 0;
+  if (knownStairs && !observation.bossAlive && exploredEnough) {
     const stairsStep = stepTowardKnownReachable(observation, knownStairs, { allowHostileBlockers: true }) ?? (allowRiskyTraversal ? stepTowardKnownReachable(observation, knownStairs, { avoidTraps: false, allowHostileBlockers: true }) : null);
     if (stairsStep) {
       return stairsStep;
@@ -317,26 +332,90 @@ export function chooseAutoplayAction(observation: GameObservation): GameAction {
   return bestAdjacentExplore(observation, { allowHostileBlockers: true }) ?? directions[observation.turn % directions.length].action;
 }
 
-function autoplayPolicy(observation: GameObservation): {
-  healBonus: number;
-  riskyTraversalHp: number;
-  combatHp: number;
-  discovery: boolean;
-  conquest: boolean;
-} {
-  const cautious = observation.runIdentity.temperament === "cautious";
-  const seeker = observation.runIdentity.temperament === "seeker";
-  const bold = observation.runIdentity.temperament === "bold";
-  const survival = observation.directive === "survival";
-  const discovery = observation.directive === "discovery";
-  const conquest = observation.directive === "conquest";
-  return {
-    healBonus: (cautious ? 0.06 : bold ? -0.04 : 0) + (survival ? 0.08 : conquest ? -0.04 : 0),
-    riskyTraversalHp: survival ? 0.58 : cautious ? 0.48 : conquest || bold ? 0.28 : 0.38,
-    combatHp: survival ? 0.68 : conquest ? 0.42 : bold ? 0.48 : 0.56,
-    discovery: discovery || seeker,
-    conquest: conquest || bold,
-  };
+/**
+ * 基準値 → 気質 → 方針 → 作戦カードの順に調整値を重ねる。
+ * 方針は気質の傾向を上書きし、作戦カードはさらにその上から癖を足す。
+ */
+export function resolveAutoplayPolicy(observation: Pick<GameObservation, "runIdentity" | "directive" | "tactics">): AutoplayPolicyValues {
+  const { aiPolicy, tactics } = getGameConfig();
+  let policy: AutoplayPolicyValues = { ...aiPolicy.base };
+  policy = applyPolicyModifier(policy, aiPolicy.temperaments[observation.runIdentity.temperament]);
+  policy = applyPolicyModifier(policy, aiPolicy.directives[observation.directive]);
+  for (const tacticId of observation.tactics ?? []) {
+    policy = applyPolicyModifier(policy, tactics.definitions[tacticId]);
+  }
+  return policy;
+}
+
+function applyPolicyModifier(policy: AutoplayPolicyValues, modifier: PolicyModifier | undefined): AutoplayPolicyValues {
+  if (!modifier) return policy;
+  const next = { ...policy, ...(modifier.set ?? {}) } as AutoplayPolicyValues;
+  for (const [key, value] of Object.entries(modifier.add ?? {})) {
+    const numericKey = key as keyof AutoplayPolicyValues;
+    if (typeof next[numericKey] === "number" && typeof value === "number") {
+      (next as Record<string, number | boolean>)[numericKey] = (next[numericKey] as number) + value;
+    }
+  }
+  return next;
+}
+
+/**
+ * 射手の隣を目指しつつ、射線に晒されるマスを重く見積もった経路の最初の一歩を返す。
+ * 壁や遮蔽の陰を伝って詰め寄るための経路選択。
+ */
+function stepTowardRangedThreatCovered(observation: GameObservation, target: Point, threats: GameObservation["visibleEntities"]): GameAction | null {
+  const start = observation.player.pos;
+  const range = getGameConfig().rules.rangedMonsterRange;
+  const exposureCost = (point: Point) => threats.some((threat) => distance(threat.pos, point) <= range + 1 && hasKnownLineOfSight(observation, threat.pos, point)) ? 5 : 1;
+  const best = new Map<string, number>([[pointKey(start), 0]]);
+  const cameFrom = new Map<string, Point | null>([[pointKey(start), null]]);
+  const frontier: Array<{ point: Point; cost: number }> = [{ point: start, cost: 0 }];
+  while (frontier.length > 0) {
+    frontier.sort((a, b) => a.cost - b.cost);
+    const current = frontier.shift() as { point: Point; cost: number };
+    if (current.cost > (best.get(pointKey(current.point)) ?? Infinity)) continue;
+    if (distance(current.point, target) <= 1 && !samePoint(current.point, start)) {
+      return actionFromStep(start, firstStepFromPath(cameFrom, start, current.point));
+    }
+    if (current.cost > 60) continue;
+    for (const { delta } of directions) {
+      const next = { x: current.point.x + delta.x, y: current.point.y + delta.y };
+      if (!isKnownWalkable(observation, next)) continue;
+      const cost = current.cost + exposureCost(next);
+      const key = pointKey(next);
+      if (cost >= (best.get(key) ?? Infinity)) continue;
+      best.set(key, cost);
+      cameFrom.set(key, current.point);
+      frontier.push({ point: next, cost });
+    }
+  }
+  return stepTowardAdjacentTarget(observation, target);
+}
+
+function hasKnownLineOfSight(observation: GameObservation, from: Point, to: Point): boolean {
+  const index = observationIndex(observation);
+  let x0 = from.x;
+  let y0 = from.y;
+  const dx = Math.abs(to.x - x0);
+  const dy = Math.abs(to.y - y0);
+  const sx = x0 < to.x ? 1 : -1;
+  const sy = y0 < to.y ? 1 : -1;
+  let error = dx - dy;
+  while (!(x0 === to.x && y0 === to.y)) {
+    const doubleError = error * 2;
+    if (doubleError > -dy) {
+      error -= dy;
+      x0 += sx;
+    }
+    if (doubleError < dx) {
+      error += dx;
+      y0 += sy;
+    }
+    if (x0 === to.x && y0 === to.y) break;
+    const tile = index.knownTiles.get(`${x0},${y0}`);
+    if (!tile || tile.kind === "wall" || tile.kind === "cover") return false;
+  }
+  return true;
 }
 
 function recordPlayerPosition(observation: GameObservation): void {

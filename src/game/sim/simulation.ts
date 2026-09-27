@@ -18,6 +18,7 @@ export type SimulationRunInput = {
   logLimit?: number | null;
   decisionPolicy?: DecisionPolicy;
   watcherPolicy?: WatcherPolicy;
+  tactics?: string[];
 };
 
 export type SimulationProfile = {
@@ -114,7 +115,7 @@ export async function runSimulation(input: SimulationRunInput): Promise<Simulati
 
   const initStartMs = performance.now();
   const identity = createRunIdentity(input.seed, input.roleId);
-  let state = createInitialGame(input.seed, input.roleId, { identity });
+  let state = createInitialGame(input.seed, input.roleId, { identity, tactics: input.tactics });
   const runLog = createRunLog(input.seed, input.roleId, { maxEntries: input.logLimit ?? undefined }, identity);
   let executedTurns = 0;
   let projectedDisplayMs = 0;

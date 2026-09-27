@@ -39,6 +39,7 @@ type CliOptions = {
   logLimit: number | null;
   decisionPolicy: DecisionPolicy;
   watcherPolicy: WatcherPolicy;
+  tactics: string[];
 };
 
 type AggregateSummary = {
@@ -139,6 +140,7 @@ export type BatchSimulationReport = {
     logLimit: number | null;
     decisionPolicy: DecisionPolicy;
     watcherPolicy: WatcherPolicy;
+    tactics: string[];
   };
   performance: {
     jobs: number;
@@ -215,6 +217,7 @@ for (const config of options.configs) {
         logLimit: options.logLimit,
         decisionPolicy: options.decisionPolicy,
         watcherPolicy: options.watcherPolicy,
+        tactics: options.tactics,
       });
     }
   }
@@ -302,6 +305,7 @@ function parseCli(args: string[]): CliOptions {
     logLimit: parseLogLimit(last(values, "--log-limit") ?? defaults.logLimit),
     decisionPolicy: parseDecisionPolicy(last(values, "--decision-policy") ?? "temperament"),
     watcherPolicy: parseWatcherPolicy(last(values, "--watcher") ?? "none"),
+    tactics: (last(values, "--tactics") ?? "").split(",").filter(Boolean),
   };
 }
 
@@ -460,6 +464,7 @@ async function runSimulationInChild(task: SimulationTask): Promise<{ run: Simula
       task.decisionPolicy ?? "temperament",
       "--watcher",
       task.watcherPolicy ?? "none",
+      ...(task.tactics?.length ? ["--tactics", task.tactics.join(",")] : []),
       ...(task.trace ? ["trace"] : []),
       ...(task.profile ? ["--profile"] : []),
     ],
@@ -606,6 +611,7 @@ function createBatchReport(
       logLimit: options.logLimit,
       decisionPolicy: options.decisionPolicy,
       watcherPolicy: options.watcherPolicy,
+      tactics: options.tactics,
     },
     performance: {
       jobs: options.jobs,
@@ -1016,6 +1022,7 @@ function renderMarkdownReport(report: BatchSimulationReport): string {
     `- Log limit: ${report.inputs.logLimit ?? "full"}`,
     `- Decision policy: ${report.inputs.decisionPolicy}`,
     `- Watcher policy: ${report.inputs.watcherPolicy}`,
+    `- Tactics: ${report.inputs.tactics.join(", ") || "none"}`,
     `- Configs: ${report.inputs.configs.map((config) => `${config.label}=${config.path}`).join(", ")}`,
     `- Batch elapsed: ${report.performance.batchElapsedMs}ms (${formatNumber(report.performance.runsPerSecond)} runs/sec)`,
     "",

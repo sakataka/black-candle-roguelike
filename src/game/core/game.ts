@@ -57,7 +57,7 @@ type FloorPlan = {
   monsterPoints: Point[];
 };
 
-type RunCarryState = Pick<GameState, "runTurn" | "runIdentity" | "directive" | "revelationsRemaining" | "lantern" | "knownRoleTruths" | "story">;
+type RunCarryState = Pick<GameState, "runTurn" | "runIdentity" | "directive" | "revelationsRemaining" | "lantern" | "tactics" | "knownRoleTruths" | "story">;
 
 export function playableRoles() {
   return getGameConfig().roles;
@@ -70,18 +70,26 @@ function roleTraits(roleId: string) {
 export function createInitialGame(
   seed = 20260504,
   roleId = "role.oathbound",
-  options: { identity?: RunIdentity; knownRoleTruths?: RoleTruthId[]; missionId?: MissionId } = {},
+  options: { identity?: RunIdentity; knownRoleTruths?: RoleTruthId[]; missionId?: MissionId; tactics?: string[] } = {},
 ): GameState {
   const identity = options.identity ?? createRunIdentity(seed, roleId);
-  return createFloorState(seed, 1, undefined, [], createInitialProgress(), roleId, createInitialRunObjectives(), {
+  const state = createFloorState(seed, 1, undefined, [], createInitialProgress(), roleId, createInitialRunObjectives(), {
     runTurn: 0,
     runIdentity: identity,
     directive: defaultDirectiveForTemperament(identity.temperament),
     revelationsRemaining: getGameConfig().autonomous.revelationsPerRun,
     lantern: createInitialLantern(),
+    tactics: normalizeTactics(options.tactics ?? []),
     knownRoleTruths: [...(options.knownRoleTruths ?? [])],
     story: createRunStoryState(options.missionId ?? defaultMissionForTemperament(identity.temperament)),
   });
+  const player = getPlayer(state);
+  for (const tacticId of state.tactics) {
+    for (const grant of getGameConfig().tactics.definitions[tacticId]?.grantItems ?? []) {
+      addInventoryItem(player, grant.contentId, grant.quantity);
+    }
+  }
+  return state;
 }
 
 function biomeThemeForFloor(floor: number): BiomeTheme {
@@ -111,6 +119,7 @@ function createFloorState(
     directive: defaultDirectiveForTemperament(fallbackIdentity.temperament),
     revelationsRemaining: config.autonomous.revelationsPerRun,
     lantern: createInitialLantern(),
+    tactics: [],
     knownRoleTruths: [],
     story: createRunStoryState(defaultMissionForTemperament(fallbackIdentity.temperament)),
   };
@@ -234,6 +243,7 @@ function createFloorState(
     directive: run.directive,
     revelationsRemaining: run.revelationsRemaining,
     lantern: { ...run.lantern },
+    tactics: [...run.tactics],
     pendingDecision: null,
     knownRoleTruths: [...run.knownRoleTruths],
     story: {
@@ -276,6 +286,9 @@ export function applyAction(state: GameState, action: GameAction): GameState {
 
   let next = cloneState(state);
   if (action.type === "resolveDecision") {
+    if (action.tactics && next.pendingDecision?.kind === "checkpoint") {
+      next.tactics = normalizeTactics(action.tactics);
+    }
     return updateVisibility(resolveDecision(next, action.optionId));
   }
   if (action.type === "invokeLantern") {
@@ -455,6 +468,12 @@ function applyDecisionEffect(state: GameState, effect: NonNullable<NonNullable<G
   return applied.join(" / ") || undefined;
 }
 
+/** 定義済みの作戦だけを、枠数の範囲で重複なく残す。 */
+export function normalizeTactics(tactics: string[], slots = getGameConfig().tactics.slots): string[] {
+  const definitions = getGameConfig().tactics.definitions;
+  return [...new Set(tactics)].filter((id) => !!definitions[id]).slice(0, Math.max(0, slots));
+}
+
 function createInitialLantern(): GameState["lantern"] {
   const lantern = getGameConfig().lantern;
   return { embers: Math.min(lantern.startEmbers, lantern.maxEmbers), maxEmbers: lantern.maxEmbers, ritesUsed: 0 };
@@ -571,6 +590,7 @@ function carryRun(state: GameState): RunCarryState {
     directive: state.directive,
     revelationsRemaining: state.revelationsRemaining,
     lantern: { ...state.lantern },
+    tactics: [...state.tactics],
     knownRoleTruths: [...state.knownRoleTruths],
     story: {
       ...state.story,
@@ -632,6 +652,7 @@ export function observeGame(state: GameState): GameObservation {
     directive: state.directive,
     revelationsRemaining: state.revelationsRemaining,
     lantern: { ...state.lantern },
+    tactics: [...state.tactics],
     pendingDecision: state.pendingDecision ? structuredClone(state.pendingDecision) : null,
     story: structuredClone(state.story),
     messages: state.messages.slice(-8),
@@ -995,19 +1016,26 @@ function defenseBonus(player: Entity): number {
   return armorBonus + shieldBonus + guardedBonus;
 }
 
-function rangedDefenseBonus(actor: Entity): number {
+function rangedDefenseBonus(state: GameState, actor: Entity): number {
   const equipmentBonus = actor.inventory?.filter((entry) => entry.equipped).reduce((sum, entry) => sum + (getGameConfig().equipment[entry.contentId]?.rangedDefense ?? 0), 0) ?? 0;
-  return equipmentBonus + (roleTraits(actor.contentId)?.rangedDefense ?? 0);
+  const tacticBonus = actor.kind === "player" ? tacticPerk(state, "rangedDefense") : 0;
+  return equipmentBonus + (roleTraits(actor.contentId)?.rangedDefense ?? 0) + tacticBonus;
 }
 
-function trapAvoidChance(actor: Entity): number {
+function tacticPerk(state: GameState, perk: "rangedDefense" | "trapAvoidPercent" | "healPercent"): number {
+  const definitions = getGameConfig().tactics.definitions;
+  return state.tactics.reduce((sum, tacticId) => sum + (definitions[tacticId]?.perks?.[perk] ?? 0), 0);
+}
+
+function trapAvoidChance(state: GameState, actor: Entity): number {
   const { rules } = getGameConfig();
   const equipmentModifier = actor.inventory?.filter((entry) => entry.equipped).reduce((sum, entry) => {
     const equipment = getGameConfig().equipment[entry.contentId];
     return sum + (equipment?.trapAvoidPercent ?? 0) - (equipment?.trapAvoidPenaltyPercent ?? 0);
   }, 0) ?? 0;
   const roleModifier = roleTraits(actor.contentId)?.trapAvoidPercent ?? 0;
-  return clampNumber(rules.trapAvoidBasePercent + roleModifier + equipmentModifier, rules.trapAvoidMinPercent, rules.trapAvoidMaxPercent);
+  const tacticModifier = actor.kind === "player" ? tacticPerk(state, "trapAvoidPercent") : 0;
+  return clampNumber(rules.trapAvoidBasePercent + roleModifier + equipmentModifier + tacticModifier, rules.trapAvoidMinPercent, rules.trapAvoidMaxPercent);
 }
 
 function moveActor(state: GameState, actorId: string, delta: Point): GameState {
@@ -1113,7 +1141,7 @@ function evadeTrap(state: GameState, actor: Entity, trapEntity: Entity): boolean
   if (actor.kind !== "player") {
     return false;
   }
-  const chance = trapAvoidChance(actor);
+  const chance = trapAvoidChance(state, actor);
   if (chance <= 0) {
     return false;
   }
@@ -1731,7 +1759,7 @@ function useItem(state: GameState, contentId: string): GameState {
   }
 
   if (consumable?.heal && !consumable.cureConditions && !consumable.revealRadius && !consumable.pushVisibleMonsters && !consumable.guardedTurns && !consumable.rangedDamage) {
-    const healAmount = consumable.heal;
+    const healAmount = Math.round(consumable.heal * (100 + tacticPerk(state, "healPercent")) / 100);
     const healed = Math.min(healAmount, player.stats.maxHp - player.stats.hp);
     player.stats.hp += healed;
     entry.quantity -= 1;
@@ -2245,7 +2273,7 @@ function rangedAttack(state: GameState, attacker: Entity, defender: Entity): Gam
   if (!attacker.stats || !defender.stats) {
     return state;
   }
-  const damage = Math.max(1, attacker.stats.attack - defender.stats.defense - rangedDefenseBonus(defender) + 1);
+  const damage = Math.max(1, attacker.stats.attack - defender.stats.defense - rangedDefenseBonus(state, defender) + 1);
   defender.stats.hp -= damage;
   recordStrike(state, attacker, defender, true);
   state.messages = pushMessage(state, `${getContentName(attacker.contentId)}は離れた位置からあなたに${damage}ダメージを与えた。`, "combat");
@@ -2576,6 +2604,7 @@ function cloneState(state: GameState): GameState {
     runObjectives: { ...state.runObjectives },
     runIdentity: { ...state.runIdentity },
     lantern: { ...state.lantern },
+    tactics: [...state.tactics],
     knownRoleTruths: [...state.knownRoleTruths],
     pendingDecision: state.pendingDecision ? {
       ...state.pendingDecision,

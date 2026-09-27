@@ -396,6 +396,28 @@ button:focus-visible {
 .mission-option small { color: var(--muted); font-size: 0.63rem; line-height: 1.45; }
 .mission-option em { color: var(--gold); font-size: 0.58rem; font-style: normal; }
 
+.tactic-heading { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; margin-top: 18px; }
+.tactic-heading strong { font-size: 0.8rem; }
+.tactic-heading span { color: var(--gold); font-size: 0.72rem; font-variant-numeric: tabular-nums; }
+.tactic-heading small { flex-basis: 100%; color: var(--muted); font-size: 0.64rem; }
+.tactic-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px; margin-top: 8px; }
+.tactic-card { display: grid; gap: 3px; min-width: 0; padding: 8px 10px; border: 1px solid var(--line); border-radius: 9px; background: rgba(255,255,255,0.02); cursor: pointer; text-align: left; transition: border-color 140ms ease-out, background-color 140ms ease-out, transform 100ms ease-out, opacity 140ms ease-out; }
+.tactic-card strong { color: var(--ink); font-size: 0.76rem; }
+.tactic-card small { color: var(--muted); font-size: 0.61rem; line-height: 1.45; }
+.tactic-card.is-selected { border-color: rgba(240, 204, 123, 0.7); background: rgba(212, 173, 98, 0.13); box-shadow: inset 0 0 0 1px rgba(240, 204, 123, 0.25); }
+.tactic-card.is-selected strong::before { content: "◆ "; color: var(--gold-bright); }
+.tactic-card:disabled { cursor: not-allowed; opacity: 0.4; }
+.tactic-card:active:not(:disabled) { transform: scale(0.98); }
+.tactic-list.is-compact .tactic-card small { display: none; }
+.tactic-list.is-compact { grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); }
+@media (hover: hover) and (pointer: fine) {
+  .tactic-card:hover:not(:disabled) { border-color: rgba(212, 173, 98, 0.55); }
+}
+.decision-tactics { margin-top: 4px; }
+.vitals-tactics { display: flex; flex-wrap: wrap; gap: 5px; }
+.vitals-tactics span { padding: 3px 7px; border: 1px solid rgba(212, 173, 98, 0.35); border-radius: 6px; color: var(--gold); font-size: 0.62rem; }
+.vitals-tactics span.is-empty { border-color: rgba(255,255,255,0.08); color: var(--muted); }
+
 .candidate-list { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 24px; }
 .candidate-card { position: relative; display: grid; grid-template-rows: 84px 1fr; gap: 10px; min-width: 0; padding: 18px; border: 1px solid var(--line); border-radius: 13px; background: rgba(255,255,255,0.025); cursor: pointer; text-align: left; transition: transform 120ms ease-out, border-color 140ms ease-out, background-color 140ms ease-out, box-shadow 140ms ease-out; }
 .candidate-card:active { transform: scale(0.985); background: rgba(212, 173, 98, 0.1); }

@@ -24,11 +24,11 @@ export type LookaheadSummary = {
  * rolloutIndex ごとに seed をずらし、戦闘の乱数と未踏階層の生成を変える。
  * 灯守の追加介入はしない前提（「このまま見守った場合」）。
  */
-export function runRollout(origin: GameState, optionId: string, rolloutIndex: number, maxSteps = 2400): RolloutOutcome {
+export function runRollout(origin: GameState, optionId: string, rolloutIndex: number, maxSteps = 2400, tactics?: string[]): RolloutOutcome {
   resetAutoplayState();
   let state: GameState = structuredClone(origin);
   state.seed = perturbSeed(origin.seed, rolloutIndex);
-  state = applyAction(state, { type: "resolveDecision", optionId });
+  state = applyAction(state, { type: "resolveDecision", optionId, tactics });
   for (let step = 0; step < maxSteps && state.status === "playing"; step += 1) {
     const observation = observeGame(state);
     const action = observation.pendingDecision ? chooseDecisionAction(observation, "temperament") : chooseAutoplayAction(observation);

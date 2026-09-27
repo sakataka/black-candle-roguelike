@@ -41,6 +41,54 @@
     "runTurnWarning": 1350,
     "runTurnLimit": 1600
   },
+  "aiPolicy": {
+    "base": {
+      "healBonus": 0,
+      "potionCalm": 0.42,
+      "potionCombat": 0.57,
+      "salveCalm": 0.21,
+      "salveCombat": 0.31,
+      "charmCalm": 0.47,
+      "charmCombat": 0.62,
+      "combatHp": 0.56,
+      "bossEngageHp": 0.5,
+      "riskyTraversalHp": 0.38,
+      "dartMinHp": 0.35,
+      "dartRange": 5,
+      "discoveryDetour": false,
+      "huntWeakEnemies": false,
+      "exploreBeforeStairs": 0,
+      "chaseRanged": true,
+      "coverApproach": false,
+      "rangedPriority": false,
+      "avoidRiskPanels": false,
+      "trapPatience": 24
+    },
+    "temperaments": {
+      "cautious": { "add": { "healBonus": 0.06 }, "set": { "riskyTraversalHp": 0.48 } },
+      "seeker": { "set": { "discoveryDetour": true } },
+      "bold": { "add": { "healBonus": -0.04 }, "set": { "riskyTraversalHp": 0.28, "combatHp": 0.48, "huntWeakEnemies": true, "bossEngageHp": 0.38 } }
+    },
+    "directives": {
+      "survival": { "add": { "healBonus": 0.08 }, "set": { "riskyTraversalHp": 0.58, "combatHp": 0.68, "bossEngageHp": 0.5, "discoveryDetour": false, "huntWeakEnemies": false, "exploreBeforeStairs": 0 } },
+      "discovery": { "set": { "riskyTraversalHp": 0.38, "combatHp": 0.56, "bossEngageHp": 0.5, "discoveryDetour": true, "huntWeakEnemies": false, "exploreBeforeStairs": 0.55 } },
+      "conquest": { "add": { "healBonus": -0.04 }, "set": { "riskyTraversalHp": 0.28, "combatHp": 0.42, "bossEngageHp": 0.38, "discoveryDetour": false, "huntWeakEnemies": true, "exploreBeforeStairs": 0 } }
+    }
+  },
+  "tactics": {
+    "slots": 2,
+    "definitions": {
+      "tactic.early-care": { "label": "早めの手当て", "description": "回復薬を早めに使い、深手を負う前に立て直す。薬の回復量+30%。", "add": { "healBonus": 0.1 }, "perks": { "healPercent": 30 } },
+      "tactic.hoard": { "label": "薬を温存", "description": "回復は瀕死まで待ち、持ち帰る戦果と深層用の薬を残す。", "add": { "healBonus": -0.15 } },
+      "tactic.archer-hunt": { "label": "射手狩り", "description": "遠隔の敵を最優先で追い詰め、投げ針も射手へ向ける。", "set": { "rangedPriority": true, "chaseRanged": true } },
+      "tactic.cover-dance": { "label": "遮蔽を渡る", "description": "盾を掲げ、壁や遮蔽の陰を伝って射手へ詰め寄る。遠隔防御+1。", "set": { "coverApproach": true, "chaseRanged": true }, "perks": { "rangedDefense": 1 } },
+      "tactic.straight-path": { "label": "最短路", "description": "寄り道をせず、階段が見えたらすぐ降りる。", "set": { "discoveryDetour": false, "exploreBeforeStairs": 0 } },
+      "tactic.thorough": { "label": "隅々まで", "description": "階の七割を歩き、遺物と碑文を拾ってから降りる。", "set": { "discoveryDetour": true, "exploreBeforeStairs": 0.7 } },
+      "tactic.duelist": { "label": "果敢に挑む", "description": "手負いでも敵と守り手へ斬り込み、経験を稼ぐ。", "add": { "combatHp": -0.12, "bossEngageHp": -0.12 }, "set": { "huntWeakEnemies": true } },
+      "tactic.trap-reader": { "label": "罠を読む", "description": "運命の標に手を出さず、既知の罠は長く行き詰まるまで踏まない。罠回避+15%。", "set": { "avoidRiskPanels": true, "trapPatience": 45 }, "perks": { "trapAvoidPercent": 15 } },
+      "tactic.dart-volley": { "label": "投げ針を惜しまない", "description": "燠火の投げ針を3本余分に携え、見えた敵へ遠くからでも放つ。", "add": { "dartMinHp": -0.15, "dartRange": 2 }, "grantItems": [{ "contentId": "item.ember-dart", "quantity": 3 }] }
+    }
+  },
   "lantern": {
     "startEmbers": 3,
     "maxEmbers": 6,

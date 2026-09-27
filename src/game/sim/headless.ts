@@ -14,6 +14,7 @@ const label = optionValue("--label") ?? "single";
 const logLimit = parseLogLimit(optionValue("--log-limit"));
 const decisionPolicy = parseDecisionPolicy(optionValue("--decision-policy"));
 const watcherPolicy = parseWatcherPolicy(optionValue("--watcher"));
+const tactics = optionValue("--tactics")?.split(",").filter(Boolean) ?? [];
 
 const result = await runSimulation({
   seed,
@@ -26,6 +27,7 @@ const result = await runSimulation({
   logLimit,
   decisionPolicy,
   watcherPolicy,
+  tactics,
 });
 
 console.log(JSON.stringify(result));

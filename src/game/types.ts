@@ -31,6 +31,50 @@ export type MissionId = "guardian-vow" | "relic-ledger" | "swift-route";
 
 export type LanternRiteId = "flare" | "mend" | "guide" | "ward";
 
+/** 探索者AIの判断を決める調整値。設定ファイルと作戦カードから合成する。 */
+export type AutoplayPolicyValues = {
+  healBonus: number;
+  potionCalm: number;
+  potionCombat: number;
+  salveCalm: number;
+  salveCombat: number;
+  charmCalm: number;
+  charmCombat: number;
+  combatHp: number;
+  bossEngageHp: number;
+  riskyTraversalHp: number;
+  dartMinHp: number;
+  dartRange: number;
+  discoveryDetour: boolean;
+  huntWeakEnemies: boolean;
+  exploreBeforeStairs: number;
+  chaseRanged: boolean;
+  /** 射手へ詰め寄るとき、射線に晒されるマスを避けた経路を選ぶ。 */
+  coverApproach: boolean;
+  rangedPriority: boolean;
+  avoidRiskPanels: boolean;
+  /** 既知の罠を踏んででも進むまでに待つ停滞手数。 */
+  trapPatience: number;
+};
+
+type NumericPolicyKey = { [K in keyof AutoplayPolicyValues]: AutoplayPolicyValues[K] extends number ? K : never }[keyof AutoplayPolicyValues];
+
+export type PolicyModifier = {
+  set?: Partial<AutoplayPolicyValues>;
+  add?: Partial<Record<NumericPolicyKey, number>>;
+};
+
+export type TacticDefinition = PolicyModifier & {
+  label: string;
+  description: string;
+  /** 遠征開始時に持たせる品。 */
+  grantItems?: Array<{ contentId: string; quantity: number }>;
+  /** 作戦に伴う小さな能力補正。 */
+  perks?: { rangedDefense?: number; trapAvoidPercent?: number; healPercent?: number };
+  /** 灰灯院の施設で解放されるまで選べない作戦。 */
+  locked?: boolean;
+};
+
 export type LanternState = {
   embers: number;
   maxEmbers: number;
@@ -325,6 +369,15 @@ export type GameConfig = {
     runTurnWarning: number;
     runTurnLimit: number;
   };
+  aiPolicy: {
+    base: AutoplayPolicyValues;
+    temperaments: Record<TemperamentId, PolicyModifier>;
+    directives: Record<DirectiveId, PolicyModifier>;
+  };
+  tactics: {
+    slots: number;
+    definitions: Record<string, TacticDefinition>;
+  };
   lantern: {
     startEmbers: number;
     maxEmbers: number;
@@ -446,6 +499,7 @@ export type GameState = {
   directive: DirectiveId;
   revelationsRemaining: number;
   lantern: LanternState;
+  tactics: string[];
   pendingDecision: PendingDecision | null;
   knownRoleTruths: RoleTruthId[];
   story: RunStoryState;
@@ -472,7 +526,7 @@ export type GameAction =
   | { type: "useItem"; contentId: string }
   | { type: "merchantService"; serviceId: MerchantServiceId }
   | { type: "descend" }
-  | { type: "resolveDecision"; optionId: string }
+  | { type: "resolveDecision"; optionId: string; tactics?: string[] }
   /** 灯守（観戦者）の介入。探索者の手番を消費しない。 */
   | { type: "invokeLantern"; rite: LanternRiteId };
 
@@ -517,6 +571,7 @@ export type GameObservation = {
   directive: DirectiveId;
   revelationsRemaining: number;
   lantern: LanternState;
+  tactics: string[];
   pendingDecision: PendingDecision | null;
   story: RunStoryState;
   messages: GameMessage[];
