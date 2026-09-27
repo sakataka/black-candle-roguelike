@@ -81,12 +81,34 @@
       "tactic.early-care": { "label": "早めの手当て", "description": "回復薬を早めに使い、深手を負う前に立て直す。薬の回復量+30%。", "add": { "healBonus": 0.1 }, "perks": { "healPercent": 30 } },
       "tactic.hoard": { "label": "薬を温存", "description": "回復は瀕死まで待ち、持ち帰る戦果と深層用の薬を残す。", "add": { "healBonus": -0.15 } },
       "tactic.archer-hunt": { "label": "射手狩り", "description": "遠隔の敵を最優先で追い詰め、投げ針も射手へ向ける。", "set": { "rangedPriority": true, "chaseRanged": true } },
-      "tactic.cover-dance": { "label": "遮蔽を渡る", "description": "盾を掲げ、壁や遮蔽の陰を伝って射手へ詰め寄る。遠隔防御+1。", "set": { "coverApproach": true, "chaseRanged": true }, "perks": { "rangedDefense": 1 } },
+      "tactic.cover-dance": { "locked": true, "label": "遮蔽を渡る", "description": "盾を掲げ、壁や遮蔽の陰を伝って射手へ詰め寄る。遠隔防御+1。", "set": { "coverApproach": true, "chaseRanged": true }, "perks": { "rangedDefense": 1 } },
       "tactic.straight-path": { "label": "最短路", "description": "寄り道をせず、階段が見えたらすぐ降りる。", "set": { "discoveryDetour": false, "exploreBeforeStairs": 0 } },
-      "tactic.thorough": { "label": "隅々まで", "description": "階の七割を歩き、遺物と碑文を拾ってから降りる。", "set": { "discoveryDetour": true, "exploreBeforeStairs": 0.7 } },
-      "tactic.duelist": { "label": "果敢に挑む", "description": "手負いでも敵と守り手へ斬り込み、経験を稼ぐ。", "add": { "combatHp": -0.12, "bossEngageHp": -0.12 }, "set": { "huntWeakEnemies": true } },
-      "tactic.trap-reader": { "label": "罠を読む", "description": "運命の標に手を出さず、既知の罠は長く行き詰まるまで踏まない。罠回避+15%。", "set": { "avoidRiskPanels": true, "trapPatience": 45 }, "perks": { "trapAvoidPercent": 15 } },
-      "tactic.dart-volley": { "label": "投げ針を惜しまない", "description": "燠火の投げ針を3本余分に携え、見えた敵へ遠くからでも放つ。", "add": { "dartMinHp": -0.15, "dartRange": 2 }, "grantItems": [{ "contentId": "item.ember-dart", "quantity": 3 }] }
+      "tactic.thorough": { "locked": true, "label": "隅々まで", "description": "階の七割を歩き、遺物と碑文を拾ってから降りる。", "set": { "discoveryDetour": true, "exploreBeforeStairs": 0.7 } },
+      "tactic.duelist": { "locked": true, "label": "果敢に挑む", "description": "手負いでも敵と守り手へ斬り込み、経験を稼ぐ。", "add": { "combatHp": -0.12, "bossEngageHp": -0.12 }, "set": { "huntWeakEnemies": true } },
+      "tactic.trap-reader": { "locked": true, "label": "罠を読む", "description": "運命の標に手を出さず、既知の罠は長く行き詰まるまで踏まない。罠回避+15%。", "set": { "avoidRiskPanels": true, "trapPatience": 45 }, "perks": { "trapAvoidPercent": 15 } },
+      "tactic.dart-volley": { "locked": true, "label": "投げ針を惜しまない", "description": "燠火の投げ針を3本余分に携え、見えた敵へ遠くからでも放つ。", "add": { "dartMinHp": -0.15, "dartRange": 2 }, "grantItems": [{ "contentId": "item.ember-dart", "quantity": 3 }] }
+    }
+  },
+  "scars": {
+    "scar.limp": { "label": "足の古傷", "description": "踏み込みが鈍り、罠を避けにくい。罠回避-10%。", "perks": { "trapAvoidPercent": -10 } },
+    "scar.shaken": { "label": "震える手", "description": "傷を恐れ、薬を早く使いすぎる。", "add": { "healBonus": 0.12 } },
+    "scar.half-blind": { "label": "片目の傷", "description": "飛来物を見切れない。遠隔防御-1。", "perks": { "rangedDefense": -1 } },
+    "scar.reckless": { "label": "無謀の癖", "description": "手負いでも敵へ突っ込んでしまう。", "add": { "combatHp": -0.15 }, "set": { "huntWeakEnemies": true } }
+  },
+  "campaign": {
+    "scorePerShard": 1000,
+    "missionShards": 4,
+    "truthShards": 3,
+    "survivalShards": 3,
+    "veteranMaxRank": 3,
+    "veteranRankBonus": { "maxHp": 4, "attack": 1 },
+    "scarHpRatio": 0.3,
+    "rosterLimit": 6,
+    "scarTreatmentCost": 10,
+    "facilities": {
+      "war-room": { "label": "作戦室", "description": "作戦カードの枠を1つ増やす。", "costs": [30, 70], "tacticSlotsPerLevel": 1 },
+      "archive": { "label": "書庫", "description": "封じられた作戦カードを解き明かす。", "costs": [15, 30, 50], "unlocksPerLevel": [["tactic.dart-volley", "tactic.trap-reader"], ["tactic.cover-dance", "tactic.duelist"], ["tactic.thorough"]] },
+      "altar": { "label": "灯火の祭壇", "description": "遠征開始時の灯火を1つ増やす。", "costs": [20, 50], "startEmbersPerLevel": 1 }
     }
   },
   "lantern": {

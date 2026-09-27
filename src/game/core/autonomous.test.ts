@@ -141,7 +141,7 @@ describe("自律遠征", () => {
     expect(progress.milestones.find((entry) => entry.label === "結末")?.unlocked).toBe(true);
   });
 
-  test("version 1の遠征録は失わずversion 2へ移行する", () => {
+  test("version 1の遠征録は失わず現行versionへ移行する", () => {
     const state = createInitialGame(20260504, "role.ash-scout");
     state.status = "returned";
     state.floor = 4;
@@ -155,7 +155,9 @@ describe("自律遠征", () => {
       ...legacyRecord
     } = currentRecord;
     const migrated = normalizeCampaignState({ version: 1, roleTruths: ["shared-oath"], expeditions: [legacyRecord] });
-    expect(migrated.version).toBe(2);
+    expect(migrated.version).toBe(3);
+    expect(migrated.shards).toBe(0);
+    expect(migrated.roster).toEqual([]);
     expect(migrated.roleTruths).toEqual(["shared-oath"]);
     expect(migrated.expeditions).toHaveLength(1);
     expect(migrated.expeditions[0].floor).toBe(4);
@@ -163,7 +165,7 @@ describe("自律遠征", () => {
     expect(migrated.expeditions[0].missionCompleted).toBe(false);
   });
 
-  test("不正な保存データはversion 2の初期状態へ戻す", () => {
+  test("不正な保存データは初期状態へ戻す", () => {
     expect(normalizeCampaignState({ version: 9, roleTruths: ["shared-oath"] })).toEqual(createCampaignState());
   });
 });

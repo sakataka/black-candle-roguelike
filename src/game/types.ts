@@ -71,7 +71,7 @@ export type TacticDefinition = PolicyModifier & {
   grantItems?: Array<{ contentId: string; quantity: number }>;
   /** 作戦に伴う小さな能力補正。 */
   perks?: { rangedDefense?: number; trapAvoidPercent?: number; healPercent?: number };
-  /** 灰灯院の施設で解放されるまで選べない作戦。 */
+  /** 灰灯院の書庫で解放されるまで選べない作戦。 */
   locked?: boolean;
 };
 
@@ -98,6 +98,32 @@ export type RunIdentity = {
   name: string;
   roleId: string;
   temperament: TemperamentId;
+  /** 遠征団の古参として送り出した場合の識別子。 */
+  veteranId?: string;
+};
+
+export type FacilityId = "war-room" | "archive" | "altar";
+
+export type Veteran = {
+  id: string;
+  identity: RunIdentity;
+  rank: number;
+  expeditions: number;
+  scars: string[];
+};
+
+export type FallenDelver = {
+  identity: RunIdentity;
+  rank: number;
+  floor: number;
+  cause: string | null;
+};
+
+/** 遠征開始時に灰灯院と遠征団から持ち込む条件。 */
+export type RunModifiers = {
+  tacticSlots: number;
+  scars: string[];
+  rank: number;
 };
 
 export type DecisionOption = {
@@ -185,12 +211,18 @@ export type ExpeditionRecord = {
   interventionCount: number;
   truthRecovered?: RoleTruthId;
   endingId?: EndingId;
+  shardsEarned?: number;
+  veteranOutcome?: "promoted" | "scarred" | "fallen" | "recruited";
 };
 
 export type CampaignState = {
-  version: 2;
+  version: 3;
   roleTruths: RoleTruthId[];
   expeditions: ExpeditionRecord[];
+  shards: number;
+  facilities: Record<FacilityId, number>;
+  roster: Veteran[];
+  fallen: FallenDelver[];
 };
 
 export type ContentEntity = {
@@ -378,6 +410,27 @@ export type GameConfig = {
     slots: number;
     definitions: Record<string, TacticDefinition>;
   };
+  /** 瀕死で帰還した古参に残る古傷。作戦と同じ形で判断と能力に影響する。 */
+  scars: Record<string, TacticDefinition>;
+  campaign: {
+    scorePerShard: number;
+    missionShards: number;
+    truthShards: number;
+    survivalShards: number;
+    veteranMaxRank: number;
+    veteranRankBonus: { maxHp: number; attack: number };
+    scarHpRatio: number;
+    rosterLimit: number;
+    scarTreatmentCost: number;
+    facilities: Record<FacilityId, {
+      label: string;
+      description: string;
+      costs: number[];
+      tacticSlotsPerLevel?: number;
+      startEmbersPerLevel?: number;
+      unlocksPerLevel?: string[][];
+    }>;
+  };
   lantern: {
     startEmbers: number;
     maxEmbers: number;
@@ -500,6 +553,7 @@ export type GameState = {
   revelationsRemaining: number;
   lantern: LanternState;
   tactics: string[];
+  modifiers: RunModifiers;
   pendingDecision: PendingDecision | null;
   knownRoleTruths: RoleTruthId[];
   story: RunStoryState;
@@ -572,6 +626,7 @@ export type GameObservation = {
   revelationsRemaining: number;
   lantern: LanternState;
   tactics: string[];
+  modifiers: RunModifiers;
   pendingDecision: PendingDecision | null;
   story: RunStoryState;
   messages: GameMessage[];

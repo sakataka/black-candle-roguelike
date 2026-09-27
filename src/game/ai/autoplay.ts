@@ -336,13 +336,16 @@ export function chooseAutoplayAction(observation: GameObservation): GameAction {
  * 基準値 → 気質 → 方針 → 作戦カードの順に調整値を重ねる。
  * 方針は気質の傾向を上書きし、作戦カードはさらにその上から癖を足す。
  */
-export function resolveAutoplayPolicy(observation: Pick<GameObservation, "runIdentity" | "directive" | "tactics">): AutoplayPolicyValues {
-  const { aiPolicy, tactics } = getGameConfig();
+export function resolveAutoplayPolicy(observation: Pick<GameObservation, "runIdentity" | "directive" | "tactics"> & { modifiers?: GameObservation["modifiers"] }): AutoplayPolicyValues {
+  const { aiPolicy, tactics, scars } = getGameConfig();
   let policy: AutoplayPolicyValues = { ...aiPolicy.base };
   policy = applyPolicyModifier(policy, aiPolicy.temperaments[observation.runIdentity.temperament]);
   policy = applyPolicyModifier(policy, aiPolicy.directives[observation.directive]);
   for (const tacticId of observation.tactics ?? []) {
     policy = applyPolicyModifier(policy, tactics.definitions[tacticId]);
+  }
+  for (const scarId of observation.modifiers?.scars ?? []) {
+    policy = applyPolicyModifier(policy, scars[scarId]);
   }
   return policy;
 }

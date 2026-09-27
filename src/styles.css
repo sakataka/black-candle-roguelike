@@ -176,7 +176,7 @@ button:focus-visible {
 .pixi-root { display: grid; min-width: 0; min-height: 0; place-items: start center; overflow: hidden; background: #050404; }
 .pixi-root canvas {
   display: block;
-  width: min(100%, 1024px, calc((100svh - 375px) * 1.6)) !important;
+  width: min(100%, 1024px, calc((100svh - 400px) * 1.6)) !important;
   min-width: min(100%, 480px);
   height: auto !important;
   margin: 0 auto;
@@ -396,6 +396,35 @@ button:focus-visible {
 .mission-option small { color: var(--muted); font-size: 0.63rem; line-height: 1.45; }
 .mission-option em { color: var(--gold); font-size: 0.58rem; font-style: normal; }
 
+.institute { display: grid; grid-template-columns: minmax(150px, 0.7fr) minmax(0, 3fr); gap: 10px; margin-top: 16px; padding: 12px; border: 1px solid rgba(212, 173, 98, 0.28); border-radius: 12px; background: radial-gradient(circle at 0 0, rgba(214, 138, 62, 0.1), transparent 55%), rgba(0,0,0,0.18); }
+.institute-shards { display: grid; align-content: center; gap: 2px; }
+.institute-shards span { color: var(--gold); font-size: 0.64rem; font-weight: 800; letter-spacing: 0.16em; }
+.institute-shards strong { color: var(--gold-bright); font-size: 1.6rem; font-variant-numeric: tabular-nums; line-height: 1.1; }
+.institute-shards small { color: var(--muted); font-size: 0.6rem; line-height: 1.45; }
+.institute-facilities { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.facility-card { display: grid; gap: 3px; min-width: 0; padding: 8px 10px; border: 1px solid var(--line); border-radius: 9px; background: rgba(255,255,255,0.025); cursor: pointer; text-align: left; transition: border-color 140ms ease-out, background-color 140ms ease-out, transform 100ms ease-out; }
+.facility-card strong { font-size: 0.76rem; }
+.facility-card strong em { color: var(--gold); font-size: 0.62rem; font-style: normal; }
+.facility-card small { color: var(--muted); font-size: 0.6rem; line-height: 1.45; }
+.facility-card > span { color: #e8a45a; font-size: 0.62rem; font-weight: 700; }
+.facility-card:disabled { cursor: not-allowed; opacity: 0.5; }
+.facility-card:active:not(:disabled) { transform: scale(0.98); }
+@media (hover: hover) and (pointer: fine) { .facility-card:hover:not(:disabled) { border-color: rgba(240, 204, 123, 0.6); background: rgba(212, 173, 98, 0.08); } }
+.institute-infirmary { display: flex; flex-wrap: wrap; grid-column: 1 / -1; gap: 6px; align-items: center; }
+.institute-infirmary:empty { display: none; }
+.infirmary-label { color: var(--muted); font-size: 0.64rem; }
+.scar-treat { padding: 5px 9px; border: 1px solid rgba(126, 167, 139, 0.45); border-radius: 99px; background: rgba(126, 167, 139, 0.08); color: #b5d2bb; cursor: pointer; font-size: 0.62rem; }
+.scar-treat:disabled { cursor: not-allowed; opacity: 0.45; }
+.candidate-heading { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; margin-top: 18px; }
+.candidate-heading strong { font-size: 0.8rem; }
+.candidate-heading small { color: var(--muted); font-size: 0.64rem; }
+.candidate-heading + .candidate-list { margin-top: 8px; }
+.candidate-card.is-veteran { border-color: rgba(212, 173, 98, 0.45); background: linear-gradient(180deg, rgba(212, 173, 98, 0.08), rgba(255,255,255,0.02)); }
+.rank-stars { color: var(--gold-bright); font-family: inherit; font-size: 0.8rem; letter-spacing: 0.05em; }
+.scar-tags { display: flex; flex-wrap: wrap; gap: 4px; margin: 5px 0 2px; }
+.scar-tags i { padding: 2px 6px; border: 1px solid rgba(201, 109, 98, 0.45); border-radius: 99px; color: #e1a095; font-size: 0.58rem; font-style: normal; }
+.vitals-tactics span.is-scar { border-color: rgba(201, 109, 98, 0.45); color: #e1a095; }
+
 .tactic-heading { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; margin-top: 18px; }
 .tactic-heading strong { font-size: 0.8rem; }
 .tactic-heading span { color: var(--gold); font-size: 0.72rem; font-variant-numeric: tabular-nums; }
@@ -418,14 +447,14 @@ button:focus-visible {
 .vitals-tactics span { padding: 3px 7px; border: 1px solid rgba(212, 173, 98, 0.35); border-radius: 6px; color: var(--gold); font-size: 0.62rem; }
 .vitals-tactics span.is-empty { border-color: rgba(255,255,255,0.08); color: var(--muted); }
 
-.candidate-list { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 24px; }
-.candidate-card { position: relative; display: grid; grid-template-rows: 84px 1fr; gap: 10px; min-width: 0; padding: 18px; border: 1px solid var(--line); border-radius: 13px; background: rgba(255,255,255,0.025); cursor: pointer; text-align: left; transition: transform 120ms ease-out, border-color 140ms ease-out, background-color 140ms ease-out, box-shadow 140ms ease-out; }
+.candidate-list { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 24px; }
+.candidate-card { position: relative; display: grid; grid-template-columns: 72px 1fr; align-items: center; gap: 12px; min-width: 0; padding: 12px 14px; border: 1px solid var(--line); border-radius: 13px; background: rgba(255,255,255,0.025); cursor: pointer; text-align: left; transition: transform 120ms ease-out, border-color 140ms ease-out, background-color 140ms ease-out, box-shadow 140ms ease-out; }
 .candidate-card:active { transform: scale(0.985); background: rgba(212, 173, 98, 0.1); }
 
 @media (hover: hover) and (pointer: fine) {
   .candidate-card:hover { transform: translateY(-2px); border-color: rgba(212, 173, 98, 0.6); background: rgba(212, 173, 98, 0.07); box-shadow: 0 10px 28px rgba(0,0,0,0.22); }
 }
-.candidate-portrait { display: block; width: 72px; height: 72px; margin: 0 auto; }
+.candidate-portrait { display: block; width: 72px; height: 72px; margin: 0; }
 .candidate-body { display: block; min-width: 0; }
 .candidate-body > strong, .candidate-body > em, .candidate-body > small { display: block; }
 .candidate-body > strong { font-family: "Yu Mincho", serif; font-size: 1.15rem; }
@@ -613,6 +642,8 @@ button:focus-visible {
   .modal-panel { margin: 10px 0; padding: 20px 16px; border-radius: 14px; }
   .candidate-list { grid-template-columns: 1fr; gap: 8px; margin-top: 16px; }
   .mission-list { grid-template-columns: 1fr; }
+  .institute { grid-template-columns: 1fr; }
+  .institute-facilities { grid-template-columns: 1fr; }
   .candidate-card { grid-template-columns: 64px 1fr; grid-template-rows: auto; padding: 12px; }
   .candidate-portrait { width: 64px; height: 64px; background-size: auto; }
   .candidate-body > small { margin-top: 5px; }

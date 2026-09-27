@@ -11,11 +11,14 @@ import type {
   GameState,
   PendingDecision,
   MissionId,
+  FacilityId,
+  FallenDelver,
   RoleTruthId,
   RunIdentity,
   RunStoryState,
   ScoreBreakdown,
   TemperamentId,
+  Veteran,
 } from "../types";
 
 export type DecisionPolicy = "temperament" | "always-continue" | "return-3" | "return-6";
@@ -58,10 +61,11 @@ export const expeditionMissions: MissionDefinition[] = [
   },
 ];
 
-export function createRunIdentity(seed: number, roleId: string): RunIdentity {
+export function createRunIdentity(seed: number, roleId: string, avoidNames: string[] = []): RunIdentity {
   const value = stableHash(`${seed}:${roleId}`);
+  const offset = Array.from({ length: names.length }, (_, step) => step).find((step) => !avoidNames.includes(names[(value + step) % names.length])) ?? 0;
   return {
-    name: names[value % names.length],
+    name: names[(value + offset) % names.length],
     roleId,
     temperament: temperaments[Math.floor(value / names.length) % temperaments.length],
   };
@@ -346,32 +350,65 @@ export function calculateScore(state: GameState): ScoreBreakdown {
 
 export function createCampaignState(): CampaignState {
   return {
-    version: 2,
+    version: 3,
     roleTruths: [],
     expeditions: [],
+    shards: 0,
+    facilities: { "war-room": 0, archive: 0, altar: 0 },
+    roster: [],
+    fallen: [],
   };
 }
 
 export function normalizeCampaignState(value: unknown): CampaignState {
   if (!value || typeof value !== "object") return createCampaignState();
   const version = (value as { version?: unknown }).version;
-  if (version !== 1 && version !== 2) return createCampaignState();
-  const input = value as { roleTruths?: unknown; expeditions?: unknown };
+  if (version !== 1 && version !== 2 && version !== 3) return createCampaignState();
+  const input = value as { roleTruths?: unknown; expeditions?: unknown; shards?: unknown; facilities?: unknown; roster?: unknown; fallen?: unknown };
   const roleTruths = Array.isArray(input.roleTruths) ? input.roleTruths.filter(isRoleTruthId) : [];
   const expeditions = Array.isArray(input.expeditions)
     ? input.expeditions.flatMap((entry) => normalizeExpeditionRecord(entry)).slice(0, 100)
     : [];
+  const facilities = (input.facilities && typeof input.facilities === "object" ? input.facilities : {}) as Partial<Record<FacilityId, unknown>>;
   return {
-    version: 2,
+    version: 3,
     roleTruths: unique(roleTruths),
     expeditions,
+    shards: typeof input.shards === "number" && Number.isFinite(input.shards) ? Math.max(0, Math.floor(input.shards)) : 0,
+    facilities: {
+      "war-room": facilityLevel(facilities["war-room"]),
+      archive: facilityLevel(facilities.archive),
+      altar: facilityLevel(facilities.altar),
+    },
+    roster: Array.isArray(input.roster) ? input.roster.flatMap(normalizeVeteran) : [],
+    fallen: Array.isArray(input.fallen) ? (input.fallen as FallenDelver[]).filter((entry) => !!entry?.identity).slice(0, 30) : [],
   };
+}
+
+function facilityLevel(value: unknown): number {
+  return typeof value === "number" && Number.isFinite(value) ? Math.max(0, Math.floor(value)) : 0;
+}
+
+function normalizeVeteran(value: unknown): Veteran[] {
+  if (!value || typeof value !== "object") return [];
+  const veteran = value as Partial<Veteran>;
+  if (!veteran.id || !veteran.identity?.name || !veteran.identity.roleId) return [];
+  return [{
+    id: veteran.id,
+    identity: { ...veteran.identity, veteranId: veteran.id },
+    rank: typeof veteran.rank === "number" ? veteran.rank : 1,
+    expeditions: typeof veteran.expeditions === "number" ? veteran.expeditions : 1,
+    scars: Array.isArray(veteran.scars) ? veteran.scars.filter((id): id is string => typeof id === "string") : [],
+  }];
 }
 
 export function recordCampaignResult(campaign: CampaignState, state: GameState, deathCause: string | null): CampaignState {
   if (state.status === "playing") return campaign;
   const score = calculateScore(state);
   const truthRecovered = (state.status === "won" || state.status === "returned") ? state.story.carriedTruthId : undefined;
+  const newTruth = !!truthRecovered && !campaign.roleTruths.includes(truthRecovered);
+  const shardsEarned = shardsForRun(state, newTruth);
+  const rosterUpdate = updateRoster(campaign, state, deathCause);
   const record: ExpeditionRecord = {
     id: `${state.seed}-${state.runIdentity.roleId}-${state.runTurn}-${state.status}`,
     completedAt: new Date().toISOString(),
@@ -389,12 +426,99 @@ export function recordCampaignResult(campaign: CampaignState, state: GameState, 
     interventionCount: state.story.decisions.filter((entry) => entry.effectSummary && entry.usedRevelation).length,
     truthRecovered,
     endingId: state.story.endingId,
+    shardsEarned,
+    veteranOutcome: rosterUpdate.outcome,
   };
   return {
-    version: 2,
+    version: 3,
     roleTruths: truthRecovered ? unique([...campaign.roleTruths, truthRecovered]) : [...campaign.roleTruths],
     expeditions: [record, ...campaign.expeditions].slice(0, 100),
+    shards: campaign.shards + shardsEarned,
+    facilities: { ...campaign.facilities },
+    roster: rosterUpdate.roster,
+    fallen: rosterUpdate.fallen,
   };
+}
+
+/** 遠征で得る灯片。得点に応じた基本分に、任務・新しい真相・生還の加算がつく。 */
+export function shardsForRun(state: GameState, newTruth: boolean): number {
+  const config = getGameConfig().campaign;
+  const survived = state.status === "returned" || state.status === "won";
+  return Math.floor(calculateScore(state).total / config.scorePerShard)
+    + (state.story.missionCompleted ? config.missionShards : 0)
+    + (newTruth ? config.truthShards : 0)
+    + (survived ? config.survivalShards : 0);
+}
+
+function updateRoster(campaign: CampaignState, state: GameState, deathCause: string | null): { roster: Veteran[]; fallen: FallenDelver[]; outcome: ExpeditionRecord["veteranOutcome"] } {
+  const config = getGameConfig().campaign;
+  const veteranId = state.runIdentity.veteranId;
+  const existing = veteranId ? campaign.roster.find((veteran) => veteran.id === veteranId) : undefined;
+  const others = campaign.roster.filter((veteran) => veteran.id !== veteranId);
+  const survived = state.status === "returned" || state.status === "won";
+  if (!survived) {
+    const fallen = [{ identity: { ...state.runIdentity }, rank: existing?.rank ?? 0, floor: state.story.maxFloorReached, cause: deathCause }, ...campaign.fallen].slice(0, 30);
+    return { roster: others, fallen, outcome: "fallen" };
+  }
+  const player = state.entities.find((entity) => entity.id === state.playerId);
+  const hpRatio = player?.stats ? player.stats.hp / player.stats.maxHp : 1;
+  const scars = [...(existing?.scars ?? [])];
+  let outcome: ExpeditionRecord["veteranOutcome"] = existing ? "promoted" : "recruited";
+  if (hpRatio <= config.scarHpRatio) {
+    const candidates = Object.keys(getGameConfig().scars).filter((id) => !scars.includes(id));
+    if (candidates.length > 0) {
+      scars.push(candidates[stableHash(`${state.seed}:${state.runTurn}:scar`) % candidates.length]);
+      outcome = "scarred";
+    }
+  }
+  const id = existing?.id ?? `veteran-${state.seed}-${state.runIdentity.roleId}`;
+  const veteran: Veteran = {
+    id,
+    identity: { ...state.runIdentity, veteranId: id },
+    rank: Math.min(config.veteranMaxRank, (existing?.rank ?? 0) + 1),
+    expeditions: (existing?.expeditions ?? 0) + 1,
+    scars,
+  };
+  return { roster: [veteran, ...others].slice(0, config.rosterLimit), fallen: [...campaign.fallen], outcome };
+}
+
+export function facilityUpgradeCost(campaign: CampaignState, facilityId: FacilityId): number | null {
+  const costs = getGameConfig().campaign.facilities[facilityId].costs;
+  return costs[campaign.facilities[facilityId]] ?? null;
+}
+
+export function upgradeFacility(campaign: CampaignState, facilityId: FacilityId): CampaignState {
+  const cost = facilityUpgradeCost(campaign, facilityId);
+  if (cost === null || campaign.shards < cost) return campaign;
+  return { ...campaign, shards: campaign.shards - cost, facilities: { ...campaign.facilities, [facilityId]: campaign.facilities[facilityId] + 1 } };
+}
+
+export function treatScar(campaign: CampaignState, veteranId: string, scarId: string): CampaignState {
+  const cost = getGameConfig().campaign.scarTreatmentCost;
+  const veteran = campaign.roster.find((entry) => entry.id === veteranId);
+  if (!veteran || !veteran.scars.includes(scarId) || campaign.shards < cost) return campaign;
+  return {
+    ...campaign,
+    shards: campaign.shards - cost,
+    roster: campaign.roster.map((entry) => entry.id === veteranId ? { ...entry, scars: entry.scars.filter((id) => id !== scarId) } : entry),
+  };
+}
+
+export function campaignTacticSlots(campaign: CampaignState): number {
+  const config = getGameConfig();
+  return config.tactics.slots + campaign.facilities["war-room"] * (config.campaign.facilities["war-room"].tacticSlotsPerLevel ?? 0);
+}
+
+export function campaignBonusEmbers(campaign: CampaignState): number {
+  return campaign.facilities.altar * (getGameConfig().campaign.facilities.altar.startEmbersPerLevel ?? 0);
+}
+
+export function unlockedTacticIds(campaign: CampaignState): string[] {
+  const config = getGameConfig();
+  const unlockedByArchive = new Set((config.campaign.facilities.archive.unlocksPerLevel ?? []).slice(0, campaign.facilities.archive).flat());
+  return Object.entries(config.tactics.definitions)
+    .filter(([id, tactic]) => !tactic.locked || unlockedByArchive.has(id))
+    .map(([id]) => id);
 }
 
 export type CampaignProgress = {

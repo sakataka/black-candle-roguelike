@@ -5,7 +5,13 @@ import { assetForContent } from "./game/content/assets";
 import { getContentName } from "./game/content/entities";
 import {
   calculateScore,
+  campaignBonusEmbers,
   campaignProgress,
+  campaignTacticSlots,
+  facilityUpgradeCost,
+  treatScar,
+  unlockedTacticIds,
+  upgradeFacility,
   chooseDecisionAction,
   createCampaignState,
   createRunIdentity,
@@ -32,6 +38,7 @@ import { PixiRoguelikeRenderer } from "./game/renderer/PixiRoguelikeRenderer";
 import type {
   CampaignState,
   EquipmentConfig,
+  FacilityId,
   GameAction,
   GameState,
   LanternRiteId,
@@ -41,6 +48,7 @@ import type {
   RunLogEntry,
   RunReview,
   StatusCondition,
+  Veteran,
 } from "./game/types";
 
 const CAMPAIGN_STORAGE_KEY = "black-candle-campaign-v1";
@@ -174,12 +182,20 @@ app.innerHTML = `
 
   <section id="candidate-dialog" class="modal-layer" aria-live="polite">
     <div class="modal-panel candidate-panel" role="dialog" aria-modal="true" aria-labelledby="candidate-title">
-      <p class="eyebrow">遠征者選定</p>
+      <p class="eyebrow">灰灯院 · 遠征者選定</p>
       <h2 id="candidate-title">誰を黒燭の迷宮へ送るか</h2>
+      <section class="institute" aria-label="灰灯院の施設">
+        <div class="institute-shards"><span>灯片</span><strong id="institute-shards">0</strong><small>遠征の得点・任務・真相・生還で得られる。</small></div>
+        <div id="institute-facilities" class="institute-facilities"></div>
+        <div id="institute-infirmary" class="institute-infirmary"></div>
+      </section>
       <p>先に遠征任務を定めます。職業と気質だけでなく、任務もAIが目指す一周の目的になります。</p>
       <div id="mission-list" class="mission-list" aria-label="遠征任務"></div>
       <div class="tactic-heading"><strong>作戦カード</strong><span id="tactic-count">0/2</span><small>探索者の判断の癖を決めます。節目の判断でも組み替えられます。</small></div>
       <div id="tactic-list" class="tactic-list" aria-label="作戦カード"></div>
+      <div class="candidate-heading"><strong>遠征団</strong><small>生還した古参は位階が上がって強くなるが、瀕死で帰ると古傷を負う。倒れた者は戻らない。</small></div>
+      <div id="veteran-list" class="candidate-list"></div>
+      <div class="candidate-heading"><strong>新たな志願者</strong></div>
       <div id="candidate-list" class="candidate-list"></div>
     </div>
   </section>
@@ -221,6 +237,9 @@ const pixiRoot = requireElement<HTMLDivElement>("#pixi-root");
 const candidateDialog = requireElement<HTMLElement>("#candidate-dialog");
 const missionList = requireElement<HTMLDivElement>("#mission-list");
 const candidateList = requireElement<HTMLDivElement>("#candidate-list");
+const veteranList = requireElement<HTMLDivElement>("#veteran-list");
+const instituteFacilities = requireElement<HTMLDivElement>("#institute-facilities");
+const instituteInfirmary = requireElement<HTMLDivElement>("#institute-infirmary");
 const tacticList = requireElement<HTMLDivElement>("#tactic-list");
 const decisionTactics = requireElement<HTMLElement>("#decision-tactics");
 const decisionTacticList = requireElement<HTMLDivElement>("#decision-tactic-list");
@@ -255,7 +274,7 @@ let pendingVisualEvents: VisualEvent[] = [];
 let pendingIntent: AutoplayIntent | null = null;
 let lookahead: { decisionKey: string; workers: Worker[]; results: Map<string, LookaheadSummary> } | null = null;
 let paused = false;
-let selectedTactics: string[] = normalizeTactics(loadSelectedTactics()).filter((id) => !getGameConfig().tactics.definitions[id]?.locked);
+let selectedTactics: string[] = loadSelectedTactics();
 let draftTactics: string[] | null = null;
 let draftDecisionId: string | null = null;
 let focusedModal: HTMLElement | null = null;
@@ -300,8 +319,8 @@ function installEvents(): void {
     const button = (event.target as HTMLElement).closest<HTMLButtonElement>("button[data-adopt-tactic]");
     if (!button || button.disabled) return;
     const tacticId = button.dataset.adoptTactic ?? "";
-    const slots = getGameConfig().tactics.slots;
-    selectedTactics = normalizeTactics([tacticId, ...selectedTactics.filter((id) => id !== tacticId)].slice(0, slots));
+    const slots = campaignTacticSlots(campaign);
+    selectedTactics = normalizeTactics([tacticId, ...selectedTactics.filter((id) => id !== tacticId)].slice(0, slots), slots);
     saveSelectedTactics(selectedTactics);
     button.disabled = true;
     button.textContent = "採用済み";
@@ -311,17 +330,38 @@ function installEvents(): void {
     if (!button) return;
     startExpedition(button.dataset.roleId ?? playableRoles()[0].id);
   });
+  veteranList.addEventListener("click", (event) => {
+    const button = (event.target as HTMLElement).closest<HTMLButtonElement>("button[data-veteran-id]");
+    const veteran = campaign.roster.find((entry) => entry.id === button?.dataset.veteranId);
+    if (!veteran) return;
+    startExpedition(veteran.identity.roleId, veteran);
+  });
+  instituteFacilities.addEventListener("click", (event) => {
+    const button = (event.target as HTMLElement).closest<HTMLButtonElement>("button[data-facility-id]");
+    if (!button || button.disabled) return;
+    campaign = upgradeFacility(campaign, button.dataset.facilityId as FacilityId);
+    saveCampaign(campaign);
+    renderCandidateSelection();
+    renderArchive();
+  });
+  instituteInfirmary.addEventListener("click", (event) => {
+    const button = (event.target as HTMLElement).closest<HTMLButtonElement>("button[data-treat-veteran]");
+    if (!button || button.disabled) return;
+    campaign = treatScar(campaign, button.dataset.treatVeteran ?? "", button.dataset.treatScar ?? "");
+    saveCampaign(campaign);
+    renderCandidateSelection();
+  });
   tacticList.addEventListener("click", (event) => {
     const button = (event.target as HTMLElement).closest<HTMLButtonElement>("button[data-tactic-id]");
     if (!button || button.disabled) return;
-    selectedTactics = toggleTactic(selectedTactics, button.dataset.tacticId ?? "");
+    selectedTactics = toggleTactic(selectedTactics, button.dataset.tacticId ?? "", campaignTacticSlots(campaign));
     saveSelectedTactics(selectedTactics);
     renderCandidateSelection();
   });
   decisionTacticList.addEventListener("click", (event) => {
     const button = (event.target as HTMLElement).closest<HTMLButtonElement>("button[data-tactic-id]");
     if (!button || button.disabled || !draftTactics) return;
-    draftTactics = toggleTactic(draftTactics, button.dataset.tacticId ?? "");
+    draftTactics = toggleTactic(draftTactics, button.dataset.tacticId ?? "", state.modifiers.tacticSlots);
     render();
   });
   missionList.addEventListener("click", (event) => {
@@ -370,7 +410,7 @@ function installEvents(): void {
     if (!["1", "2", "3", "4"].includes(event.key)) return;
     const index = Number(event.key) - 1;
     const visibleButtons = !candidateDialog.hidden
-      ? candidateList.querySelectorAll<HTMLButtonElement>("button[data-role-id]")
+      ? candidateDialog.querySelectorAll<HTMLButtonElement>("button[data-veteran-id], button[data-role-id]")
       : !decisionDialog.hidden
         ? decisionOptions.querySelectorAll<HTMLButtonElement>("button[data-option-id]:not(:disabled)")
         : [];
@@ -388,11 +428,20 @@ function openNewExpedition(): void {
   syncModalAccessibility();
 }
 
-function startExpedition(roleId: string): void {
+function startExpedition(roleId: string, veteran?: Veteran): void {
   stopAutoplay();
   selectedRoleId = roleId;
-  selectedIdentity = createRunIdentity(candidateSeed, roleId);
-  state = createInitialGame(candidateSeed, roleId, { identity: selectedIdentity, knownRoleTruths: campaign.roleTruths, missionId: selectedMissionId, tactics: selectedTactics });
+  selectedIdentity = veteran ? { ...veteran.identity } : recruitIdentities().find((identity) => identity.roleId === roleId) ?? createRunIdentity(candidateSeed, roleId);
+  const tacticSlots = campaignTacticSlots(campaign);
+  const unlocked = new Set(unlockedTacticIds(campaign));
+  state = createInitialGame(candidateSeed, roleId, {
+    identity: selectedIdentity,
+    knownRoleTruths: campaign.roleTruths,
+    missionId: selectedMissionId,
+    tactics: selectedTactics.filter((id) => unlocked.has(id)),
+    modifiers: { tacticSlots, rank: veteran?.rank ?? 0, scars: veteran?.scars ?? [] },
+    bonusEmbers: campaignBonusEmbers(campaign),
+  });
   runLog = createRunLog(state.seed, roleId, {}, selectedIdentity);
   currentReview = null;
   archivedRunId = null;
@@ -414,10 +463,17 @@ function renderCandidateSelection(): void {
     button.innerHTML = `<strong>${escapeHtml(mission.label)}</strong><small>${escapeHtml(mission.description)}</small><em>${escapeHtml(mission.targetLabel)} · 報酬 ${escapeHtml(mission.rewardLabel)}</em>`;
     return button;
   }));
-  renderTacticPicker(tacticList, selectedTactics);
-  setText("#tactic-count", `${selectedTactics.length}/${getGameConfig().tactics.slots}`);
+  const slots = campaignTacticSlots(campaign);
+  const unlocked = new Set(unlockedTacticIds(campaign));
+  selectedTactics = normalizeTactics(selectedTactics.filter((id) => unlocked.has(id)), slots);
+  renderTacticPicker(tacticList, selectedTactics, slots);
+  setText("#tactic-count", `${selectedTactics.length}/${slots}`);
+  renderInstitute();
+  renderVeterans();
+  const indexOffset = campaign.roster.length;
+  const recruits = recruitIdentities();
   candidateList.replaceChildren(...playableRoles().map((role, index) => {
-    const identity = createRunIdentity(candidateSeed, role.id);
+    const identity = recruits[index];
     const button = document.createElement("button");
     button.type = "button";
     button.dataset.roleId = role.id;
@@ -429,12 +485,75 @@ function renderCandidateSelection(): void {
     const body = document.createElement("span");
     body.className = "candidate-body";
     body.innerHTML = `
-      <span class="candidate-index">${index + 1}</span>
+      <span class="candidate-index">${index + indexOffset + 1 <= 4 ? index + indexOffset + 1 : ""}</span>
       <strong>${identity.name}</strong>
       <em>${getContentName(role.id)}</em>
       <span class="temperament-tag temperament-${identity.temperament}">${temperamentLabel(identity.temperament)}</span>
       <small>${temperamentDescription(identity.temperament)}</small>
       <small>HP ${role.stats.maxHp} / 攻撃 ${role.stats.attack} / 防御 ${role.stats.defense}</small>
+    `;
+    button.append(portrait, body);
+    return button;
+  }));
+}
+
+/** 古参や他の志願者と名前が重ならない志願者を職業ごとに用意する。 */
+function recruitIdentities(): ReturnType<typeof createRunIdentity>[] {
+  const used = campaign.roster.map((veteran) => veteran.identity.name);
+  return playableRoles().map((role) => {
+    const identity = createRunIdentity(candidateSeed, role.id, used);
+    used.push(identity.name);
+    return identity;
+  });
+}
+
+function renderInstitute(): void {
+  const config = getGameConfig().campaign;
+  setText("#institute-shards", campaign.shards.toLocaleString("ja-JP"));
+  instituteFacilities.replaceChildren(...(Object.keys(config.facilities) as FacilityId[]).map((facilityId) => {
+    const facility = config.facilities[facilityId];
+    const level = campaign.facilities[facilityId];
+    const cost = facilityUpgradeCost(campaign, facilityId);
+    const button = document.createElement("button");
+    button.type = "button";
+    button.dataset.facilityId = facilityId;
+    button.className = "facility-card";
+    button.disabled = cost === null || campaign.shards < cost;
+    button.innerHTML = `<strong>${escapeHtml(facility.label)} <em>Lv${level}/${facility.costs.length}</em></strong><small>${escapeHtml(facility.description)}</small><span>${cost === null ? "最大" : `強化 · 灯片${cost}`}</span>`;
+    return button;
+  }));
+  const scarred = campaign.roster.flatMap((veteran) => veteran.scars.map((scarId) => ({ veteran, scarId })));
+  const treatmentCost = config.scarTreatmentCost;
+  instituteInfirmary.innerHTML = scarred.length
+    ? `<span class="infirmary-label">療房</span>${scarred.map(({ veteran, scarId }) => `<button type="button" class="scar-treat" data-treat-veteran="${escapeHtml(veteran.id)}" data-treat-scar="${escapeHtml(scarId)}"${campaign.shards < treatmentCost ? " disabled" : ""}>${escapeHtml(veteran.identity.name)}の${escapeHtml(getGameConfig().scars[scarId]?.label ?? scarId)}を癒やす · 灯片${treatmentCost}</button>`).join("")}`
+    : "";
+}
+
+function renderVeterans(): void {
+  const scars = getGameConfig().scars;
+  if (campaign.roster.length === 0) {
+    veteranList.innerHTML = '<p class="empty-state">まだ帰還した古参はいない。生還した探索者はここに残る。</p>';
+    return;
+  }
+  veteranList.replaceChildren(...campaign.roster.map((veteran, index) => {
+    const role = playableRoles().find((candidate) => candidate.id === veteran.identity.roleId);
+    const bonus = getGameConfig().campaign.veteranRankBonus;
+    const button = document.createElement("button");
+    button.type = "button";
+    button.dataset.veteranId = veteran.id;
+    button.className = "candidate-card is-veteran";
+    const portrait = document.createElement("span");
+    portrait.className = "candidate-portrait";
+    applySprite(portrait, assetForContent(veteran.identity.roleId), 72);
+    const body = document.createElement("span");
+    body.className = "candidate-body";
+    body.innerHTML = `
+      <span class="candidate-index">${index + 1 <= 4 ? index + 1 : ""}</span>
+      <strong>${escapeHtml(veteran.identity.name)} <span class="rank-stars" aria-label="位階${veteran.rank}">${"★".repeat(veteran.rank)}</span></strong>
+      <em>${getContentName(veteran.identity.roleId)} · 遠征${veteran.expeditions}回</em>
+      <span class="temperament-tag temperament-${veteran.identity.temperament}">${temperamentLabel(veteran.identity.temperament)}</span>
+      ${veteran.scars.length ? `<span class="scar-tags">${veteran.scars.map((id) => `<i title="${escapeHtml(scars[id]?.description ?? "")}">${escapeHtml(scars[id]?.label ?? id)}</i>`).join("")}</span>` : ""}
+      <small>HP ${(role?.stats.maxHp ?? 0) + bonus.maxHp * veteran.rank} / 攻撃 ${(role?.stats.attack ?? 0) + bonus.attack * veteran.rank} / 防御 ${role?.stats.defense ?? 0}</small>
     `;
     button.append(portrait, body);
     return button;
@@ -549,7 +668,7 @@ function renderVitals(observation: ReturnType<typeof observeGame>): void {
   const progress = observation.playerProgress;
   setText("#vitals-name", state.runIdentity.name);
   setText("#hero-role", `${getContentName(player.contentId)} · ${temperamentLabel(state.runIdentity.temperament)}`);
-  setText("#vitals-level", `Lv${progress.level}`);
+  setText("#vitals-level", `${state.modifiers.rank > 0 ? `${"★".repeat(state.modifiers.rank)} ` : ""}Lv${progress.level}`);
   const portrait = requireElement<HTMLElement>("#vitals-portrait");
   if (portrait.dataset.roleId !== player.contentId) {
     portrait.dataset.roleId = player.contentId;
@@ -567,9 +686,10 @@ function renderVitals(observation: ReturnType<typeof observeGame>): void {
   requireElement<HTMLElement>("#vitals-conditions").innerHTML = conditions.length
     ? conditions.map((condition) => `<span class="condition-tag condition-${conditionTone(condition)}">${conditionLabel(condition)} ${condition.turns}手</span>`).join("")
     : '<span class="condition-tag condition-normal">異常なし</span>';
-  requireElement<HTMLElement>("#vitals-tactics").innerHTML = state.tactics.length
+  const scarLabels = state.modifiers.scars.map((id) => getGameConfig().scars[id]?.label ?? id);
+  requireElement<HTMLElement>("#vitals-tactics").innerHTML = (state.tactics.length
     ? tacticLabels(state.tactics).map((label) => `<span>${escapeHtml(label)}</span>`).join("")
-    : '<span class="is-empty">作戦なし</span>';
+    : '<span class="is-empty">作戦なし</span>') + scarLabels.map((label) => `<span class="is-scar">${escapeHtml(label)}</span>`).join("");
   requireElement<HTMLDivElement>("#hero-stats").innerHTML = [
     ["攻撃", String(player.stats?.attack ?? "-")],
     ["防御", String(player.stats?.defense ?? "-")],
@@ -622,20 +742,16 @@ function renderLantern(observation: ReturnType<typeof observeGame>): void {
   }
 }
 
-function availableTacticIds(): string[] {
-  return Object.entries(getGameConfig().tactics.definitions).filter(([, tactic]) => !tactic.locked).map(([id]) => id);
-}
-
-function toggleTactic(current: string[], tacticId: string): string[] {
+function toggleTactic(current: string[], tacticId: string, slots: number): string[] {
   if (current.includes(tacticId)) return current.filter((id) => id !== tacticId);
-  if (current.length >= getGameConfig().tactics.slots) return current;
+  if (current.length >= slots) return current;
   return [...current, tacticId];
 }
 
-function renderTacticPicker(container: HTMLElement, selected: string[]): void {
+function renderTacticPicker(container: HTMLElement, selected: string[], slots: number): void {
   const definitions = getGameConfig().tactics.definitions;
-  const full = selected.length >= getGameConfig().tactics.slots;
-  container.replaceChildren(...availableTacticIds().map((tacticId) => {
+  const full = selected.length >= slots;
+  container.replaceChildren(...unlockedTacticIds(campaign).map((tacticId) => {
     const tactic = definitions[tacticId];
     const active = selected.includes(tacticId);
     const button = document.createElement("button");
@@ -797,8 +913,8 @@ function renderDecision(observation: ReturnType<typeof observeGame>): void {
   const editableTactics = decision.kind === "checkpoint";
   decisionTactics.hidden = !editableTactics;
   if (editableTactics && draftTactics) {
-    renderTacticPicker(decisionTacticList, draftTactics);
-    setText("#decision-tactic-count", `${draftTactics.length}/${getGameConfig().tactics.slots}`);
+    renderTacticPicker(decisionTacticList, draftTactics, state.modifiers.tacticSlots);
+    setText("#decision-tactic-count", `${draftTactics.length}/${state.modifiers.tacticSlots}`);
   }
   const lookaheadTactics = editableTactics && draftTactics ? draftTactics : state.tactics;
   const decisionKey = `${state.seed}:${state.runTurn}:${decision.id}:${lookaheadTactics.join(",")}`;
@@ -1083,11 +1199,23 @@ function renderRunComparison(): void {
     current.missionCompleted ? `任務「${missionDefinition(current.missionId).label}」達成` : "",
     current.truthRecovered ? "新たな真相を持帰り" : "",
     current.endingId ? `結末「${endingLabel(current.endingId)}」を記録` : "",
+    current.shardsEarned ? `灯片 +${current.shardsEarned}` : "",
+    veteranOutcomeLabel(current),
   ].filter(Boolean);
   const comparison = previous
     ? `前回比: 深度 ${signed(current.floor - previous.floor)}階 / 得点 ${signed(current.score.total - previous.score.total)}点`
     : "最初の遠征記録です。ここから灯守の記録が始まります。";
   runComparison.innerHTML = `<strong>${escapeHtml(missionDefinition(current.missionId).label)} ${current.missionCompleted ? "達成" : "未達"}</strong><p>${escapeHtml(comparison)}</p>${badges.length ? `<div>${badges.map((badge) => `<span>${escapeHtml(badge)}</span>`).join("")}</div>` : ""}`;
+}
+
+function veteranOutcomeLabel(record: CampaignState["expeditions"][number]): string {
+  const veteranId = record.identity.veteranId ?? `veteran-${record.seed}-${record.identity.roleId}`;
+  const veteran = campaign.roster.find((entry) => entry.id === veteranId);
+  if (record.veteranOutcome === "fallen") return `${record.identity.name}は遠征団から失われた`;
+  if (record.veteranOutcome === "scarred") return `古傷を負って帰還${veteran ? `（位階${veteran.rank}）` : ""}`;
+  if (record.veteranOutcome === "promoted") return `位階${veteran?.rank ?? ""}へ昇格`;
+  if (record.veteranOutcome === "recruited") return "遠征団に加わった";
+  return "";
 }
 
 function signed(value: number): string {

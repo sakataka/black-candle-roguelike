@@ -18,6 +18,7 @@ import type {
   Point,
   RunObjectiveFlags,
   RunIdentity,
+  RunModifiers,
   RoleTruthId,
   Stats,
   Tile,
@@ -57,7 +58,7 @@ type FloorPlan = {
   monsterPoints: Point[];
 };
 
-type RunCarryState = Pick<GameState, "runTurn" | "runIdentity" | "directive" | "revelationsRemaining" | "lantern" | "tactics" | "knownRoleTruths" | "story">;
+type RunCarryState = Pick<GameState, "runTurn" | "runIdentity" | "directive" | "revelationsRemaining" | "lantern" | "tactics" | "modifiers" | "knownRoleTruths" | "story">;
 
 export function playableRoles() {
   return getGameConfig().roles;
@@ -70,20 +71,39 @@ function roleTraits(roleId: string) {
 export function createInitialGame(
   seed = 20260504,
   roleId = "role.oathbound",
-  options: { identity?: RunIdentity; knownRoleTruths?: RoleTruthId[]; missionId?: MissionId; tactics?: string[] } = {},
+  options: {
+    identity?: RunIdentity;
+    knownRoleTruths?: RoleTruthId[];
+    missionId?: MissionId;
+    tactics?: string[];
+    modifiers?: Partial<RunModifiers>;
+    bonusEmbers?: number;
+  } = {},
 ): GameState {
   const identity = options.identity ?? createRunIdentity(seed, roleId);
+  const modifiers: RunModifiers = {
+    tacticSlots: options.modifiers?.tacticSlots ?? getGameConfig().tactics.slots,
+    scars: [...(options.modifiers?.scars ?? [])].filter((id) => !!getGameConfig().scars[id]),
+    rank: Math.max(0, Math.min(getGameConfig().campaign.veteranMaxRank, options.modifiers?.rank ?? 0)),
+  };
   const state = createFloorState(seed, 1, undefined, [], createInitialProgress(), roleId, createInitialRunObjectives(), {
     runTurn: 0,
     runIdentity: identity,
     directive: defaultDirectiveForTemperament(identity.temperament),
     revelationsRemaining: getGameConfig().autonomous.revelationsPerRun,
-    lantern: createInitialLantern(),
-    tactics: normalizeTactics(options.tactics ?? []),
+    lantern: createInitialLantern(options.bonusEmbers ?? 0),
+    tactics: normalizeTactics(options.tactics ?? [], modifiers.tacticSlots),
+    modifiers,
     knownRoleTruths: [...(options.knownRoleTruths ?? [])],
     story: createRunStoryState(options.missionId ?? defaultMissionForTemperament(identity.temperament)),
   });
   const player = getPlayer(state);
+  if (player.stats && modifiers.rank > 0) {
+    const bonus = getGameConfig().campaign.veteranRankBonus;
+    player.stats.maxHp += bonus.maxHp * modifiers.rank;
+    player.stats.hp = player.stats.maxHp;
+    player.stats.attack += bonus.attack * modifiers.rank;
+  }
   for (const tacticId of state.tactics) {
     for (const grant of getGameConfig().tactics.definitions[tacticId]?.grantItems ?? []) {
       addInventoryItem(player, grant.contentId, grant.quantity);
@@ -120,6 +140,7 @@ function createFloorState(
     revelationsRemaining: config.autonomous.revelationsPerRun,
     lantern: createInitialLantern(),
     tactics: [],
+    modifiers: { tacticSlots: config.tactics.slots, scars: [], rank: 0 },
     knownRoleTruths: [],
     story: createRunStoryState(defaultMissionForTemperament(fallbackIdentity.temperament)),
   };
@@ -244,6 +265,7 @@ function createFloorState(
     revelationsRemaining: run.revelationsRemaining,
     lantern: { ...run.lantern },
     tactics: [...run.tactics],
+    modifiers: { ...run.modifiers, scars: [...run.modifiers.scars] },
     pendingDecision: null,
     knownRoleTruths: [...run.knownRoleTruths],
     story: {
@@ -287,7 +309,7 @@ export function applyAction(state: GameState, action: GameAction): GameState {
   let next = cloneState(state);
   if (action.type === "resolveDecision") {
     if (action.tactics && next.pendingDecision?.kind === "checkpoint") {
-      next.tactics = normalizeTactics(action.tactics);
+      next.tactics = normalizeTactics(action.tactics, next.modifiers.tacticSlots);
     }
     return updateVisibility(resolveDecision(next, action.optionId));
   }
@@ -474,9 +496,9 @@ export function normalizeTactics(tactics: string[], slots = getGameConfig().tact
   return [...new Set(tactics)].filter((id) => !!definitions[id]).slice(0, Math.max(0, slots));
 }
 
-function createInitialLantern(): GameState["lantern"] {
+function createInitialLantern(bonusEmbers = 0): GameState["lantern"] {
   const lantern = getGameConfig().lantern;
-  return { embers: Math.min(lantern.startEmbers, lantern.maxEmbers), maxEmbers: lantern.maxEmbers, ritesUsed: 0 };
+  return { embers: Math.min(lantern.startEmbers + bonusEmbers, lantern.maxEmbers), maxEmbers: lantern.maxEmbers, ritesUsed: 0 };
 }
 
 export function canInvokeLantern(state: GameState, rite: LanternRiteId): boolean {
@@ -591,6 +613,7 @@ function carryRun(state: GameState): RunCarryState {
     revelationsRemaining: state.revelationsRemaining,
     lantern: { ...state.lantern },
     tactics: [...state.tactics],
+    modifiers: { ...state.modifiers, scars: [...state.modifiers.scars] },
     knownRoleTruths: [...state.knownRoleTruths],
     story: {
       ...state.story,
@@ -653,6 +676,7 @@ export function observeGame(state: GameState): GameObservation {
     revelationsRemaining: state.revelationsRemaining,
     lantern: { ...state.lantern },
     tactics: [...state.tactics],
+    modifiers: { ...state.modifiers, scars: [...state.modifiers.scars] },
     pendingDecision: state.pendingDecision ? structuredClone(state.pendingDecision) : null,
     story: structuredClone(state.story),
     messages: state.messages.slice(-8),
@@ -1023,8 +1047,10 @@ function rangedDefenseBonus(state: GameState, actor: Entity): number {
 }
 
 function tacticPerk(state: GameState, perk: "rangedDefense" | "trapAvoidPercent" | "healPercent"): number {
-  const definitions = getGameConfig().tactics.definitions;
-  return state.tactics.reduce((sum, tacticId) => sum + (definitions[tacticId]?.perks?.[perk] ?? 0), 0);
+  const { tactics, scars } = getGameConfig();
+  const fromTactics = state.tactics.reduce((sum, tacticId) => sum + (tactics.definitions[tacticId]?.perks?.[perk] ?? 0), 0);
+  const fromScars = state.modifiers.scars.reduce((sum, scarId) => sum + (scars[scarId]?.perks?.[perk] ?? 0), 0);
+  return fromTactics + fromScars;
 }
 
 function trapAvoidChance(state: GameState, actor: Entity): number {
@@ -1734,7 +1760,7 @@ function dropItemAtPlayer(state: GameState, contentId: string): GameState {
   state.entities.push(item(`${contentId}.dropped.${state.turn}`, contentId, { ...player.pos }, state.floor, rngForFloor(state.seed + state.turn, state.floor)));
   state.messages = pushMessage(state, `${getContentName(contentId)}を足元に置いた。`, "loot");
   if (entry.equipped && player.stats) {
-    player.stats.attack = baseAttack(state.playerProgress) + weaponBonus(player);
+    player.stats.attack = baseAttack(state.playerProgress, state.modifiers.rank) + weaponBonus(player);
     player.stats.defense = baseDefense(state.playerProgress) + defenseBonus(player);
   }
   return reevaluateEquipment(state);
@@ -1962,7 +1988,7 @@ function equipItem(state: GameState, contentId: string): GameState {
   }
   entry.equipped = true;
   if (player.stats) {
-    player.stats.attack = baseAttack(state.playerProgress) + weaponBonus(player);
+    player.stats.attack = baseAttack(state.playerProgress, state.modifiers.rank) + weaponBonus(player);
     player.stats.defense = baseDefense(state.playerProgress) + defenseBonus(player);
   }
   state.messages = pushMessage(state, `${getContentName(contentId)}を装備した。`, "loot");
@@ -2181,7 +2207,7 @@ function reevaluateEquipment(state: GameState): GameState {
     best.equipped = true;
     state.messages = pushMessage(state, `${getContentName(best.contentId)}の方が有用だと判断して装備した。`, "loot");
   }
-  player.stats.attack = baseAttack(state.playerProgress) + weaponBonus(player);
+  player.stats.attack = baseAttack(state.playerProgress, state.modifiers.rank) + weaponBonus(player);
   player.stats.defense = baseDefense(state.playerProgress) + defenseBonus(player);
   return state;
 }
@@ -2224,7 +2250,7 @@ function applyLevelUps(state: GameState): GameState {
     progress = { ...progress, level: progress.level + 1 };
     player.stats.maxHp += rules.levelUpMaxHp;
     player.stats.hp = Math.min(player.stats.maxHp, player.stats.hp + rules.levelUpHeal);
-    player.stats.attack = baseAttack(progress) + weaponBonus(player);
+    player.stats.attack = baseAttack(progress, state.modifiers.rank) + weaponBonus(player);
     player.stats.defense = baseDefense(progress) + defenseBonus(player);
     state.messages = pushMessage(state, `Lv${progress.level}に上がった。最大HPと戦闘力が伸びた。`, "system");
   }
@@ -2232,9 +2258,9 @@ function applyLevelUps(state: GameState): GameState {
   return state;
 }
 
-function baseAttack(progress: PlayerProgress): number {
-  const { rules } = getGameConfig();
-  return rules.baseAttack + Math.max(0, progress.level - 1) * rules.attackPerLevel;
+function baseAttack(progress: PlayerProgress, rank = 0): number {
+  const { rules, campaign } = getGameConfig();
+  return rules.baseAttack + Math.max(0, progress.level - 1) * rules.attackPerLevel + rank * campaign.veteranRankBonus.attack;
 }
 
 function baseDefense(progress: PlayerProgress): number {
@@ -2605,6 +2631,7 @@ function cloneState(state: GameState): GameState {
     runIdentity: { ...state.runIdentity },
     lantern: { ...state.lantern },
     tactics: [...state.tactics],
+    modifiers: { ...state.modifiers, scars: [...state.modifiers.scars] },
     knownRoleTruths: [...state.knownRoleTruths],
     pendingDecision: state.pendingDecision ? {
       ...state.pendingDecision,
