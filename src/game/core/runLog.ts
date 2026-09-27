@@ -87,6 +87,7 @@ export function recordTurn({ log, before, action, after, actor, aiDebug, beforeO
   const entry: RunLogEntry = {
     index: entryIndex,
     turn: after.turn,
+    runTurn: after.runTurn,
     floor: after.floor,
     action: cloneAction(action),
     actor,

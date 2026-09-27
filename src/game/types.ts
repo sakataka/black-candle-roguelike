@@ -602,6 +602,7 @@ export type RunLogEntitySummary = {
 export type RunLogEntry = {
   index: number;
   turn: number;
+  runTurn?: number;
   floor: number;
   action: GameAction;
   actor: "player" | "ai";
