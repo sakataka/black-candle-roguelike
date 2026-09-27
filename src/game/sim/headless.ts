@@ -1,6 +1,7 @@
 import { runSimulation } from "./simulation";
 import type { DecisionPolicy } from "../core/autonomous";
 import type { WatcherPolicy } from "../ai/watcher";
+import type { EndingId } from "../types";
 
 declare const Bun: { argv: string[] };
 
@@ -15,6 +16,8 @@ const logLimit = parseLogLimit(optionValue("--log-limit"));
 const decisionPolicy = parseDecisionPolicy(optionValue("--decision-policy"));
 const watcherPolicy = parseWatcherPolicy(optionValue("--watcher"));
 const tactics = optionValue("--tactics")?.split(",").filter(Boolean) ?? [];
+const heat = Number(optionValue("--heat") ?? 0);
+const aftermath = optionValue("--aftermath") as EndingId | undefined;
 
 const result = await runSimulation({
   seed,
@@ -28,6 +31,8 @@ const result = await runSimulation({
   decisionPolicy,
   watcherPolicy,
   tactics,
+  heat,
+  aftermath,
 });
 
 console.log(JSON.stringify(result));

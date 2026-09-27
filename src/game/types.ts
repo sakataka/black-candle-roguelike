@@ -115,17 +115,47 @@ export type Veteran = {
 };
 
 export type FallenDelver = {
+  id?: string;
   identity: RunIdentity;
   rank: number;
   floor: number;
   cause: string | null;
+  gear?: string;
+  recovered?: boolean;
 };
+
+export type GraveMarker = {
+  id: string;
+  name: string;
+  roleId: string;
+  floor: number;
+  gear?: string;
+};
+
+/** 燭階や周期の余波が遠征へ与える補正。ルール値は加算で重ねる。 */
+export type RunRuleModifier = {
+  label: string;
+  description: string;
+  ruleDeltas?: Partial<Record<RunRuleKey, number>>;
+  lanternStartDelta?: number;
+  lanternMaxDelta?: number;
+  bossOverride?: { floor: number; contentId: string };
+  shardBonusPercent?: number;
+};
+
+export type RunRuleKey = "fovRadius" | "monsterCountBase" | "trapCountBase" | "runTurnLimit" | "runTurnWarning" | "monsterHpScale" | "monsterAttackPerFloor" | "descentHeal";
 
 /** 遠征開始時に灰灯院と遠征団から持ち込む条件。 */
 export type RunModifiers = {
   tacticSlots: number;
   scars: string[];
   rank: number;
+  heat?: number;
+  aftermath?: EndingId;
+  keeperName?: string;
+  ruleDeltas?: Partial<Record<RunRuleKey, number>>;
+  bossOverride?: { floor: number; contentId: string };
+  graves?: GraveMarker[];
 };
 
 export type DecisionOption = {
@@ -181,6 +211,7 @@ export type RunStoryState = {
   coreDisposition?: "research" | "relic";
   endingId?: EndingId;
   turnWarningShown: boolean;
+  recoveredGraves?: string[];
   killedBy?: { cause: "combat" | "rangedCombat" | "trap" | "bleeding" | "venom" | "item"; contentId?: string };
 };
 
@@ -214,7 +245,10 @@ export type ExpeditionRecord = {
   truthRecovered?: RoleTruthId;
   endingId?: EndingId;
   shardsEarned?: number;
-  veteranOutcome?: "promoted" | "scarred" | "fallen" | "recruited";
+  veteranOutcome?: "promoted" | "scarred" | "fallen" | "recruited" | "keeper";
+  heat?: number;
+  cycle?: number;
+  gravesRecovered?: number;
 };
 
 export type CampaignState = {
@@ -225,6 +259,10 @@ export type CampaignState = {
   facilities: Record<FacilityId, number>;
   roster: Veteran[];
   fallen: FallenDelver[];
+  /** 燭階。勝利した最高段の次まで解放され、選んだ段の制約が重なる。 */
+  heat: { unlocked: number; selected: number };
+  /** 結末を迎えるたびに進む周期と、次の迷宮に残る余波。 */
+  cycle: { number: number; aftermath?: EndingId; keeperName?: string };
 };
 
 export type ContentEntity = {
@@ -416,6 +454,8 @@ export type GameConfig = {
     slots: number;
     definitions: Record<string, TacticDefinition>;
   };
+  ascension: { tiers: RunRuleModifier[] };
+  aftermath: Record<EndingId, RunRuleModifier>;
   /** 瀕死で帰還した古参に残る古傷。作戦と同じ形で判断と能力に影響する。 */
   scars: Record<string, TacticDefinition>;
   campaign: {
@@ -428,6 +468,7 @@ export type GameConfig = {
     scarHpRatio: number;
     rosterLimit: number;
     scarTreatmentCost: number;
+    graveShards: number;
     facilities: Record<FacilityId, {
       label: string;
       description: string;

@@ -4,8 +4,8 @@ import { getGameConfig, loadBunGameConfig } from "../content/config";
 import { applyAction, createInitialGame, observeGame } from "../core/game";
 import { paceDelayMs, paceKindFor, type PaceKind } from "../core/pacing";
 import { analyzeRun, createRunLog, recordTurn } from "../core/runLog";
-import { calculateScore, chooseDecisionAction, createRunIdentity, type DecisionPolicy } from "../core/autonomous";
-import type { GameAction, GameState, RunReview } from "../types";
+import { calculateScore, campaignRunModifiers, chooseDecisionAction, createCampaignState, createRunIdentity, type DecisionPolicy } from "../core/autonomous";
+import type { EndingId, GameAction, GameState, RunReview } from "../types";
 
 export type SimulationRunInput = {
   seed: number;
@@ -19,6 +19,8 @@ export type SimulationRunInput = {
   decisionPolicy?: DecisionPolicy;
   watcherPolicy?: WatcherPolicy;
   tactics?: string[];
+  heat?: number;
+  aftermath?: EndingId;
 };
 
 export type SimulationProfile = {
@@ -115,7 +117,15 @@ export async function runSimulation(input: SimulationRunInput): Promise<Simulati
 
   const initStartMs = performance.now();
   const identity = createRunIdentity(input.seed, input.roleId);
-  let state = createInitialGame(input.seed, input.roleId, { identity, tactics: input.tactics });
+  const campaign = { ...createCampaignState(), heat: { unlocked: input.heat ?? 0, selected: input.heat ?? 0 }, cycle: { number: input.aftermath ? 2 : 1, aftermath: input.aftermath } };
+  const carried = campaignRunModifiers(campaign);
+  let state = createInitialGame(input.seed, input.roleId, {
+    identity,
+    tactics: input.tactics,
+    modifiers: { ...carried.modifiers, graves: [] },
+    bonusEmbers: carried.bonusEmbers,
+    bonusMaxEmbers: carried.bonusMaxEmbers,
+  });
   const runLog = createRunLog(input.seed, input.roleId, { maxEntries: input.logLimit ?? undefined }, identity);
   let executedTurns = 0;
   let projectedDisplayMs = 0;

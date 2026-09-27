@@ -1,4 +1,4 @@
-import { getGameConfig } from "../content/config";
+import { getGameConfig, runRules } from "../content/config";
 import { contentEntities } from "../content/entities";
 import type {
   CampaignState,
@@ -13,6 +13,9 @@ import type {
   MissionId,
   FacilityId,
   FallenDelver,
+  GraveMarker,
+  RunModifiers,
+  RunRuleKey,
   RoleTruthId,
   RunIdentity,
   RunStoryState,
@@ -194,7 +197,7 @@ function crisisDecisionFor(state: GameState, act: 1 | 2): PendingDecision {
   if (hasAffliction) return afflictionCrisis(state, act);
   if (rangedThreats >= 2) return rangedCrisis(state, act);
   if (inventoryCount >= 12 || state.playerProgress.gold >= 90) return burdenCrisis(state, act);
-  if (act === 2 && state.runTurn >= getGameConfig().rules.runTurnLimit - 550) return fadingRouteCrisis(state);
+  if (act === 2 && state.runTurn >= runRules(state.modifiers).runTurnLimit - 550) return fadingRouteCrisis(state);
   return act === 1 ? memoryCrisis(state) : furnaceCrisis(state);
 }
 
@@ -357,6 +360,8 @@ export function createCampaignState(): CampaignState {
     facilities: { "war-room": 0, archive: 0, altar: 0 },
     roster: [],
     fallen: [],
+    heat: { unlocked: 0, selected: 0 },
+    cycle: { number: 1 },
   };
 }
 
@@ -364,7 +369,7 @@ export function normalizeCampaignState(value: unknown): CampaignState {
   if (!value || typeof value !== "object") return createCampaignState();
   const version = (value as { version?: unknown }).version;
   if (version !== 1 && version !== 2 && version !== 3) return createCampaignState();
-  const input = value as { roleTruths?: unknown; expeditions?: unknown; shards?: unknown; facilities?: unknown; roster?: unknown; fallen?: unknown };
+  const input = value as { roleTruths?: unknown; expeditions?: unknown; shards?: unknown; facilities?: unknown; roster?: unknown; fallen?: unknown; heat?: unknown; cycle?: unknown };
   const roleTruths = Array.isArray(input.roleTruths) ? input.roleTruths.filter(isRoleTruthId) : [];
   const expeditions = Array.isArray(input.expeditions)
     ? input.expeditions.flatMap((entry) => normalizeExpeditionRecord(entry)).slice(0, 100)
@@ -382,6 +387,25 @@ export function normalizeCampaignState(value: unknown): CampaignState {
     },
     roster: Array.isArray(input.roster) ? input.roster.flatMap(normalizeVeteran) : [],
     fallen: Array.isArray(input.fallen) ? (input.fallen as FallenDelver[]).filter((entry) => !!entry?.identity).slice(0, 30) : [],
+    heat: normalizeHeat(input.heat),
+    cycle: normalizeCycle(input.cycle),
+  };
+}
+
+function normalizeHeat(value: unknown): CampaignState["heat"] {
+  const max = getGameConfig().ascension.tiers.length;
+  const input = (value && typeof value === "object" ? value : {}) as { unlocked?: unknown; selected?: unknown };
+  const unlocked = Math.max(0, Math.min(max, facilityLevel(input.unlocked)));
+  return { unlocked, selected: Math.min(unlocked, facilityLevel(input.selected)) };
+}
+
+function normalizeCycle(value: unknown): CampaignState["cycle"] {
+  const input = (value && typeof value === "object" ? value : {}) as { number?: unknown; aftermath?: unknown; keeperName?: unknown };
+  const aftermath = input.aftermath === "inherit-flame" || input.aftermath === "extinguish-flame" || input.aftermath === "divide-flame" ? input.aftermath : undefined;
+  return {
+    number: Math.max(1, facilityLevel(input.number) || 1),
+    aftermath,
+    keeperName: aftermath === "inherit-flame" && typeof input.keeperName === "string" ? input.keeperName : undefined,
   };
 }
 
@@ -407,8 +431,15 @@ export function recordCampaignResult(campaign: CampaignState, state: GameState, 
   const score = calculateScore(state);
   const truthRecovered = (state.status === "won" || state.status === "returned") ? state.story.carriedTruthId : undefined;
   const newTruth = !!truthRecovered && !campaign.roleTruths.includes(truthRecovered);
-  const shardsEarned = shardsForRun(state, newTruth);
+  const recoveredGraves = new Set(state.story.recoveredGraves ?? []);
+  const shardsEarned = shardsForRun(state, newTruth) + recoveredGraves.size * getGameConfig().campaign.graveShards;
   const rosterUpdate = updateRoster(campaign, state, deathCause);
+  const heatUnlocked = state.status === "won" && (state.modifiers.heat ?? 0) >= campaign.heat.unlocked
+    ? Math.min(getGameConfig().ascension.tiers.length, (state.modifiers.heat ?? 0) + 1)
+    : campaign.heat.unlocked;
+  const cycle: CampaignState["cycle"] = state.story.endingId
+    ? { number: campaign.cycle.number + 1, aftermath: state.story.endingId, keeperName: state.story.endingId === "inherit-flame" ? state.runIdentity.name : undefined }
+    : { ...campaign.cycle };
   const record: ExpeditionRecord = {
     id: `${state.seed}-${state.runIdentity.roleId}-${state.runTurn}-${state.status}`,
     completedAt: new Date().toISOString(),
@@ -428,6 +459,9 @@ export function recordCampaignResult(campaign: CampaignState, state: GameState, 
     endingId: state.story.endingId,
     shardsEarned,
     veteranOutcome: rosterUpdate.outcome,
+    heat: state.modifiers.heat ?? 0,
+    cycle: campaign.cycle.number,
+    gravesRecovered: recoveredGraves.size,
   };
   return {
     version: 3,
@@ -436,7 +470,9 @@ export function recordCampaignResult(campaign: CampaignState, state: GameState, 
     shards: campaign.shards + shardsEarned,
     facilities: { ...campaign.facilities },
     roster: rosterUpdate.roster,
-    fallen: rosterUpdate.fallen,
+    fallen: rosterUpdate.fallen.map((entry) => entry.id && recoveredGraves.has(entry.id) ? { ...entry, recovered: true } : entry),
+    heat: { unlocked: heatUnlocked, selected: Math.min(campaign.heat.selected, heatUnlocked) },
+    cycle,
   };
 }
 
@@ -444,10 +480,60 @@ export function recordCampaignResult(campaign: CampaignState, state: GameState, 
 export function shardsForRun(state: GameState, newTruth: boolean): number {
   const config = getGameConfig().campaign;
   const survived = state.status === "returned" || state.status === "won";
-  return Math.floor(calculateScore(state).total / config.scorePerShard)
+  const base = Math.floor(calculateScore(state).total / config.scorePerShard)
     + (state.story.missionCompleted ? config.missionShards : 0)
     + (newTruth ? config.truthShards : 0)
     + (survived ? config.survivalShards : 0);
+  return Math.floor(base * (100 + runShardBonusPercent(state.modifiers.heat ?? 0, state.modifiers.aftermath)) / 100);
+}
+
+/** 燭階と周期の余波による灯片の上乗せ率（%）。 */
+export function runShardBonusPercent(heat: number, aftermath?: EndingId): number {
+  const { ascension, aftermath: aftermaths } = getGameConfig();
+  const fromHeat = ascension.tiers.slice(0, heat).reduce((sum, tier) => sum + (tier.shardBonusPercent ?? 0), 0);
+  return fromHeat + (aftermath ? aftermaths[aftermath]?.shardBonusPercent ?? 0 : 0);
+}
+
+/** 灰灯院の現状（燭階・周期の余波・墓標）から、次の遠征に持ち込む補正を組み立てる。 */
+export function campaignRunModifiers(campaign: CampaignState): { modifiers: Partial<RunModifiers>; bonusEmbers: number; bonusMaxEmbers: number } {
+  const config = getGameConfig();
+  const heat = campaign.heat.selected;
+  const layers = [...config.ascension.tiers.slice(0, heat), ...(campaign.cycle.aftermath ? [config.aftermath[campaign.cycle.aftermath]] : [])].filter(Boolean);
+  const ruleDeltas: Partial<Record<RunRuleKey, number>> = {};
+  let bonusEmbers = campaignBonusEmbers(campaign);
+  let bonusMaxEmbers = 0;
+  let bossOverride: RunModifiers["bossOverride"];
+  for (const layer of layers) {
+    for (const [key, delta] of Object.entries(layer.ruleDeltas ?? {})) {
+      const ruleKey = key as RunRuleKey;
+      ruleDeltas[ruleKey] = (ruleDeltas[ruleKey] ?? 0) + (delta ?? 0);
+    }
+    bonusEmbers += layer.lanternStartDelta ?? 0;
+    bonusMaxEmbers += layer.lanternMaxDelta ?? 0;
+    if (layer.bossOverride) bossOverride = { ...layer.bossOverride };
+  }
+  return {
+    modifiers: {
+      heat,
+      aftermath: campaign.cycle.aftermath,
+      keeperName: campaign.cycle.keeperName,
+      ruleDeltas,
+      bossOverride,
+      graves: pendingGraves(campaign),
+    },
+    bonusEmbers,
+    bonusMaxEmbers,
+  };
+}
+
+/** まだ弔われていない墓標を、階ごとに最も新しいものだけ選ぶ。 */
+export function pendingGraves(campaign: CampaignState): GraveMarker[] {
+  const byFloor = new Map<number, GraveMarker>();
+  for (const fallen of campaign.fallen) {
+    if (!fallen.id || fallen.recovered || fallen.floor < 1 || byFloor.has(fallen.floor)) continue;
+    byFloor.set(fallen.floor, { id: fallen.id, name: fallen.identity.name, roleId: fallen.identity.roleId, floor: fallen.floor, gear: fallen.gear });
+  }
+  return [...byFloor.values()];
 }
 
 function updateRoster(campaign: CampaignState, state: GameState, deathCause: string | null): { roster: Veteran[]; fallen: FallenDelver[]; outcome: ExpeditionRecord["veteranOutcome"] } {
@@ -456,11 +542,24 @@ function updateRoster(campaign: CampaignState, state: GameState, deathCause: str
   const existing = veteranId ? campaign.roster.find((veteran) => veteran.id === veteranId) : undefined;
   const others = campaign.roster.filter((veteran) => veteran.id !== veteranId);
   const survived = state.status === "returned" || state.status === "won";
-  if (!survived) {
-    const fallen = [{ identity: { ...state.runIdentity }, rank: existing?.rank ?? 0, floor: state.story.maxFloorReached, cause: deathCause }, ...campaign.fallen].slice(0, 30);
-    return { roster: others, fallen, outcome: "fallen" };
-  }
   const player = state.entities.find((entity) => entity.id === state.playerId);
+  if (state.story.endingId === "inherit-flame") {
+    // 黒燭を継いだ者は帰らない。次の周期で堕ちた灯守として現れる。
+    return { roster: others, fallen: [...campaign.fallen], outcome: "keeper" };
+  }
+  if (!survived) {
+    const gear = player?.inventory?.find((entry) => entry.equipped && getGameConfig().equipment[entry.contentId]?.slot === "weapon")?.contentId
+      ?? player?.inventory?.find((entry) => entry.equipped)?.contentId;
+    const fallenEntry: FallenDelver = {
+      id: `grave-${state.seed}-${state.runIdentity.roleId}-${state.runTurn}`,
+      identity: { ...state.runIdentity },
+      rank: existing?.rank ?? 0,
+      floor: state.floor,
+      cause: deathCause,
+      gear,
+    };
+    return { roster: others, fallen: [fallenEntry, ...campaign.fallen].slice(0, 30), outcome: "fallen" };
+  }
   const hpRatio = player?.stats ? player.stats.hp / player.stats.maxHp : 1;
   const scars = [...(existing?.scars ?? [])];
   let outcome: ExpeditionRecord["veteranOutcome"] = existing ? "promoted" : "recruited";

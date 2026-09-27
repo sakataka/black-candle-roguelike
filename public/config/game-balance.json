@@ -92,6 +92,20 @@
       "tactic.dart-volley": { "locked": true, "label": "投げ針を惜しまない", "description": "燠火の投げ針を5本余分に携え、見えた敵へ遠くからでも放つ。", "add": { "dartMinHp": -0.2, "dartRange": 2 }, "grantItems": [{ "contentId": "item.ember-dart", "quantity": 5 }] }
     }
   },
+  "ascension": {
+    "tiers": [
+      { "label": "煤けた灯", "description": "敵の体力が階層ごとに一段と増す。", "ruleDeltas": { "monsterHpScale": 0.15 }, "shardBonusPercent": 15 },
+      { "label": "細る灯火", "description": "遠征開始時の灯火が1つ減る。", "lanternStartDelta": -1, "shardBonusPercent": 15 },
+      { "label": "鋭い闇", "description": "敵の攻撃が階層ごとに一段と鋭くなる。", "ruleDeltas": { "monsterAttackPerFloor": 0.15 }, "shardBonusPercent": 20 },
+      { "label": "短い灯路", "description": "観測の限界が200手早まる。", "ruleDeltas": { "runTurnLimit": -200, "runTurnWarning": -200 }, "shardBonusPercent": 20 },
+      { "label": "群がる影", "description": "各階の敵が2体、罠が1つ増える。", "ruleDeltas": { "monsterCountBase": 2, "trapCountBase": 1 }, "shardBonusPercent": 30 }
+    ]
+  },
+  "aftermath": {
+    "inherit-flame": { "label": "継燭の周期", "description": "前の周期に黒燭へ残った探索者が、堕ちた灯守として第十層に立ちはだかる。", "bossOverride": { "floor": 10, "contentId": "monster.fallen-keeper" }, "shardBonusPercent": 10 },
+    "extinguish-flame": { "label": "消燭の周期", "description": "黒燭が消え、迷宮は深い闇に沈む。視界-2、闇に紛れた敵の攻撃が鋭くなり、灯火の開始と上限-1。灯片+25%。", "ruleDeltas": { "fovRadius": -2, "monsterAttackPerFloor": 0.2 }, "lanternStartDelta": -1, "lanternMaxDelta": -1, "shardBonusPercent": 25 },
+    "divide-flame": { "label": "分灯の周期", "description": "封印が地上の灯へ分かれた。灯火の開始と上限+1、各階の敵+1。", "lanternStartDelta": 1, "lanternMaxDelta": 1, "ruleDeltas": { "monsterCountBase": 1 }, "shardBonusPercent": 10 }
+  },
   "scars": {
     "scar.limp": { "label": "足の古傷", "description": "踏み込みが鈍り、罠を避けにくい。罠回避-10%。", "perks": { "trapAvoidPercent": -10 } },
     "scar.shaken": { "label": "震える手", "description": "傷を恐れ、薬を早く使いすぎる。", "add": { "healBonus": 0.12 } },
@@ -108,6 +122,7 @@
     "scarHpRatio": 0.3,
     "rosterLimit": 6,
     "scarTreatmentCost": 10,
+    "graveShards": 2,
     "facilities": {
       "war-room": { "label": "作戦室", "description": "作戦カードの枠を1つ増やす。", "costs": [30, 70], "tacticSlotsPerLevel": 1 },
       "archive": { "label": "書庫", "description": "封じられた作戦カードを解き明かす。", "costs": [15, 30, 50], "unlocksPerLevel": [["tactic.dart-volley", "tactic.trap-reader"], ["tactic.cover-dance", "tactic.duelist"], ["tactic.thorough"]] },
@@ -249,7 +264,8 @@
     "monster.iron-reliquary-guard": { "hp": 24, "attack": 6, "defense": 4, "hpPerDanger": 2 },
     "monster.crypt-priest": { "hp": 24, "attack": 5, "defense": 2, "hpPerDanger": 2 },
     "monster.blackstone-colossus": { "hp": 38, "attack": 7, "defense": 5, "hpPerDanger": 2 },
-    "monster.black-candle-warden": { "hp": 54, "attack": 9, "defense": 5, "hpPerDanger": 2 }
+    "monster.black-candle-warden": { "hp": 54, "attack": 9, "defense": 5, "hpPerDanger": 2 },
+    "monster.fallen-keeper": { "hp": 72, "attack": 11, "defense": 6, "hpPerDanger": 2 }
   },
   "itemPools": [
     { "floor": 1, "items": ["item.ember-tonic", "item.ember-tonic", "item.coin-pouch", "item.mapping-scroll", "item.glim-map", "item.leather-armor", "item.trapweave-cloak", "item.oath-knife", "item.ember-dart", "item.guardian-draught", "item.unmarked-vial"] },
@@ -285,7 +301,8 @@
   "bosses": [
     { "floor": 3, "contentId": "monster.crypt-priest", "reward": "item.grave-sun-charm" },
     { "floor": 6, "contentId": "monster.blackstone-colossus", "reward": "item.colossus-heart" },
-    { "floor": 10, "contentId": "monster.black-candle-warden", "reward": "item.black-candle-core" }
+    { "floor": 10, "contentId": "monster.black-candle-warden", "reward": "item.black-candle-core" },
+    { "floor": 10, "contentId": "monster.fallen-keeper", "reward": "item.black-candle-core" }
   ],
   "equipment": {
     "item.rusted-sword": { "slot": "weapon", "power": 1 },

@@ -36,6 +36,8 @@ export const contentEntities: Record<string, ContentEntity> = {
   "monster.crypt-priest": { name: "墓所の司祭", tier: "boss", danger: 8, xpReward: 28, family: "undead" },
   "monster.blackstone-colossus": { name: "黒石巨像", tier: "boss", danger: 11, xpReward: 44, family: "construct" },
   "monster.black-candle-warden": { name: "黒燭の番人", tier: "boss", danger: 14, xpReward: 70, family: "demon" },
+  "monster.fallen-keeper": { name: "堕ちた灯守", tier: "boss", danger: 15, xpReward: 80, family: "undead" },
+  "event.grave-marker": { name: "墓標", tier: "early" },
   "item.oath-knife": { name: "誓いの小刀", tier: "early", economyValue: 28 },
   "item.guardian-draught": { name: "護りの青薬", tier: "early", economyValue: 42 },
   "item.repulsion-scroll": { name: "退き風の巻物", tier: "mid", economyValue: 58 },

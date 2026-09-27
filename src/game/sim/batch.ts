@@ -40,6 +40,8 @@ type CliOptions = {
   decisionPolicy: DecisionPolicy;
   watcherPolicy: WatcherPolicy;
   tactics: string[];
+  heat: number;
+  aftermath?: string;
 };
 
 type AggregateSummary = {
@@ -141,6 +143,8 @@ export type BatchSimulationReport = {
     decisionPolicy: DecisionPolicy;
     watcherPolicy: WatcherPolicy;
     tactics: string[];
+    heat: number;
+    aftermath?: string;
   };
   performance: {
     jobs: number;
@@ -218,6 +222,8 @@ for (const config of options.configs) {
         decisionPolicy: options.decisionPolicy,
         watcherPolicy: options.watcherPolicy,
         tactics: options.tactics,
+        heat: options.heat,
+        aftermath: options.aftermath as SimulationTask["aftermath"],
       });
     }
   }
@@ -306,6 +312,8 @@ function parseCli(args: string[]): CliOptions {
     decisionPolicy: parseDecisionPolicy(last(values, "--decision-policy") ?? "temperament"),
     watcherPolicy: parseWatcherPolicy(last(values, "--watcher") ?? "none"),
     tactics: (last(values, "--tactics") ?? "").split(",").filter(Boolean),
+    heat: Number(last(values, "--heat") ?? 0),
+    aftermath: last(values, "--aftermath"),
   };
 }
 
@@ -465,6 +473,8 @@ async function runSimulationInChild(task: SimulationTask): Promise<{ run: Simula
       "--watcher",
       task.watcherPolicy ?? "none",
       ...(task.tactics?.length ? ["--tactics", task.tactics.join(",")] : []),
+      ...(task.heat ? ["--heat", String(task.heat)] : []),
+      ...(task.aftermath ? ["--aftermath", task.aftermath] : []),
       ...(task.trace ? ["trace"] : []),
       ...(task.profile ? ["--profile"] : []),
     ],
@@ -612,6 +622,8 @@ function createBatchReport(
       decisionPolicy: options.decisionPolicy,
       watcherPolicy: options.watcherPolicy,
       tactics: options.tactics,
+      heat: options.heat,
+      aftermath: options.aftermath,
     },
     performance: {
       jobs: options.jobs,
@@ -1023,6 +1035,7 @@ function renderMarkdownReport(report: BatchSimulationReport): string {
     `- Decision policy: ${report.inputs.decisionPolicy}`,
     `- Watcher policy: ${report.inputs.watcherPolicy}`,
     `- Tactics: ${report.inputs.tactics.join(", ") || "none"}`,
+    `- Heat / aftermath: ${report.inputs.heat} / ${report.inputs.aftermath ?? "none"}`,
     `- Configs: ${report.inputs.configs.map((config) => `${config.label}=${config.path}`).join(", ")}`,
     `- Batch elapsed: ${report.performance.batchElapsedMs}ms (${formatNumber(report.performance.runsPerSecond)} runs/sec)`,
     "",

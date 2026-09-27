@@ -1,11 +1,13 @@
 import "./styles.css";
 import { chooseAutoplayAction, describeAutoplayIntent, getAutoplayDebugState, type AutoplayIntent } from "./game/ai/autoplay";
-import { getGameConfig, loadBrowserGameConfig } from "./game/content/config";
+import { getGameConfig, loadBrowserGameConfig, runRules } from "./game/content/config";
 import { assetForContent } from "./game/content/assets";
 import { getContentName } from "./game/content/entities";
 import {
   calculateScore,
-  campaignBonusEmbers,
+  campaignRunModifiers,
+  pendingGraves,
+  runShardBonusPercent,
   campaignProgress,
   campaignTacticSlots,
   facilityUpgradeCost,
@@ -185,9 +187,10 @@ app.innerHTML = `
       <p class="eyebrow">灰灯院 · 遠征者選定</p>
       <h2 id="candidate-title">誰を黒燭の迷宮へ送るか</h2>
       <section class="institute" aria-label="灰灯院の施設">
-        <div class="institute-shards"><span>灯片</span><strong id="institute-shards">0</strong><small>遠征の得点・任務・真相・生還で得られる。</small></div>
+        <div class="institute-shards"><span><i id="shard-icon" class="shard-icon" aria-hidden="true"></i>灯片</span><strong id="institute-shards">0</strong><small>遠征の得点・任務・真相・生還で得られる。</small></div>
         <div id="institute-facilities" class="institute-facilities"></div>
         <div id="institute-infirmary" class="institute-infirmary"></div>
+        <div id="institute-cycle" class="institute-cycle"></div>
       </section>
       <p>先に遠征任務を定めます。職業と気質だけでなく、任務もAIが目指す一周の目的になります。</p>
       <div id="mission-list" class="mission-list" aria-label="遠征任務"></div>
@@ -240,6 +243,7 @@ const candidateList = requireElement<HTMLDivElement>("#candidate-list");
 const veteranList = requireElement<HTMLDivElement>("#veteran-list");
 const instituteFacilities = requireElement<HTMLDivElement>("#institute-facilities");
 const instituteInfirmary = requireElement<HTMLDivElement>("#institute-infirmary");
+const instituteCycle = requireElement<HTMLDivElement>("#institute-cycle");
 const tacticList = requireElement<HTMLDivElement>("#tactic-list");
 const decisionTactics = requireElement<HTMLElement>("#decision-tactics");
 const decisionTacticList = requireElement<HTMLDivElement>("#decision-tactic-list");
@@ -344,6 +348,13 @@ function installEvents(): void {
     renderCandidateSelection();
     renderArchive();
   });
+  instituteCycle.addEventListener("click", (event) => {
+    const button = (event.target as HTMLElement).closest<HTMLButtonElement>("button[data-heat]");
+    if (!button || button.disabled) return;
+    campaign = { ...campaign, heat: { ...campaign.heat, selected: Number(button.dataset.heat ?? 0) } };
+    saveCampaign(campaign);
+    renderCandidateSelection();
+  });
   instituteInfirmary.addEventListener("click", (event) => {
     const button = (event.target as HTMLElement).closest<HTMLButtonElement>("button[data-treat-veteran]");
     if (!button || button.disabled) return;
@@ -434,13 +445,15 @@ function startExpedition(roleId: string, veteran?: Veteran): void {
   selectedIdentity = veteran ? { ...veteran.identity } : recruitIdentities().find((identity) => identity.roleId === roleId) ?? createRunIdentity(candidateSeed, roleId);
   const tacticSlots = campaignTacticSlots(campaign);
   const unlocked = new Set(unlockedTacticIds(campaign));
+  const carried = campaignRunModifiers(campaign);
   state = createInitialGame(candidateSeed, roleId, {
     identity: selectedIdentity,
     knownRoleTruths: campaign.roleTruths,
     missionId: selectedMissionId,
     tactics: selectedTactics.filter((id) => unlocked.has(id)),
-    modifiers: { tacticSlots, rank: veteran?.rank ?? 0, scars: veteran?.scars ?? [] },
-    bonusEmbers: campaignBonusEmbers(campaign),
+    modifiers: { ...carried.modifiers, tacticSlots, rank: veteran?.rank ?? 0, scars: veteran?.scars ?? [] },
+    bonusEmbers: carried.bonusEmbers,
+    bonusMaxEmbers: carried.bonusMaxEmbers,
   });
   runLog = createRunLog(state.seed, roleId, {}, selectedIdentity);
   currentReview = null;
@@ -469,6 +482,7 @@ function renderCandidateSelection(): void {
   renderTacticPicker(tacticList, selectedTactics, slots);
   setText("#tactic-count", `${selectedTactics.length}/${slots}`);
   renderInstitute();
+  renderCycle();
   renderVeterans();
   const indexOffset = campaign.roster.length;
   const recruits = recruitIdentities();
@@ -499,7 +513,7 @@ function renderCandidateSelection(): void {
 
 /** 古参や他の志願者と名前が重ならない志願者を職業ごとに用意する。 */
 function recruitIdentities(): ReturnType<typeof createRunIdentity>[] {
-  const used = campaign.roster.map((veteran) => veteran.identity.name);
+  const used = [...campaign.roster.map((veteran) => veteran.identity.name), ...pendingGraves(campaign).map((grave) => grave.name), ...(campaign.cycle.keeperName ? [campaign.cycle.keeperName] : [])];
   return playableRoles().map((role) => {
     const identity = createRunIdentity(candidateSeed, role.id, used);
     used.push(identity.name);
@@ -509,6 +523,7 @@ function recruitIdentities(): ReturnType<typeof createRunIdentity>[] {
 
 function renderInstitute(): void {
   const config = getGameConfig().campaign;
+  applySprite(requireElement<HTMLElement>("#shard-icon"), assetForContent("ui.shard"), 18);
   setText("#institute-shards", campaign.shards.toLocaleString("ja-JP"));
   instituteFacilities.replaceChildren(...(Object.keys(config.facilities) as FacilityId[]).map((facilityId) => {
     const facility = config.facilities[facilityId];
@@ -519,7 +534,8 @@ function renderInstitute(): void {
     button.dataset.facilityId = facilityId;
     button.className = "facility-card";
     button.disabled = cost === null || campaign.shards < cost;
-    button.innerHTML = `<strong>${escapeHtml(facility.label)} <em>Lv${level}/${facility.costs.length}</em></strong><small>${escapeHtml(facility.description)}</small><span>${cost === null ? "最大" : `強化 · 灯片${cost}`}</span>`;
+    button.innerHTML = `<span class="facility-icon" aria-hidden="true"></span><strong>${escapeHtml(facility.label)} <em>Lv${level}/${facility.costs.length}</em></strong><small>${escapeHtml(facility.description)}</small><span>${cost === null ? "最大" : `強化 · 灯片${cost}`}</span>`;
+    applySprite(button.querySelector<HTMLElement>(".facility-icon") as HTMLElement, assetForContent(`facility.${facilityId}`), 44);
     return button;
   }));
   const scarred = campaign.roster.flatMap((veteran) => veteran.scars.map((scarId) => ({ veteran, scarId })));
@@ -527,6 +543,30 @@ function renderInstitute(): void {
   instituteInfirmary.innerHTML = scarred.length
     ? `<span class="infirmary-label">療房</span>${scarred.map(({ veteran, scarId }) => `<button type="button" class="scar-treat" data-treat-veteran="${escapeHtml(veteran.id)}" data-treat-scar="${escapeHtml(scarId)}"${campaign.shards < treatmentCost ? " disabled" : ""}>${escapeHtml(veteran.identity.name)}の${escapeHtml(getGameConfig().scars[scarId]?.label ?? scarId)}を癒やす · 灯片${treatmentCost}</button>`).join("")}`
     : "";
+}
+
+function renderCycle(): void {
+  const config = getGameConfig();
+  const aftermath = campaign.cycle.aftermath ? config.aftermath[campaign.cycle.aftermath] : null;
+  const graves = pendingGraves(campaign);
+  const tiers = config.ascension.tiers;
+  const heatButtons = Array.from({ length: campaign.heat.unlocked + 1 }, (_, heat) => {
+    const tier = heat > 0 ? tiers[heat - 1] : null;
+    const active = campaign.heat.selected === heat;
+    return `<button type="button" class="heat-option${active ? " is-selected" : ""}" data-heat="${heat}" aria-pressed="${active}" title="${escapeHtml(tier ? tier.description : "制約なし")}">${heat === 0 ? "燭階0" : `燭階${heat}`}<small>${escapeHtml(tier ? tier.label : "素の迷宮")}</small></button>`;
+  }).join("");
+  const emblemAsset = assetForContent("ui.heat");
+  const layers = tiers.slice(0, campaign.heat.selected).map((tier) => `<li>${escapeHtml(tier.label)}：${escapeHtml(tier.description)}</li>`).join("");
+  const bonus = runShardBonusPercent(campaign.heat.selected, campaign.cycle.aftermath);
+  const locked = campaign.heat.unlocked < tiers.length ? `<small class="heat-next">燭階${campaign.heat.unlocked}で第十層を踏破すると燭階${campaign.heat.unlocked + 1}「${escapeHtml(tiers[campaign.heat.unlocked].label)}」が開く。</small>` : "";
+  instituteCycle.innerHTML = `
+    <div class="cycle-head"><span class="cycle-emblem" aria-hidden="true"${emblemAsset ? ` style="${spriteStyle(emblemAsset, 26)}"` : ""}></span><strong>第${campaign.cycle.number}周期</strong>${aftermath ? `<em>${escapeHtml(aftermath.label)}</em>` : "<em>始まりの周期</em>"}${bonus > 0 ? `<span class="cycle-bonus">灯片 +${bonus}%</span>` : ""}</div>
+    ${aftermath ? `<p class="cycle-text">${escapeHtml(campaign.cycle.aftermath === "inherit-flame" && campaign.cycle.keeperName ? `${campaign.cycle.keeperName}が堕ちた灯守として第十層に立ちはだかる。` : aftermath.description)}</p>` : `<p class="cycle-text">結末を選ぶと周期が進み、選んだ結末が次の迷宮を変える。</p>`}
+    ${graves.length ? `<p class="cycle-text">墓標 ${graves.map((grave) => `${escapeHtml(grave.name)}（F${grave.floor}）`).join("・")} が迷宮に残っている。弔えば遺品と灯火を受け継げる。</p>` : ""}
+    <div class="heat-options" role="group" aria-label="燭階">${heatButtons}</div>
+    ${layers ? `<ul class="heat-layers">${layers}</ul>` : ""}
+    ${locked}
+  `;
 }
 
 function renderVeterans(): void {
@@ -634,14 +674,15 @@ function render(): void {
   setText("#run-mission", state.story.missionCompleted ? `${runMission.label} ✓` : `${runMission.label} ${runMissionProgress.current}/${runMissionProgress.target}`);
   setText("#run-revelations", `${state.revelationsRemaining}/${config.autonomous.revelationsPerRun}`);
   setText("#run-floor", `${state.floor}/${config.rules.maxFloor}`);
-  setText("#run-turn", `${state.runTurn}/${config.rules.runTurnLimit}`);
+  const rules = runRules(state.modifiers);
+  setText("#run-turn", `${state.runTurn}/${rules.runTurnLimit}`);
   setText("#biome-kicker", `地下${state.floor}階 / ${state.status === "playing" ? "観測中" : statusLabel(state.status)}`);
   setText("#biome-title", biomeThemeName(state.biome));
   setText("#live-score", score.total.toLocaleString("ja-JP"));
-  setText("#turn-meter-label", state.runTurn >= config.rules.runTurnWarning ? "灯路が揺らいでいる" : "灯路は安定");
+  setText("#turn-meter-label", state.runTurn >= rules.runTurnWarning ? "灯路が揺らいでいる" : "灯路は安定");
   const meter = requireElement<HTMLElement>("#turn-meter-fill");
-  meter.style.width = `${Math.min(100, state.runTurn / config.rules.runTurnLimit * 100)}%`;
-  meter.classList.toggle("is-warning", state.runTurn >= config.rules.runTurnWarning);
+  meter.style.width = `${Math.min(100, state.runTurn / rules.runTurnLimit * 100)}%`;
+  meter.classList.toggle("is-warning", state.runTurn >= rules.runTurnWarning);
 
   setText("#explored-ratio", `${Math.round(observation.exploration.exploredTileRatio * 100)}%`);
   setText("#objective-title", objectiveLabel(observation.exploration.objective));
@@ -665,7 +706,7 @@ function render(): void {
 
 /** 灯火の残りと灯路の残り時間で、探索者を照らす光の強さを決める。 */
 function lightStrengthFor(current: GameState): number {
-  const rules = getGameConfig().rules;
+  const rules = runRules(current.modifiers);
   const emberRatio = current.lantern.maxEmbers > 0 ? current.lantern.embers / current.lantern.maxEmbers : 1;
   const routeLeft = Math.max(0, rules.runTurnLimit - current.runTurn) / Math.max(1, rules.runTurnLimit - rules.runTurnWarning);
   return Math.min(0.55 + emberRatio * 0.45, 0.35 + Math.min(1, routeLeft) * 0.65);
@@ -735,7 +776,8 @@ function renderLantern(observation: ReturnType<typeof observeGame>): void {
       button.type = "button";
       button.dataset.rite = rite;
       button.className = `lantern-rite rite-${rite}`;
-      button.innerHTML = `<kbd>${lanternRiteKeys[rite]}</kbd><strong>${lanternRiteLabel(rite)}</strong><small>${escapeHtml(lanternRiteDescription(rite))}</small><em></em>`;
+      button.innerHTML = `<span class="rite-icon" aria-hidden="true"></span><kbd>${lanternRiteKeys[rite]}</kbd><strong>${lanternRiteLabel(rite)}</strong><small>${escapeHtml(lanternRiteDescription(rite))}</small><em></em>`;
+      applySprite(button.querySelector<HTMLElement>(".rite-icon") as HTMLElement, assetForContent(`rite.${rite}`), 40);
       return button;
     }));
   }
@@ -768,7 +810,8 @@ function renderTacticPicker(container: HTMLElement, selected: string[], slots: n
     button.className = active ? "tactic-card is-selected" : "tactic-card";
     button.disabled = !active && full;
     button.setAttribute("aria-pressed", String(active));
-    button.innerHTML = `<strong>${escapeHtml(tactic.label)}</strong><small>${escapeHtml(tactic.description)}</small>`;
+    button.innerHTML = `<span class="tactic-icon" aria-hidden="true"></span><strong>${escapeHtml(tactic.label)}</strong><small>${escapeHtml(tactic.description)}</small>`;
+    applySprite(button.querySelector<HTMLElement>(".tactic-icon") as HTMLElement, assetForContent(tacticId), container.classList.contains("is-compact") ? 30 : 40);
     return button;
   }));
 }
@@ -1156,11 +1199,16 @@ function renderRunInsights(insights: RunInsights): void {
     ? `<ol class="turning-points">${insights.turningPoints.map((point) => `<li class="tone-${point.tone}"><span>F${point.floor} · ${point.runTurn}手</span><strong>${escapeHtml(point.title)}</strong><small>${escapeHtml(point.detail)}</small></li>`).join("")}</ol>`
     : "";
   const advice = insights.advice.length
-    ? `<div class="run-advice"><h3>次の遠征への示唆</h3><ul>${insights.advice.map((item) => `<li><span>${item.kind === "tactic" ? "作戦" : "灯"}</span><strong>${escapeHtml(item.label)}</strong><small>${escapeHtml(item.reason)}</small>${item.kind === "tactic" ? `<button type="button" class="advice-adopt" data-adopt-tactic="${escapeHtml(item.id)}"${selectedTactics.includes(item.id) ? " disabled" : ""}>${selectedTactics.includes(item.id) ? "採用済み" : "次の遠征で使う"}</button>` : ""}</li>`).join("")}</ul></div>`
+    ? `<div class="run-advice"><h3>次の遠征への示唆</h3><ul>${insights.advice.map((item) => `<li><span class="advice-icon" style="${adviceIconStyle(item)}">${item.kind === "tactic" ? "作戦" : "灯"}</span><strong>${escapeHtml(item.label)}</strong><small>${escapeHtml(item.reason)}</small>${item.kind === "tactic" ? `<button type="button" class="advice-adopt" data-adopt-tactic="${escapeHtml(item.id)}"${selectedTactics.includes(item.id) ? " disabled" : ""}>${selectedTactics.includes(item.id) ? "採用済み" : "次の遠征で使う"}</button>` : ""}</li>`).join("")}</ul></div>`
     : "";
   runInsightsPanel.innerHTML = chart + turning + advice;
   const plot = runInsightsPanel.querySelector<HTMLElement>(".insight-plot");
   if (plot) installInsightHover(plot, points, insights.totalTurns, width);
+}
+
+function adviceIconStyle(item: RunInsights["advice"][number]): string {
+  const asset = assetForContent(item.kind === "tactic" ? item.id : `rite.${item.id}`);
+  return asset ? spriteStyle(asset, 34) : "";
 }
 
 function installInsightHover(plot: HTMLElement, points: RunInsights["timeline"], totalTurns: number, width: number): void {
@@ -1208,6 +1256,9 @@ function renderRunComparison(): void {
     current.truthRecovered ? "新たな真相を持帰り" : "",
     current.endingId ? `結末「${endingLabel(current.endingId)}」を記録` : "",
     current.shardsEarned ? `灯片 +${current.shardsEarned}` : "",
+    current.gravesRecovered ? `墓標${current.gravesRecovered}つを弔った` : "",
+    current.endingId ? `第${campaign.cycle.number}周期へ` : "",
+    current.status === "won" && (current.heat ?? 0) + 1 === campaign.heat.unlocked ? `燭階${campaign.heat.unlocked}が開いた` : "",
     veteranOutcomeLabel(current),
   ].filter(Boolean);
   const comparison = previous
@@ -1219,7 +1270,8 @@ function renderRunComparison(): void {
 function veteranOutcomeLabel(record: CampaignState["expeditions"][number]): string {
   const veteranId = record.identity.veteranId ?? `veteran-${record.seed}-${record.identity.roleId}`;
   const veteran = campaign.roster.find((entry) => entry.id === veteranId);
-  if (record.veteranOutcome === "fallen") return `${record.identity.name}は遠征団から失われた`;
+  if (record.veteranOutcome === "keeper") return `${record.identity.name}は黒燭を継ぎ、次の周期の番人となる`;
+  if (record.veteranOutcome === "fallen") return `${record.identity.name}は倒れ、F${record.floor}に墓標が残った`;
   if (record.veteranOutcome === "scarred") return `古傷を負って帰還${veteran ? `（位階${veteran.rank}）` : ""}`;
   if (record.veteranOutcome === "promoted") return `位階${veteran?.rank ?? ""}へ昇格`;
   if (record.veteranOutcome === "recruited") return "遠征団に加わった";
@@ -1315,6 +1367,12 @@ function saveCampaign(value: CampaignState): void {
 
 function nextSeed(): number {
   return Math.floor(Date.now() % 100_000_000);
+}
+
+function spriteStyle(asset: NonNullable<ReturnType<typeof assetForContent>>, size: number): string {
+  const col = asset.sheet.index % asset.sheet.columns;
+  const row = Math.floor(asset.sheet.index / asset.sheet.columns);
+  return `background-image:url(${publicAssetPath(asset.path)});background-size:${asset.sheet.columns * size}px ${asset.sheet.rows * size}px;background-position:-${col * size}px -${row * size}px`;
 }
 
 function applySprite(element: HTMLElement, asset: ReturnType<typeof assetForContent>, size: number): void {

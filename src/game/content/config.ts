@@ -1,4 +1,4 @@
-import type { BiomeTheme, FloorRule, GameConfig } from "../types";
+import type { BiomeTheme, FloorRule, GameConfig, RunModifiers } from "../types";
 
 let activeGameConfig: GameConfig | null = null;
 
@@ -33,6 +33,23 @@ export async function loadBunGameConfig(path = "public/config/game-balance.json"
   const config = await bun.file(path).json() as GameConfig;
   setGameConfig(config);
   return config;
+}
+
+/** 燭階・周期の余波による加算を反映した、その遠征でのルール値。 */
+export function runRules(modifiers?: Pick<RunModifiers, "ruleDeltas">): GameConfig["rules"] {
+  const rules = getGameConfig().rules;
+  const deltas = modifiers?.ruleDeltas;
+  if (!deltas) return rules;
+  const next = { ...rules };
+  for (const [key, delta] of Object.entries(deltas)) {
+    const ruleKey = key as keyof GameConfig["rules"];
+    if (typeof next[ruleKey] === "number" && typeof delta === "number") {
+      (next as Record<string, unknown>)[ruleKey] = (next[ruleKey] as number) + delta;
+    }
+  }
+  next.fovRadius = Math.max(3, next.fovRadius);
+  next.runTurnWarning = Math.min(next.runTurnWarning, next.runTurnLimit - 50);
+  return next;
 }
 
 export function floorRuleMatches(rule: FloorRule, floor: number, biome: BiomeTheme): boolean {

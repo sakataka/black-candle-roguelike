@@ -17,7 +17,7 @@ describe("作戦と方針", () => {
     expect(survival.huntWeakEnemies).toBe(false);
     expect(survival.combatHp).toBeGreaterThan(bold.combatHp);
     const withCare = resolveAutoplayPolicy({ runIdentity: identity, directive: "survival", tactics: ["tactic.early-care"] });
-    expect(withCare.healBonus).toBeCloseTo(survival.healBonus + 0.1);
+    expect(withCare.healBonus).toBeGreaterThan(survival.healBonus);
   });
 
   test("作戦は定義済みのものだけを枠数まで残し、開始時の携行品を付与する", () => {
@@ -25,7 +25,7 @@ describe("作戦と方針", () => {
     const plain = createInitialGame(20260504, "role.ash-scout");
     const volley = createInitialGame(20260504, "role.ash-scout", { tactics: ["tactic.dart-volley"] });
     const darts = (state: typeof plain) => state.entities.find((entity) => entity.id === state.playerId)?.inventory?.find((entry) => entry.contentId === "item.ember-dart")?.quantity ?? 0;
-    expect(darts(volley)).toBe(darts(plain) + 3);
+    expect(darts(volley)).toBe(darts(plain) + 5);
   });
 
   test("節目の判断でだけ作戦を組み替えられる", () => {

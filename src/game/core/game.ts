@@ -1,5 +1,5 @@
 import * as ROT from "rot-js";
-import { floorRuleMatches, getGameConfig } from "../content/config";
+import { floorRuleMatches, getGameConfig, runRules } from "../content/config";
 import { contentEntities, getContentName } from "../content/entities";
 import type {
   ConditionKind,
@@ -78,20 +78,24 @@ export function createInitialGame(
     tactics?: string[];
     modifiers?: Partial<RunModifiers>;
     bonusEmbers?: number;
+    bonusMaxEmbers?: number;
   } = {},
 ): GameState {
   const identity = options.identity ?? createRunIdentity(seed, roleId);
   const modifiers: RunModifiers = {
+    ...options.modifiers,
     tacticSlots: options.modifiers?.tacticSlots ?? getGameConfig().tactics.slots,
     scars: [...(options.modifiers?.scars ?? [])].filter((id) => !!getGameConfig().scars[id]),
     rank: Math.max(0, Math.min(getGameConfig().campaign.veteranMaxRank, options.modifiers?.rank ?? 0)),
+    graves: options.modifiers?.graves?.map((grave) => ({ ...grave })),
+    ruleDeltas: options.modifiers?.ruleDeltas ? { ...options.modifiers.ruleDeltas } : undefined,
   };
   const state = createFloorState(seed, 1, undefined, [], createInitialProgress(), roleId, createInitialRunObjectives(), {
     runTurn: 0,
     runIdentity: identity,
     directive: defaultDirectiveForTemperament(identity.temperament),
     revelationsRemaining: getGameConfig().autonomous.revelationsPerRun,
-    lantern: createInitialLantern(options.bonusEmbers ?? 0),
+    lantern: createInitialLantern(options.bonusEmbers ?? 0, options.bonusMaxEmbers ?? 0),
     tactics: normalizeTactics(options.tactics ?? [], modifiers.tacticSlots),
     modifiers,
     knownRoleTruths: [...(options.knownRoleTruths ?? [])],
@@ -131,7 +135,6 @@ function createFloorState(
   carriedRun?: RunCarryState,
 ): GameState {
   const config = getGameConfig();
-  const { rules } = config;
   const fallbackIdentity = createRunIdentity(seed, roleId);
   const run = carriedRun ?? {
     runTurn: 0,
@@ -144,6 +147,7 @@ function createFloorState(
     knownRoleTruths: [],
     story: createRunStoryState(defaultMissionForTemperament(fallbackIdentity.temperament)),
   };
+  const rules = runRules(run.modifiers);
   const biome = biomeThemeForFloor(floor);
   const tiles = Array.from({ length: rules.mapWidth * rules.mapHeight }, (): Tile => ({
     kind: "wall",
@@ -227,7 +231,7 @@ function createFloorState(
   const itemPool = itemPoolForFloor(floor);
   const spawnedMonsters = Array.from({ length: rules.monsterCountBase + Math.min(floor, rules.monsterCountFloorCap) }, (_, index) => {
     const contentId = rng.pick(monsterPool);
-    return monster(`${contentId}.${floor}.${index}`, contentId, takePoint(floorPlan.monsterPoints), statsForMonster(contentId, dangerBoost, floor, carriedRunObjectives));
+    return monster(`${contentId}.${floor}.${index}`, contentId, takePoint(floorPlan.monsterPoints), statsForMonster(contentId, dangerBoost, floor, carriedRunObjectives, rules));
   });
   const guaranteedItems = guaranteedItemsForFloor(floor);
   const randomItems = Array.from({ length: rules.itemCountBase + Math.floor(Math.min(floor, rules.itemCountFloorCap) / rules.itemCountFloorDivisor) }, () => rng.pick(itemPool));
@@ -237,13 +241,18 @@ function createFloorState(
     const contentId = rng.pick(eventPool);
     return event(`${contentId}.${floor}.${index}`, contentId, takePoint(floorPlan.eventPoints));
   });
+  // 過去の遠征で倒れた探索者の墓標。倒れた階と同じ階に1つだけ置く。
+  const grave = run.modifiers.graves?.find((candidate) => candidate.floor === floor);
+  if (grave) {
+    spawnedEvents.push(event(`event.grave-marker.${grave.id}`, "event.grave-marker", takePoint(floorPlan.eventPoints)));
+  }
   const trapPool = trapPoolForFloor(floor);
   const spawnedTraps = Array.from({ length: Math.min(rules.trapCountBase + Math.floor(floor / rules.trapCountFloorDivisor), rules.trapCountMax) }, (_, index) => {
     const contentId = rng.pick(trapPool);
     return trap(`${contentId}.${floor}.${index}`, contentId, takePoint(floorPlan.trapPoints));
   });
-  const bossId = bossForFloor(floor);
-  const spawnedBoss = bossId ? [monster(`${bossId}.${floor}`, bossId, bossPointNearStairs(spawnPoints, stairs, rng) ?? takePoint(), statsForMonster(bossId, dangerBoost, floor, carriedRunObjectives))] : [];
+  const bossId = run.modifiers.bossOverride?.floor === floor ? run.modifiers.bossOverride.contentId : bossForFloor(floor);
+  const spawnedBoss = bossId ? [monster(`${bossId}.${floor}`, bossId, bossPointNearStairs(spawnPoints, stairs, rng) ?? takePoint(), statsForMonster(bossId, dangerBoost, floor, carriedRunObjectives, rules))] : [];
 
   const entities: Entity[] = [player, ...spawnedMonsters, ...spawnedBoss, ...spawnedItems, ...spawnedEvents, ...spawnedTraps];
 
@@ -265,7 +274,7 @@ function createFloorState(
     revelationsRemaining: run.revelationsRemaining,
     lantern: { ...run.lantern },
     tactics: [...run.tactics],
-    modifiers: { ...run.modifiers, scars: [...run.modifiers.scars] },
+    modifiers: cloneModifiers(run.modifiers),
     pendingDecision: null,
     knownRoleTruths: [...run.knownRoleTruths],
     story: {
@@ -283,6 +292,9 @@ function createFloorState(
     ].slice(-80),
     status: "playing",
   });
+  if (run.modifiers.bossOverride?.floor === floor && run.modifiers.keeperName) {
+    next.messages = pushMessage(next, `黒燭を継いだ${run.modifiers.keeperName}が、堕ちた灯守となって中枢に立っている。`, "danger");
+  }
   const fallbackAct = floor === 5 ? 1 : floor === 8 ? 2 : null;
   if (fallbackAct && !next.story.contextActs.includes(fallbackAct)) {
     next.story.contextActs.push(fallbackAct);
@@ -376,11 +388,11 @@ export function applyAction(state: GameState, action: GameAction): GameState {
   }
   next.turn += 1;
   next.runTurn += 1;
-  if (next.status === "playing" && next.runTurn >= getGameConfig().rules.runTurnWarning && !next.story.turnWarningShown) {
+  if (next.status === "playing" && next.runTurn >= runRules(next.modifiers).runTurnWarning && !next.story.turnWarningShown) {
     next.story.turnWarningShown = true;
     next.messages = pushMessage(next, "黒燭の像が揺らいだ。灯路断絶まで残された時間は少ない。", "danger");
   }
-  if (next.status === "playing" && next.runTurn >= getGameConfig().rules.runTurnLimit) {
+  if (next.status === "playing" && next.runTurn >= runRules(next.modifiers).runTurnLimit) {
     next.status = "stranded";
     next.pendingDecision = null;
     next.messages = pushMessage(next, "黒燭の像が途切れた。探索者は未帰還となった。", "danger");
@@ -490,15 +502,26 @@ function applyDecisionEffect(state: GameState, effect: NonNullable<NonNullable<G
   return applied.join(" / ") || undefined;
 }
 
+function cloneModifiers(modifiers: RunModifiers): RunModifiers {
+  return {
+    ...modifiers,
+    scars: [...modifiers.scars],
+    graves: modifiers.graves?.map((grave) => ({ ...grave })),
+    ruleDeltas: modifiers.ruleDeltas ? { ...modifiers.ruleDeltas } : undefined,
+    bossOverride: modifiers.bossOverride ? { ...modifiers.bossOverride } : undefined,
+  };
+}
+
 /** 定義済みの作戦だけを、枠数の範囲で重複なく残す。 */
 export function normalizeTactics(tactics: string[], slots = getGameConfig().tactics.slots): string[] {
   const definitions = getGameConfig().tactics.definitions;
   return [...new Set(tactics)].filter((id) => !!definitions[id]).slice(0, Math.max(0, slots));
 }
 
-function createInitialLantern(bonusEmbers = 0): GameState["lantern"] {
+function createInitialLantern(bonusEmbers = 0, bonusMaxEmbers = 0): GameState["lantern"] {
   const lantern = getGameConfig().lantern;
-  return { embers: Math.min(lantern.startEmbers + bonusEmbers, lantern.maxEmbers), maxEmbers: lantern.maxEmbers, ritesUsed: 0 };
+  const maxEmbers = Math.max(1, lantern.maxEmbers + bonusMaxEmbers);
+  return { embers: Math.max(0, Math.min(lantern.startEmbers + bonusEmbers, maxEmbers)), maxEmbers, ritesUsed: 0 };
 }
 
 export function canInvokeLantern(state: GameState, rite: LanternRiteId): boolean {
@@ -613,7 +636,7 @@ function carryRun(state: GameState): RunCarryState {
     revelationsRemaining: state.revelationsRemaining,
     lantern: { ...state.lantern },
     tactics: [...state.tactics],
-    modifiers: { ...state.modifiers, scars: [...state.modifiers.scars] },
+    modifiers: cloneModifiers(state.modifiers),
     knownRoleTruths: [...state.knownRoleTruths],
     story: {
       ...state.story,
@@ -621,6 +644,7 @@ function carryRun(state: GameState): RunCarryState {
       decisions: state.story.decisions.map((entry) => ({ ...entry })),
       contextActs: [...state.story.contextActs],
       crisisKinds: [...state.story.crisisKinds],
+      recoveredGraves: [...(state.story.recoveredGraves ?? [])],
     },
   };
 }
@@ -676,7 +700,7 @@ export function observeGame(state: GameState): GameObservation {
     revelationsRemaining: state.revelationsRemaining,
     lantern: { ...state.lantern },
     tactics: [...state.tactics],
-    modifiers: { ...state.modifiers, scars: [...state.modifiers.scars] },
+    modifiers: cloneModifiers(state.modifiers),
     pendingDecision: state.pendingDecision ? structuredClone(state.pendingDecision) : null,
     story: structuredClone(state.story),
     messages: state.messages.slice(-8),
@@ -917,7 +941,7 @@ function bossForFloor(floor: number): string | null {
 }
 
 function bossAlive(state: GameState): boolean {
-  const bossId = bossForFloor(state.floor);
+  const bossId = state.modifiers.bossOverride?.floor === state.floor ? state.modifiers.bossOverride.contentId : bossForFloor(state.floor);
   return !!bossId && state.entities.some((entity) => entity.kind === "monster" && entity.contentId === bossId);
 }
 
@@ -1010,11 +1034,11 @@ function uniquePoints(points: Point[]): Point[] {
   return unique;
 }
 
-function statsForMonster(contentId: string, dangerBoost: number, floor = 1, runObjectives: RunObjectiveFlags = createInitialRunObjectives()): Stats {
+function statsForMonster(contentId: string, dangerBoost: number, floor = 1, runObjectives: RunObjectiveFlags = createInitialRunObjectives(), rules = getGameConfig().rules): Stats {
   const config = getGameConfig();
   const base = config.monsterStats[contentId] ?? { hp: 5, attack: 1, defense: 0 };
-  let hp = base.hp + Math.round(dangerBoost * (base.hpPerDanger ?? 1) * config.rules.monsterHpScale);
-  let attack = base.attack + Math.floor(dangerBoost * config.rules.monsterAttackPerFloor);
+  let hp = base.hp + Math.round(dangerBoost * (base.hpPerDanger ?? 1) * rules.monsterHpScale);
+  let attack = base.attack + Math.floor(dangerBoost * rules.monsterAttackPerFloor);
   if (runObjectives.lateEnemiesWeakened && floor >= 7 && contentEntities[contentId]?.tier !== "boss") {
     hp = Math.max(1, Math.floor(hp * 0.85));
     attack = Math.max(1, attack - 1);
@@ -1254,6 +1278,9 @@ function triggerEvent(state: GameState, eventEntity: Entity): GameState {
 
 function resolveEvent(state: GameState, eventEntity: Entity): GameState {
   const eventConfig = getGameConfig().events[eventEntity.contentId];
+  if (eventEntity.contentId === "event.grave-marker") {
+    return mournAtGrave(state, eventEntity);
+  }
   if (eventEntity.contentId === "event.blood-inscription") {
     const xp = eventConfig?.xp ?? 6;
     state.playerProgress = normalizeProgress({ ...state.playerProgress, xp: state.playerProgress.xp + xp });
@@ -1367,6 +1394,24 @@ function resolveEvent(state: GameState, eventEntity: Entity): GameState {
   return state;
 }
 
+/** 過去に倒れた探索者の墓標を弔い、遺品と残り火を受け取る。 */
+function mournAtGrave(state: GameState, eventEntity: Entity): GameState {
+  const graveId = eventEntity.id.replace("event.grave-marker.", "");
+  const grave = state.modifiers.graves?.find((candidate) => candidate.id === graveId);
+  state.entities = state.entities.filter((entity) => entity.id !== eventEntity.id);
+  if (!grave) return state;
+  const player = getPlayer(state);
+  const recovered: string[] = [];
+  if (grave.gear && addInventoryItem(player, grave.gear, 1)) recovered.push(`遺品「${getContentName(grave.gear)}」`);
+  if (state.lantern.embers < state.lantern.maxEmbers) {
+    state.lantern = { ...state.lantern, embers: state.lantern.embers + 1 };
+    recovered.push("残り火（灯火+1）");
+  }
+  state.story.recoveredGraves = [...(state.story.recoveredGraves ?? []), grave.id];
+  state.messages = pushMessage(state, `${grave.name}の墓標に祈りを捧げた。${recovered.length ? `${recovered.join("と")}を受け継いだ。` : "静かな灯が揺れた。"}`, "loot");
+  return reevaluateEquipment(state);
+}
+
 function triggerOathEcho(state: GameState, eventEntity: Entity): GameState {
   const player = getPlayer(state);
   const points = openPointsAround(state, eventEntity.pos, 1);
@@ -1430,7 +1475,7 @@ function openSealedRoom(state: GameState, eventEntity: Entity): GameState {
   for (const [index, contentId] of encounters.entries()) {
     const point = points.shift();
     if (point) {
-      state.entities.push(monster(`${contentId}.sealed.${state.turn}.${index}`, contentId, point, statsForMonster(contentId, dangerBoost, state.floor, state.runObjectives)));
+      state.entities.push(monster(`${contentId}.sealed.${state.turn}.${index}`, contentId, point, statsForMonster(contentId, dangerBoost, state.floor, state.runObjectives, runRules(state.modifiers))));
     }
   }
   const rewardPoint = points.shift();
@@ -1451,7 +1496,7 @@ function openDeadFeast(state: GameState, eventEntity: Entity): GameState {
   for (const [index, contentId] of (eventConfig?.encounters ?? ["monster.bone-thrall", "monster.grave-leech", "monster.hollow-archer"]).entries()) {
     const point = points.shift();
     if (point) {
-      state.entities.push(monster(`${contentId}.feast.${state.turn}.${index}`, contentId, point, statsForMonster(contentId, dangerBoost, state.floor, state.runObjectives)));
+      state.entities.push(monster(`${contentId}.feast.${state.turn}.${index}`, contentId, point, statsForMonster(contentId, dangerBoost, state.floor, state.runObjectives, runRules(state.modifiers))));
     }
   }
   for (const contentId of eventConfig?.loot ?? ["item.bloodmoss-salve", "item.coin-pouch"]) {
@@ -1472,7 +1517,7 @@ function openTreasureVault(state: GameState, eventEntity: Entity): GameState {
   const guardPoint = points.shift();
   if (guardPoint) {
     const guard = eventConfig?.highFloorGuard && state.floor >= eventConfig.highFloorGuard.minFloor ? eventConfig.highFloorGuard.contentId : (eventConfig?.guard ?? "monster.blackshield-grub");
-    state.entities.push(monster(`${guard}.vault.${state.turn}`, guard, guardPoint, statsForMonster(guard, state.floor, state.floor, state.runObjectives)));
+    state.entities.push(monster(`${guard}.vault.${state.turn}`, guard, guardPoint, statsForMonster(guard, state.floor, state.floor, state.runObjectives, runRules(state.modifiers))));
   }
   const reward = eventConfig?.highFloorReward && state.floor >= eventConfig.highFloorReward.minFloor ? eventConfig.highFloorReward.contentId : (eventConfig?.reward ?? "item.greater-tonic");
   for (const contentId of [...(eventConfig?.loot ?? ["item.coin-pouch"]), reward]) {
@@ -1498,7 +1543,7 @@ function openCandleGallery(state: GameState, eventEntity: Entity): GameState {
   const guard = state.floor >= 4 ? "monster.cinder-cultist" : "monster.hollow-archer";
   const guardPoint = points.shift();
   if (guardPoint) {
-    state.entities.push(monster(`${guard}.gallery.${state.turn}`, guard, guardPoint, statsForMonster(guard, state.floor, state.floor, state.runObjectives)));
+    state.entities.push(monster(`${guard}.gallery.${state.turn}`, guard, guardPoint, statsForMonster(guard, state.floor, state.floor, state.runObjectives, runRules(state.modifiers))));
   }
   const rewardPoint = points.shift();
   if (rewardPoint) {
@@ -1516,7 +1561,7 @@ function openBoneHeap(state: GameState, eventEntity: Entity): GameState {
   for (const [index, contentId] of encounters.entries()) {
     const point = points.shift();
     if (point) {
-      state.entities.push(monster(`${contentId}.bone-heap.${state.turn}.${index}`, contentId, point, statsForMonster(contentId, state.floor, state.floor, state.runObjectives)));
+      state.entities.push(monster(`${contentId}.bone-heap.${state.turn}.${index}`, contentId, point, statsForMonster(contentId, state.floor, state.floor, state.runObjectives, runRules(state.modifiers))));
     }
   }
   for (const contentId of ["item.coin-pouch", state.floor >= 4 ? "item.bloodmoss-salve" : "item.ember-tonic"]) {
@@ -1541,7 +1586,7 @@ function openFurnaceChamber(state: GameState, eventEntity: Entity): GameState {
   const guardPoint = points[2];
   if (guardPoint) {
     const guard = state.floor >= 7 ? "monster.blackstone-sentinel" : "monster.bramble-packling";
-    state.entities.push(monster(`${guard}.furnace-room.${state.turn}`, guard, guardPoint, statsForMonster(guard, state.floor, state.floor, state.runObjectives)));
+    state.entities.push(monster(`${guard}.furnace-room.${state.turn}`, guard, guardPoint, statsForMonster(guard, state.floor, state.floor, state.runObjectives, runRules(state.modifiers))));
   }
   const trapPoint = points[3];
   if (trapPoint) {
@@ -2409,7 +2454,7 @@ function summonAshWarlockMinion(state: GameState, warlock: Entity): GameState | 
     return null;
   }
   const contentId = state.floor >= 7 ? "monster.ember-moth" : "monster.ash-rat";
-  state.entities.push(monster(`${contentId}.summoned.${state.floor}.${state.turn}`, contentId, point, statsForMonster(contentId, state.floor - 1, state.floor, state.runObjectives)));
+  state.entities.push(monster(`${contentId}.summoned.${state.floor}.${state.turn}`, contentId, point, statsForMonster(contentId, state.floor - 1, state.floor, state.runObjectives, runRules(state.modifiers))));
   if (tileAt(state, warlock.pos).visible || tileAt(state, point).visible) {
     state.messages = pushMessage(state, `${getContentName(warlock.contentId)}が灰の中から${getContentName(contentId)}を呼び出した。`, "combat");
   }
@@ -2583,7 +2628,7 @@ function updateVisibility(state: GameState): GameState {
     return inBounds(state, point) && (samePoint(point, player.pos) || !blocksSight(tileAt(state, point).kind));
   };
   const fov = new ROT.FOV.PreciseShadowcasting(lightPasses, { topology: 8 });
-  fov.compute(player.pos.x, player.pos.y, getGameConfig().rules.fovRadius, (x, y) => {
+  fov.compute(player.pos.x, player.pos.y, runRules(state.modifiers).fovRadius, (x, y) => {
     if (!inBounds(state, { x, y })) {
       return;
     }
@@ -2595,6 +2640,7 @@ function updateVisibility(state: GameState): GameState {
 }
 
 function hasLineOfSight(state: GameState, from: Point, to: Point): boolean {
+  // 敵の視線は闇の余波を受けない。暗さで目が利かなくなるのは探索者の視界（updateVisibility）だけ。
   if (chebyshev(from, to) > getGameConfig().rules.fovRadius) {
     return false;
   }
@@ -2630,7 +2676,7 @@ function cloneState(state: GameState): GameState {
     runIdentity: { ...state.runIdentity },
     lantern: { ...state.lantern },
     tactics: [...state.tactics],
-    modifiers: { ...state.modifiers, scars: [...state.modifiers.scars] },
+    modifiers: cloneModifiers(state.modifiers),
     knownRoleTruths: [...state.knownRoleTruths],
     pendingDecision: state.pendingDecision ? {
       ...state.pendingDecision,
