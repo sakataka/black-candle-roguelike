@@ -59,9 +59,10 @@
       "intervention": 250
     },
     "pacingMs": {
-      "traversal": 300,
-      "exploration": 420,
-      "danger": 650
+      "calm": 100,
+      "traversal": 240,
+      "exploration": 320,
+      "danger": 560
     }
   },
   "biomes": [

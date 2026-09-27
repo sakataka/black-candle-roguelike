@@ -323,6 +323,7 @@ export type GameConfig = {
       intervention: number;
     };
     pacingMs: {
+      calm: number;
       traversal: number;
       exploration: number;
       danger: number;
@@ -406,6 +407,16 @@ export type GameState = {
   story: RunStoryState;
   messages: GameMessage[];
   status: "playing" | "won" | "lost" | "returned" | "stranded";
+  /** 直前の1アクションで起きた攻撃。描画演出専用で、ルール判定には使わない。 */
+  strikes?: StrikeRecord[];
+};
+
+export type StrikeRecord = {
+  attackerId: string;
+  defenderId: string;
+  from: Point;
+  to: Point;
+  ranged: boolean;
 };
 
 export type GameAction =

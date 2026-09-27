@@ -1418,6 +1418,7 @@ function attack(state: GameState, attacker: Entity, defender: Entity): GameState
   const rawDamage = attacker.stats.attack + rng.int(0, getGameConfig().rules.attackRandomBonusMax) + specialDamage - defender.stats.defense;
   const damage = Math.max(1, rawDamage);
   defender.stats.hp -= damage;
+  recordStrike(state, attacker, defender, false);
   const attackerName = attacker.kind === "player" ? "あなた" : getContentName(attacker.contentId);
   const defenderName = defender.kind === "player" ? "あなた" : getContentName(defender.contentId);
   state.messages = pushMessage(state, `${attackerName}は${defenderName}に${damage}ダメージを与えた。`, "combat");
@@ -1732,6 +1733,7 @@ function useItem(state: GameState, contentId: string): GameState {
 
     const damage = consumable.rangedDamage + Math.floor(state.floor / 2);
     target.stats.hp -= damage;
+    recordStrike(state, player, target, true);
     entry.quantity -= 1;
     if (entry.quantity <= 0) {
       player.inventory = player.inventory?.filter((itemEntry) => itemEntry.quantity > 0);
@@ -2147,6 +2149,7 @@ function rangedAttack(state: GameState, attacker: Entity, defender: Entity): Gam
   }
   const damage = Math.max(1, attacker.stats.attack - defender.stats.defense - rangedDefenseBonus(defender) + 1);
   defender.stats.hp -= damage;
+  recordStrike(state, attacker, defender, true);
   state.messages = pushMessage(state, `${getContentName(attacker.contentId)}は離れた位置からあなたに${damage}ダメージを与えた。`, "combat");
   const effect = getGameConfig().monsterAttackEffects[attacker.contentId];
   if (effect && !hasCondition(defender, effect.condition)) {
@@ -2158,6 +2161,10 @@ function rangedAttack(state: GameState, attacker: Entity, defender: Entity): Gam
     state.messages = pushMessage(state, "迷宮の暗闇に倒れた。", "danger");
   }
   return state;
+}
+
+function recordStrike(state: GameState, attacker: Entity, defender: Entity, ranged: boolean): void {
+  state.strikes = [...(state.strikes ?? []), { attackerId: attacker.id, defenderId: defender.id, from: { ...attacker.pos }, to: { ...defender.pos }, ranged }];
 }
 
 function isRangedMonster(contentId: string): boolean {
@@ -2479,6 +2486,7 @@ function cloneState(state: GameState): GameState {
       conditions: entity.conditions?.map((condition) => ({ ...condition })),
     })),
     messages: state.messages.map((entry) => ({ ...entry })),
+    strikes: [],
   };
 }
 

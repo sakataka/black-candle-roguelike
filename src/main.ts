@@ -1,5 +1,5 @@
 import "./styles.css";
-import { chooseAutoplayAction, getAutoplayDebugState } from "./game/ai/autoplay";
+import { chooseAutoplayAction, describeAutoplayIntent, getAutoplayDebugState, type AutoplayIntent } from "./game/ai/autoplay";
 import { getGameConfig, loadBrowserGameConfig } from "./game/content/config";
 import { assetForContent } from "./game/content/assets";
 import { getContentName } from "./game/content/entities";
@@ -21,7 +21,9 @@ import {
   temperamentLabel,
 } from "./game/core/autonomous";
 import { applyAction, biomeThemeName, createInitialGame, observeGame, playableRoles } from "./game/core/game";
+import { paceDelayMs, paceKindFor, type PaceKind } from "./game/core/pacing";
 import { analyzeRun, createRunLog, recordTurn } from "./game/core/runLog";
+import { deriveVisualEvents, type VisualEvent } from "./game/core/visualEvents";
 import { PixiRoguelikeRenderer } from "./game/renderer/PixiRoguelikeRenderer";
 import type {
   CampaignState,
@@ -205,8 +207,9 @@ let currentReview: RunReview | null = null;
 let autoplayTimer: number | null = null;
 let speed = 1;
 let archivedRunId: string | null = null;
-let scheduledAction: GameAction = { type: "wait" };
-let scheduledDanger = false;
+let scheduledPace: PaceKind = "exploration";
+let pendingVisualEvents: VisualEvent[] = [];
+let pendingIntent: AutoplayIntent | null = null;
 let focusedModal: HTMLElement | null = null;
 
 installEvents();
@@ -226,7 +229,7 @@ function installEvents(): void {
       candidate.classList.toggle("is-active", active);
       candidate.setAttribute("aria-pressed", String(active));
     });
-    if (autoplayTimer !== null) scheduleAutoplay(scheduledAction, scheduledDanger);
+    if (autoplayTimer !== null) scheduleAutoplay(scheduledPace);
   });
   requireElement<HTMLButtonElement>("#new-expedition").addEventListener("click", openNewExpedition);
   requireElement<HTMLButtonElement>("#end-new-expedition").addEventListener("click", openNewExpedition);
@@ -246,7 +249,7 @@ function installEvents(): void {
     if (!button || button.disabled) return;
     applyLoggedAction({ type: "resolveDecision", optionId: button.dataset.optionId ?? "" }, "player");
     render();
-    if (state.status === "playing" && !state.pendingDecision) scheduleAutoplay({ type: "resolveDecision", optionId: button.dataset.optionId ?? "" });
+    if (state.status === "playing" && !state.pendingDecision) scheduleAutoplay("exploration");
   });
   window.addEventListener("keydown", (event) => {
     if (event.key === "Tab" && focusedModal) {
@@ -296,7 +299,7 @@ function startExpedition(roleId: string): void {
   decisionDialog.hidden = true;
   endDialog.hidden = true;
   render();
-  scheduleAutoplay({ type: "wait" });
+  scheduleAutoplay("exploration");
 }
 
 function renderCandidateSelection(): void {
@@ -346,19 +349,23 @@ function stepAutoplay(): void {
   }
   const observation = observeGame(state);
   const action = chooseAutoplayAction(observation);
+  pendingIntent = describeAutoplayIntent(observation, action);
   const logEntry = applyLoggedAction(action, "ai", getAutoplayDebugState(observation));
+  const pace = paceKindFor(action, state, logEntry?.messageDelta ?? []);
+  scheduledPace = pace;
   render();
-  if (state.status === "playing" && !state.pendingDecision) scheduleAutoplay(action, isDangerEntry(logEntry));
+  if (state.status === "playing" && !state.pendingDecision) scheduleAutoplay(pace);
 }
 
-function scheduleAutoplay(lastAction: GameAction, danger = false): void {
+function scheduleAutoplay(pace: PaceKind): void {
   stopAutoplay();
   if (state.status !== "playing" || state.pendingDecision || !candidateDialog.hidden) return;
-  scheduledAction = lastAction;
-  scheduledDanger = danger;
-  const pacing = getGameConfig().autonomous.pacingMs;
-  const delay = danger ? pacing.danger : lastAction.type === "move" ? pacing.traversal : pacing.exploration;
-  autoplayTimer = window.setTimeout(stepAutoplay, Math.max(40, Math.round(delay / speed)));
+  scheduledPace = pace;
+  autoplayTimer = window.setTimeout(stepAutoplay, currentStepMs(pace));
+}
+
+function currentStepMs(pace: PaceKind = scheduledPace): number {
+  return Math.max(40, Math.round(paceDelayMs(pace) / speed));
 }
 
 function stopAutoplay(): void {
@@ -371,14 +378,11 @@ function applyLoggedAction(action: GameAction, actor: "player" | "ai", aiDebug?:
   const before = state;
   state = applyAction(state, action);
   if (state === before) return null;
+  pendingVisualEvents.push(...deriveVisualEvents(before, state));
   const entry = recordTurn({ log: runLog, before, action, after: state, actor, aiDebug });
   currentReview = state.status === "playing" ? null : analyzeRun(runLog, state);
   if (state.status !== "playing") archiveCompletedRun();
   return entry;
-}
-
-function isDangerEntry(entry: RunLogEntry | null): boolean {
-  return entry?.messageDelta.some((message) => message.tone === "combat" || message.tone === "danger") ?? false;
 }
 
 function archiveCompletedRun(): void {
@@ -391,7 +395,9 @@ function archiveCompletedRun(): void {
 }
 
 function render(): void {
-  renderer.render(state);
+  renderer.render(state, { events: pendingVisualEvents, intent: pendingIntent, stepMs: currentStepMs() });
+  pendingVisualEvents = [];
+  pendingIntent = null;
   const observation = observeGame(state);
   const player = observation.player;
   const config = getGameConfig();

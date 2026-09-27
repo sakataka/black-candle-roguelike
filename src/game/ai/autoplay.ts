@@ -1203,3 +1203,59 @@ function directionFromDelta(dx: number, dy: number): Direction {
   }
   return dy < 0 ? "north" : "south";
 }
+
+export type AutoplayIntent = {
+  text: string;
+  tone: "combat" | "survival" | "loot" | "explore" | "descend";
+};
+
+/**
+ * 観戦者向けに、選んだ行動を短い意図として言語化する。
+ * 判断そのものには使わず、吹き出しやログ表示に使う。
+ */
+export function describeAutoplayIntent(observation: GameObservation, action: GameAction): AutoplayIntent | null {
+  const player = observation.player;
+  const hpRatio = (player.stats?.hp ?? 1) / (player.stats?.maxHp ?? 1);
+  if (action.type === "useItem") {
+    const consumable = getGameConfig().consumables[action.contentId];
+    const name = contentEntities[action.contentId]?.name ?? "道具";
+    if (consumable?.heal || consumable?.cureConditions) return { text: `${name}で立て直す`, tone: "survival" };
+    if (consumable?.rangedDamage) return { text: `${name}を投げる`, tone: "combat" };
+    return { text: `${name}を使う`, tone: consumable?.guardedTurns || consumable?.pushVisibleMonsters ? "survival" : "explore" };
+  }
+  if (action.type === "pickup") return { text: "拾っておこう", tone: "loot" };
+  if (action.type === "equip") return { text: `${contentEntities[action.contentId]?.name ?? "装備"}に持ち替える`, tone: "loot" };
+  if (action.type === "merchantService") return { text: "商人と取引する", tone: "loot" };
+  if (action.type === "descend") return { text: "下へ降りる", tone: "descend" };
+  if (action.type !== "move") return null;
+
+  const delta = directionDelta(action.direction);
+  const destination = { x: player.pos.x + delta.x, y: player.pos.y + delta.y };
+  const hostiles = observation.visibleEntities.filter((entity) => entity.kind === "monster" && entity.hostile);
+  const target = hostiles.find((entity) => samePoint(entity.pos, destination));
+  if (target) {
+    const boss = contentEntities[target.contentId]?.tier === "boss";
+    return { text: boss ? "守り手に挑む" : hpRatio <= 0.35 ? "押し切るしかない" : "斬りかかる", tone: "combat" };
+  }
+  const rangedThreat = hostiles.find((entity) => isRangedThreat(entity.contentId) && distance(entity.pos, player.pos) <= 6);
+  if (rangedThreat) {
+    const closing = distance(destination, rangedThreat.pos) < distance(player.pos, rangedThreat.pos);
+    return closing ? { text: "射手へ詰め寄る", tone: "combat" } : { text: "射線から外れる", tone: "survival" };
+  }
+  const boss = hostiles.find((entity) => contentEntities[entity.contentId]?.tier === "boss");
+  if (boss) return { text: "守り手へ向かう", tone: "combat" };
+  if (hostiles.some((entity) => distance(entity.pos, player.pos) <= 4)) return { text: "敵へ向き直る", tone: "combat" };
+  const itemAhead = observation.visibleEntities.find((entity) => entity.kind === "item" && distance(entity.pos, destination) < distance(entity.pos, player.pos));
+  if (itemAhead) return { text: "何か落ちている", tone: "loot" };
+  if (observation.exploration.reachableStairs && !observation.bossAlive) return { text: "階段へ急ぐ", tone: "descend" };
+  return null;
+}
+
+function directionDelta(direction: Direction): Point {
+  const match = directions.find((entry) => entry.action.type === "move" && entry.action.direction === direction);
+  if (match) return match.delta;
+  return {
+    x: direction.includes("west") ? -1 : direction.includes("east") ? 1 : 0,
+    y: direction.includes("north") ? -1 : direction.includes("south") ? 1 : 0,
+  };
+}

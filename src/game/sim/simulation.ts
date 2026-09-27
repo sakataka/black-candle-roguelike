@@ -1,6 +1,7 @@
 import { chooseAutoplayAction, getAutoplayDebugState, resetAutoplayState } from "../ai/autoplay";
 import { getGameConfig, loadBunGameConfig } from "../content/config";
 import { applyAction, createInitialGame, observeGame } from "../core/game";
+import { paceDelayMs, paceKindFor, type PaceKind } from "../core/pacing";
 import { analyzeRun, createRunLog, recordTurn } from "../core/runLog";
 import { calculateScore, chooseDecisionAction, createRunIdentity, type DecisionPolicy } from "../core/autonomous";
 import type { GameAction, GameState, RunReview } from "../types";
@@ -114,8 +115,7 @@ export async function runSimulation(input: SimulationRunInput): Promise<Simulati
   const runLog = createRunLog(input.seed, input.roleId, { maxEntries: input.logLimit ?? undefined }, identity);
   let executedTurns = 0;
   let projectedDisplayMs = 0;
-  let scheduledFromAction: GameAction = { type: "wait" };
-  let scheduledDanger = false;
+  let scheduledPace: PaceKind = "exploration";
   let observation = timeProfile(profile, "observeGame", () => observeGame(state));
   let lastKnownTiles = observation.knownTiles.length;
   let turnsWithoutKnownTileGrowth = 0;
@@ -131,8 +131,7 @@ export async function runSimulation(input: SimulationRunInput): Promise<Simulati
     }
     const beforeObservation = observation;
     if (!beforeObservation.pendingDecision) {
-      const pacing = getGameConfig().autonomous.pacingMs;
-      projectedDisplayMs += scheduledDanger ? pacing.danger : scheduledFromAction.type === "move" ? pacing.traversal : pacing.exploration;
+      projectedDisplayMs += paceDelayMs(scheduledPace);
     }
     const action = timeProfile(profile, "chooseAutoplayAction", () => beforeObservation.pendingDecision
       ? chooseDecisionAction(beforeObservation, input.decisionPolicy ?? "temperament")
@@ -175,8 +174,7 @@ export async function runSimulation(input: SimulationRunInput): Promise<Simulati
     if (action.type !== "resolveDecision") {
       executedTurns += 1;
     }
-    scheduledFromAction = action;
-    scheduledDanger = logEntry.messageDelta.some((entry) => entry.tone === "combat" || entry.tone === "danger");
+    scheduledPace = paceKindFor(action, state, logEntry.messageDelta);
     observation = afterObservation;
   }
   addProfileMs(profile, "turnLoopMs", performance.now() - loopStartMs);
