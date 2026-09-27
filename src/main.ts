@@ -98,7 +98,7 @@ app.innerHTML = `
           <button type="button" data-speed="2" aria-pressed="false">2×</button>
           <button type="button" data-speed="3" aria-pressed="false">3×</button>
         </div>
-        <button id="sound-toggle" class="secondary-button sound-toggle" type="button" aria-pressed="true" aria-label="音を消す" title="音のオン・オフ (M)"></button>
+        <button id="sound-toggle" class="secondary-button sound-toggle" type="button" aria-pressed="true" aria-label="音を消す" title="効果音のオン・オフ (M)"></button>
         <button id="new-expedition" class="secondary-button" type="button">新しい遠征</button>
       </div>
     </header>
@@ -185,7 +185,7 @@ app.innerHTML = `
         <ol id="archive-list" class="archive-list"></ol>
       </section>
     </section>
-    <footer class="observer-footer">効果音: SFX Forge で生成（一部は Sound effects generated with Woosh (Sony AI)、Sonniss #GameAudioGDC Bundle の素材を含む）。環境音楽: Web Audio による合成。</footer>
+    <footer class="observer-footer">効果音: SFX Forge で生成（一部は Sound effects generated with Woosh (Sony AI)、Sonniss #GameAudioGDC Bundle の素材を含む）。</footer>
   </main>
 
   <section id="candidate-dialog" class="modal-layer" aria-live="polite">
@@ -764,11 +764,6 @@ function playFrameSounds(events: VisualEvent[]): void {
   const priority = ["death", "returned", "boss_down", "decision", "level_up", "grave", "rite_flare", "rite_mend", "rite_guide", "rite_ward", "hero_hurt", "trap", "enemy_down", "hero_hit", "arrow_shot", "dart_throw", "descend", "pickup"];
   [...pendingSounds].sort((a, b) => priority.indexOf(a) - priority.indexOf(b)).slice(0, 4).forEach((key) => soundscape.play(key));
   pendingSounds.clear();
-  soundscape.setBiome(state.biome);
-  const player = state.entities.find((entity) => entity.id === state.playerId);
-  const visibleHostiles = state.entities.filter((entity) => entity.kind === "monster" && entity.hostile && state.tiles[entity.pos.y * state.width + entity.pos.x]?.visible).length;
-  const hpRatio = player?.stats ? player.stats.hp / player.stats.maxHp : 1;
-  soundscape.setTension(state.status === "playing" ? Math.min(1, visibleHostiles * 0.22 + (hpRatio <= 0.35 ? 0.45 : 0)) : 0);
 }
 
 function syncSoundToggle(): void {
