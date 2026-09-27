@@ -40,6 +40,28 @@
     "runTurnWarning": 1350,
     "runTurnLimit": 1600
   },
+  "lantern": {
+    "startEmbers": 3,
+    "maxEmbers": 6,
+    "embersPerFloor": 1,
+    "embersPerGuardian": 1,
+    "rites": {
+      "flare": { "cost": 1, "dazeTurns": 3 },
+      "mend": { "cost": 2, "healPercent": 40, "cureConditions": true },
+      "guide": { "cost": 1, "revealRadius": 14, "revealTraps": 3 },
+      "ward": { "cost": 2, "guardedTurns": 10, "pushVisibleMonsters": true }
+    },
+    "watcher": {
+      "mendHpRatio": 0.3,
+      "mendAfflictedHpRatio": 0.45,
+      "flareAdjacentHostiles": 2,
+      "flareBossHpRatio": 0.55,
+      "wardRangedThreats": 2,
+      "wardHpRatio": 0.6,
+      "guideMinEmbers": 3,
+      "guideFloorTurns": 140
+    }
+  },
   "autonomous": {
     "revelationsPerRun": 2,
     "scoring": {

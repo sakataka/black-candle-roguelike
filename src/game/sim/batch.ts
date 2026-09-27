@@ -2,6 +2,7 @@ import { getGameConfig, loadBunGameConfig } from "../content/config";
 import type { GameAction, GameState } from "../types";
 import { runSimulation, type SimulationProfile, type SimulationRunResult } from "./simulation";
 import type { DecisionPolicy } from "../core/autonomous";
+import type { WatcherPolicy } from "../ai/watcher";
 
 declare const Bun: {
   argv: string[];
@@ -37,6 +38,7 @@ type CliOptions = {
   profile: boolean;
   logLimit: number | null;
   decisionPolicy: DecisionPolicy;
+  watcherPolicy: WatcherPolicy;
 };
 
 type AggregateSummary = {
@@ -136,6 +138,7 @@ export type BatchSimulationReport = {
     profile: boolean;
     logLimit: number | null;
     decisionPolicy: DecisionPolicy;
+    watcherPolicy: WatcherPolicy;
   };
   performance: {
     jobs: number;
@@ -211,6 +214,7 @@ for (const config of options.configs) {
         trace: options.trace,
         logLimit: options.logLimit,
         decisionPolicy: options.decisionPolicy,
+        watcherPolicy: options.watcherPolicy,
       });
     }
   }
@@ -297,6 +301,7 @@ function parseCli(args: string[]): CliOptions {
     profile: profile || defaults.profile,
     logLimit: parseLogLimit(last(values, "--log-limit") ?? defaults.logLimit),
     decisionPolicy: parseDecisionPolicy(last(values, "--decision-policy") ?? "temperament"),
+    watcherPolicy: parseWatcherPolicy(last(values, "--watcher") ?? "none"),
   };
 }
 
@@ -305,6 +310,11 @@ function parsePreset(value: string): BatchPreset {
     return value;
   }
   throw new Error("--preset must be custom, smoke, standard, compare, or deep");
+}
+
+function parseWatcherPolicy(value: string): WatcherPolicy {
+  if (value === "none" || value === "lantern") return value;
+  throw new Error("--watcher must be none or lantern");
 }
 
 function parseDecisionPolicy(value: string): DecisionPolicy {
@@ -448,6 +458,8 @@ async function runSimulationInChild(task: SimulationTask): Promise<{ run: Simula
       task.logLimit === null ? "none" : String(task.logLimit),
       "--decision-policy",
       task.decisionPolicy ?? "temperament",
+      "--watcher",
+      task.watcherPolicy ?? "none",
       ...(task.trace ? ["trace"] : []),
       ...(task.profile ? ["--profile"] : []),
     ],
@@ -593,6 +605,7 @@ function createBatchReport(
       profile: options.profile,
       logLimit: options.logLimit,
       decisionPolicy: options.decisionPolicy,
+      watcherPolicy: options.watcherPolicy,
     },
     performance: {
       jobs: options.jobs,
@@ -693,6 +706,7 @@ function summarizeRuns(runResults: SimulationRunResult[]): AggregateSummary {
     merchantService: 0,
     descend: 0,
     resolveDecision: 0,
+    invokeLantern: 0,
   };
 
   for (const run of runResults) {
@@ -748,6 +762,7 @@ function summarizeRuns(runResults: SimulationRunResult[]): AggregateSummary {
       merchantService: ratio(actionTotals.merchantService, count),
       descend: ratio(actionTotals.descend, count),
       resolveDecision: ratio(actionTotals.resolveDecision, count),
+      invokeLantern: ratio(actionTotals.invokeLantern, count),
     },
     averagePickups: average(runResults, (run) => run.pickups),
     averageAttacks: average(runResults, (run) => run.attacks),
@@ -1000,6 +1015,7 @@ function renderMarkdownReport(report: BatchSimulationReport): string {
     `- Trace/Profile: ${report.inputs.trace ? "on" : "off"} / ${report.inputs.profile ? "on" : "off"}`,
     `- Log limit: ${report.inputs.logLimit ?? "full"}`,
     `- Decision policy: ${report.inputs.decisionPolicy}`,
+    `- Watcher policy: ${report.inputs.watcherPolicy}`,
     `- Configs: ${report.inputs.configs.map((config) => `${config.label}=${config.path}`).join(", ")}`,
     `- Batch elapsed: ${report.performance.batchElapsedMs}ms (${formatNumber(report.performance.runsPerSecond)} runs/sec)`,
     "",

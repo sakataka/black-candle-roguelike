@@ -5,10 +5,6 @@ import type { VisualEvent } from "../core/visualEvents";
 import type { BiomeTheme, Direction, Entity, GameState, Point, TileKind } from "../types";
 
 const TILE_SIZE = 64;
-const VIEWPORT_WIDTH = 16;
-const VIEWPORT_HEIGHT = 10;
-const VIEW_PX_W = VIEWPORT_WIDTH * TILE_SIZE;
-const VIEW_PX_H = VIEWPORT_HEIGHT * TILE_SIZE;
 const MEMORY_SHADE_ALPHA = 0.46;
 
 type TextureKey = TileKind | string;
@@ -39,6 +35,7 @@ type EntityView = {
   moveDuration: number;
   flashUntil: number;
   lunge: { dx: number; dy: number; start: number } | null;
+  dazed: boolean;
 };
 
 type Effect = {
@@ -78,12 +75,14 @@ export class PixiRoguelikeRenderer {
   private currentLight = 1;
   private playerId = "player";
   private clock = 0;
+  private viewWidth = 16 * TILE_SIZE;
+  private viewHeight = 10 * TILE_SIZE;
   private ready = false;
 
   async mount(container: HTMLElement): Promise<void> {
     await this.app.init({
-      width: VIEW_PX_W,
-      height: VIEW_PX_H,
+      width: this.viewWidth,
+      height: this.viewHeight,
       background: "#050404",
       antialias: false,
       resolution: Math.min(window.devicePixelRatio || 1, 2),
@@ -118,7 +117,7 @@ export class PixiRoguelikeRenderer {
     this.lightStrength = clamp(options.lightStrength ?? 1, 0, 1);
 
     const player = state.entities.find((entity) => entity.id === state.playerId);
-    this.cameraTarget = cameraTargetFor(state, player?.pos ?? { x: 0, y: 0 });
+    this.cameraTarget = cameraTargetFor(state, player?.pos ?? { x: 0, y: 0 }, this.viewWidth, this.viewHeight);
     if (sceneChanged) {
       this.camera = { ...this.cameraTarget };
     }
@@ -130,6 +129,19 @@ export class PixiRoguelikeRenderer {
     if (state.status === "lost" && player) {
       const view = this.views.get(player.id);
       if (view) view.sprite.tint = 0x6f6660;
+    }
+  }
+
+  /** 表示タイル数を変える。狭い画面では正方形寄りにして1タイルを大きく見せる。 */
+  setViewport(columns: number, rows: number): void {
+    const width = columns * TILE_SIZE;
+    const height = rows * TILE_SIZE;
+    if (width === this.viewWidth && height === this.viewHeight) return;
+    this.viewWidth = width;
+    this.viewHeight = height;
+    if (this.ready) {
+      this.app.renderer.resize(width, height);
+      this.camera = { ...this.cameraTarget };
     }
   }
 
@@ -155,8 +167,8 @@ export class PixiRoguelikeRenderer {
     for (const child of this.terrainLayer.removeChildren()) child.destroy();
     const minX = Math.max(0, Math.floor(Math.min(this.camera.x, this.cameraTarget.x) / TILE_SIZE) - 1);
     const minY = Math.max(0, Math.floor(Math.min(this.camera.y, this.cameraTarget.y) / TILE_SIZE) - 1);
-    const maxX = Math.min(state.width - 1, Math.ceil((Math.max(this.camera.x, this.cameraTarget.x) + VIEW_PX_W) / TILE_SIZE) + 1);
-    const maxY = Math.min(state.height - 1, Math.ceil((Math.max(this.camera.y, this.cameraTarget.y) + VIEW_PX_H) / TILE_SIZE) + 1);
+    const maxX = Math.min(state.width - 1, Math.ceil((Math.max(this.camera.x, this.cameraTarget.x) + this.viewWidth) / TILE_SIZE) + 1);
+    const maxY = Math.min(state.height - 1, Math.ceil((Math.max(this.camera.y, this.cameraTarget.y) + this.viewHeight) / TILE_SIZE) + 1);
     const shade = new Graphics();
     const edges = new Graphics();
     const voids = new Graphics();
@@ -212,6 +224,7 @@ export class PixiRoguelikeRenderer {
       if (entity.kind === "monster" && entity.stats && view.hpBar) {
         drawHpBar(view.hpBar, entity.stats.hp / entity.stats.maxHp, "#c75644");
       }
+      view.dazed = entity.conditions?.some((condition) => condition.kind === "dazed") ?? false;
     }
     const dying = new Set(events.flatMap((event) => event.kind === "death" ? [event.entityId] : []));
     for (const [id, view] of this.views) {
@@ -251,6 +264,7 @@ export class PixiRoguelikeRenderer {
       moveDuration: 0,
       flashUntil: 0,
       lunge: null,
+      dazed: false,
     };
   }
 
@@ -342,7 +356,8 @@ export class PixiRoguelikeRenderer {
       view.root.x = x * TILE_SIZE;
       view.root.y = y * TILE_SIZE;
       if (view.sprite.tint !== 0x6f6660) {
-        view.sprite.tint = this.clock < view.flashUntil ? 0xff8a78 : 0xffffff;
+        view.sprite.tint = this.clock < view.flashUntil ? 0xff8a78 : view.dazed ? 0x9fb4ff : 0xffffff;
+        view.sprite.alpha = view.dazed ? 0.72 + Math.sin(this.clock / 120) * 0.12 : 1;
       }
     }
 
@@ -396,11 +411,11 @@ export class PixiRoguelikeRenderer {
 
     this.flashOverlay.clear();
     if (this.clock < this.flashUntil) {
-      this.flashOverlay.rect(0, 0, VIEW_PX_W, VIEW_PX_H).fill({ color: "#8a1a10", alpha: 0.2 * ((this.flashUntil - this.clock) / 200) });
+      this.flashOverlay.rect(0, 0, this.viewWidth, this.viewHeight).fill({ color: "#8a1a10", alpha: 0.2 * ((this.flashUntil - this.clock) / 200) });
     }
     this.fadeOverlay.clear();
     if (this.clock < this.fadeUntil) {
-      this.fadeOverlay.rect(0, 0, VIEW_PX_W, VIEW_PX_H).fill({ color: "#000000", alpha: (this.fadeUntil - this.clock) / 520 });
+      this.fadeOverlay.rect(0, 0, this.viewWidth, this.viewHeight).fill({ color: "#000000", alpha: (this.fadeUntil - this.clock) / 520 });
     }
   }
 
@@ -607,10 +622,10 @@ function drawHpBar(bar: Graphics, ratio: number, color: string): void {
   bar.rect(9, 55, width, 5).fill(color);
 }
 
-function cameraTargetFor(state: GameState, center: Point): Point {
+function cameraTargetFor(state: GameState, center: Point, viewWidth: number, viewHeight: number): Point {
   return {
-    x: clamp((center.x + 0.5) * TILE_SIZE - VIEW_PX_W / 2, 0, Math.max(0, state.width * TILE_SIZE - VIEW_PX_W)),
-    y: clamp((center.y + 0.5) * TILE_SIZE - VIEW_PX_H / 2, 0, Math.max(0, state.height * TILE_SIZE - VIEW_PX_H)),
+    x: clamp((center.x + 0.5) * TILE_SIZE - viewWidth / 2, 0, Math.max(0, state.width * TILE_SIZE - viewWidth)),
+    y: clamp((center.y + 0.5) * TILE_SIZE - viewHeight / 2, 0, Math.max(0, state.height * TILE_SIZE - viewHeight)),
   };
 }
 

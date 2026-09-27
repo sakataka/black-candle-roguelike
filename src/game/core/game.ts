@@ -11,6 +11,7 @@ import type {
   GameMessage,
   GameObservation,
   GameState,
+  LanternRiteId,
   MerchantServiceId,
   MissionId,
   PlayerProgress,
@@ -56,7 +57,7 @@ type FloorPlan = {
   monsterPoints: Point[];
 };
 
-type RunCarryState = Pick<GameState, "runTurn" | "runIdentity" | "directive" | "revelationsRemaining" | "knownRoleTruths" | "story">;
+type RunCarryState = Pick<GameState, "runTurn" | "runIdentity" | "directive" | "revelationsRemaining" | "lantern" | "knownRoleTruths" | "story">;
 
 export function playableRoles() {
   return getGameConfig().roles;
@@ -77,6 +78,7 @@ export function createInitialGame(
     runIdentity: identity,
     directive: defaultDirectiveForTemperament(identity.temperament),
     revelationsRemaining: getGameConfig().autonomous.revelationsPerRun,
+    lantern: createInitialLantern(),
     knownRoleTruths: [...(options.knownRoleTruths ?? [])],
     story: createRunStoryState(options.missionId ?? defaultMissionForTemperament(identity.temperament)),
   });
@@ -108,6 +110,7 @@ function createFloorState(
     runIdentity: fallbackIdentity,
     directive: defaultDirectiveForTemperament(fallbackIdentity.temperament),
     revelationsRemaining: config.autonomous.revelationsPerRun,
+    lantern: createInitialLantern(),
     knownRoleTruths: [],
     story: createRunStoryState(defaultMissionForTemperament(fallbackIdentity.temperament)),
   };
@@ -230,6 +233,7 @@ function createFloorState(
     runIdentity: { ...run.runIdentity },
     directive: run.directive,
     revelationsRemaining: run.revelationsRemaining,
+    lantern: { ...run.lantern },
     pendingDecision: null,
     knownRoleTruths: [...run.knownRoleTruths],
     story: {
@@ -266,9 +270,16 @@ export function applyAction(state: GameState, action: GameAction): GameState {
     return state;
   }
 
+  if (action.type === "invokeLantern" && !canInvokeLantern(state, action.rite)) {
+    return state;
+  }
+
   let next = cloneState(state);
   if (action.type === "resolveDecision") {
     return updateVisibility(resolveDecision(next, action.optionId));
+  }
+  if (action.type === "invokeLantern") {
+    return updateVisibility(invokeLantern(next, action.rite));
   }
   const player = getPlayer(next);
 
@@ -444,6 +455,82 @@ function applyDecisionEffect(state: GameState, effect: NonNullable<NonNullable<G
   return applied.join(" / ") || undefined;
 }
 
+function createInitialLantern(): GameState["lantern"] {
+  const lantern = getGameConfig().lantern;
+  return { embers: Math.min(lantern.startEmbers, lantern.maxEmbers), maxEmbers: lantern.maxEmbers, ritesUsed: 0 };
+}
+
+export function canInvokeLantern(state: GameState, rite: LanternRiteId): boolean {
+  const config = getGameConfig().lantern.rites[rite];
+  if (!config || state.status !== "playing" || state.pendingDecision || state.lantern.embers < config.cost) return false;
+  return lanternRiteHasEffect(state, config);
+}
+
+/** 効果が空振りする介入は受け付けず、灯火を無駄にさせない。 */
+function lanternRiteHasEffect(state: GameState, config: GameConfig["lantern"]["rites"][LanternRiteId]): boolean {
+  const player = getPlayer(state);
+  const visibleHostile = state.entities.some((entity) => entity.kind === "monster" && entity.hostile && tileAt(state, entity.pos).visible);
+  if (config.dazeTurns && !visibleHostile) return false;
+  if (config.healPercent && !config.guardedTurns && player.stats) {
+    const afflicted = player.conditions?.some((condition) => condition.kind === "bleeding" || condition.kind === "venomed") ?? false;
+    if (player.stats.hp >= player.stats.maxHp && !afflicted) return false;
+  }
+  return true;
+}
+
+/** 灯守の介入。探索者の手番・ターン経過・敵の手番を発生させない。 */
+function invokeLantern(state: GameState, rite: LanternRiteId): GameState {
+  const config = getGameConfig().lantern.rites[rite];
+  const player = getPlayer(state);
+  state.lantern = { ...state.lantern, embers: state.lantern.embers - config.cost, ritesUsed: state.lantern.ritesUsed + 1 };
+  const applied: string[] = [];
+  if (config.dazeTurns) {
+    let dazed = 0;
+    for (const entity of state.entities) {
+      if (entity.kind !== "monster" || !entity.hostile || !tileAt(state, entity.pos).visible) continue;
+      entity.conditions = upsertCondition(entity.conditions, "dazed", config.dazeTurns);
+      dazed += 1;
+    }
+    applied.push(dazed > 0 ? `敵${dazed}体が${config.dazeTurns}手のあいだ怯んだ` : "照らす敵はいなかった");
+  }
+  if (config.cureConditions) {
+    const before = player.conditions?.length ?? 0;
+    player.conditions = clearConditions(player.conditions, ["bleeding", "venomed"]);
+    if (before !== (player.conditions?.length ?? 0)) applied.push("出血と毒が消えた");
+  }
+  if (config.healPercent && player.stats) {
+    const amount = Math.max(1, Math.round(player.stats.maxHp * config.healPercent / 100));
+    const healed = Math.min(amount, player.stats.maxHp - player.stats.hp);
+    player.stats.hp += healed;
+    applied.push(`HP+${healed}`);
+  }
+  if (config.guardedTurns) {
+    player.conditions = upsertCondition(player.conditions, "guarded", config.guardedTurns);
+    if (player.stats) player.stats.defense = baseDefense(state.playerProgress) + defenseBonus(player);
+    applied.push(`護り${config.guardedTurns}手`);
+  }
+  if (config.pushVisibleMonsters) {
+    applied.push(`敵${pushVisibleMonstersAway(state, player.pos)}体を押し戻した`);
+  }
+  if (config.revealRadius) {
+    revealAround(state, player.pos, config.revealRadius);
+    applied.push(`周囲${config.revealRadius}マスを照らした`);
+  }
+  if (config.revealTraps) {
+    const revealed = revealKnownTrapTiles(state, config.revealTraps, player.pos);
+    if (revealed > 0) applied.push(`罠${revealed}つを暴いた`);
+  }
+  state.messages = pushMessage(state, `灯守が「${lanternRiteLabel(rite)}」を捧げた: ${applied.join("、") || "灯が揺れた"}。`, "system");
+  return state;
+}
+
+export function lanternRiteLabel(rite: LanternRiteId): string {
+  if (rite === "flare") return "閃灯";
+  if (rite === "mend") return "癒灯";
+  if (rite === "guide") return "導灯";
+  return "護灯";
+}
+
 function resolveMissionCompletion(state: GameState): GameState {
   if (state.story.missionCompleted || !missionProgress(state).completed) return state;
   state.story.missionCompleted = true;
@@ -460,6 +547,11 @@ function resolveMissionCompletion(state: GameState): GameState {
 }
 
 function descendToNextFloor(state: GameState, messages: GameMessage[]): GameState {
+  const perFloor = getGameConfig().lantern.embersPerFloor;
+  if (perFloor > 0 && state.lantern.embers < state.lantern.maxEmbers) {
+    state.lantern = { ...state.lantern, embers: Math.min(state.lantern.maxEmbers, state.lantern.embers + perFloor) };
+    messages = [...messages, message(state.turn, `新しい階層の闇が黒燭に灯火を宿した。灯火+${perFloor}。`, "loot")].slice(-80);
+  }
   return createFloorState(
     state.seed + 101 * state.floor,
     state.floor + 1,
@@ -478,6 +570,7 @@ function carryRun(state: GameState): RunCarryState {
     runIdentity: { ...state.runIdentity },
     directive: state.directive,
     revelationsRemaining: state.revelationsRemaining,
+    lantern: { ...state.lantern },
     knownRoleTruths: [...state.knownRoleTruths],
     story: {
       ...state.story,
@@ -491,7 +584,7 @@ function carryRun(state: GameState): RunCarryState {
 
 export function observeGame(state: GameState): GameObservation {
   const player = getPlayer(state);
-  const observedEntity = ({ id, kind, contentId, pos, stats, hostile, blocksMovement, goldAmount }: Entity) => ({
+  const observedEntity = ({ id, kind, contentId, pos, stats, hostile, blocksMovement, goldAmount, conditions }: Entity) => ({
     id,
     kind,
     contentId: kind === "trap" ? "trap.risk-panel" : contentId,
@@ -500,6 +593,7 @@ export function observeGame(state: GameState): GameObservation {
     hostile,
     blocksMovement,
     goldAmount,
+    conditions: kind === "monster" && conditions?.length ? conditions.map((condition) => ({ ...condition })) : undefined,
   });
   const visibleEntities = state.entities.filter((entity) => tileAt(state, entity.pos).visible).map(observedEntity);
   const knownEntities = state.entities
@@ -537,6 +631,7 @@ export function observeGame(state: GameState): GameObservation {
     runIdentity: { ...state.runIdentity },
     directive: state.directive,
     revelationsRemaining: state.revelationsRemaining,
+    lantern: { ...state.lantern },
     pendingDecision: state.pendingDecision ? structuredClone(state.pendingDecision) : null,
     story: structuredClone(state.story),
     messages: state.messages.slice(-8),
@@ -1004,6 +1099,7 @@ function triggerTrap(state: GameState, actor: Entity, trapEntity: Entity): GameS
   if (actor.stats.hp <= 0) {
     if (actor.kind === "player") {
       state.status = "lost";
+      state.story.killedBy = { cause: "trap", contentId: trapEntity.contentId };
       state.messages = pushMessage(state, "罠に倒れ、迷宮の暗闇に沈んだ。", "danger");
     } else {
       state.entities = state.entities.filter((entity) => entity.id !== actor.id);
@@ -1076,6 +1172,7 @@ function triggerRiskPanel(state: GameState, actor: Entity, trapEntity: Entity): 
   if (actor.stats.hp <= 0) {
     if (actor.kind === "player") {
       state.status = "lost";
+      state.story.killedBy = { cause: "trap", contentId: trapEntity.contentId };
       state.messages = pushMessage(state, "運命の標に命を奪われ、迷宮の暗闇に沈んだ。", "danger");
     } else {
       state.entities = state.entities.filter((entity) => entity.id !== actor.id);
@@ -1430,25 +1527,35 @@ function attack(state: GameState, attacker: Entity, defender: Entity): GameState
   if (defender.stats.hp <= 0) {
     if (defender.kind === "player") {
       state.status = "lost";
+      state.story.killedBy = { cause: "combat", contentId: attacker.contentId };
       state.messages = pushMessage(state, "迷宮の暗闇に倒れた。", "danger");
     } else {
-      const reward = bossRewardFor(defender.contentId);
-      const defeatedPos = { ...defender.pos };
-      state = awardXp(state, defender.contentId);
-      state.entities = state.entities.filter((entity) => entity.id !== defender.id);
-      state.messages = pushMessage(state, `${getContentName(defender.contentId)}を倒した。`, "combat");
-      if (reward) {
-        state.entities.push(item(`${reward}.boss.${state.floor}.${state.turn}`, reward, defeatedPos, state.floor, rngForFloor(state.seed + state.turn, state.floor)));
-        state.messages = pushMessage(state, `${getContentName(reward)}が残された。`, "loot");
-        state = dropBonusBossRewards(state, defeatedPos);
-      }
-      if (contentEntities[defender.contentId]?.tier === "boss") {
-        state.story.bossesDefeated += 1;
-      }
-      state = applyRoleBossGoal(state, defender.contentId, defeatedPos);
+      state = defeatMonster(state, defender);
     }
   }
   return state;
+}
+
+function defeatMonster(state: GameState, defeated: Entity): GameState {
+  const reward = bossRewardFor(defeated.contentId);
+  const defeatedPos = { ...defeated.pos };
+  state = awardXp(state, defeated.contentId);
+  state.entities = state.entities.filter((entity) => entity.id !== defeated.id);
+  state.messages = pushMessage(state, `${getContentName(defeated.contentId)}を倒した。`, "combat");
+  if (reward) {
+    state.entities.push(item(`${reward}.boss.${state.floor}.${state.turn}`, reward, defeatedPos, state.floor, rngForFloor(state.seed + state.turn, state.floor)));
+    state.messages = pushMessage(state, `${getContentName(reward)}が残された。`, "loot");
+    state = dropBonusBossRewards(state, defeatedPos);
+  }
+  if (contentEntities[defeated.contentId]?.tier === "boss") {
+    state.story.bossesDefeated += 1;
+    const lantern = getGameConfig().lantern;
+    if (lantern.embersPerGuardian > 0) {
+      state.lantern = { ...state.lantern, embers: Math.min(state.lantern.maxEmbers, state.lantern.embers + lantern.embersPerGuardian) };
+      state.messages = pushMessage(state, `守り手の残り火が黒燭へ還った。灯火+${lantern.embersPerGuardian}。`, "loot");
+    }
+  }
+  return applyRoleBossGoal(state, defeated.contentId, defeatedPos);
 }
 
 function bossRewardFor(contentId: string): string | null {
@@ -1740,17 +1847,7 @@ function useItem(state: GameState, contentId: string): GameState {
     }
     state.messages = pushMessage(state, `${getContentName(contentId)}を投げ、${getContentName(target.contentId)}に${damage}ダメージを与えた。`, "combat");
     if (target.stats.hp <= 0) {
-      const reward = bossRewardFor(target.contentId);
-      const defeatedPos = { ...target.pos };
-      state = awardXp(state, target.contentId);
-      state.entities = state.entities.filter((entity) => entity.id !== target.id);
-      state.messages = pushMessage(state, `${getContentName(target.contentId)}を倒した。`, "combat");
-      if (reward) {
-        state.entities.push(item(`${reward}.boss.${state.floor}.${state.turn}`, reward, defeatedPos, state.floor, rngForFloor(state.seed + state.turn, state.floor)));
-        state.messages = pushMessage(state, `${getContentName(reward)}が残された。`, "loot");
-        state = dropBonusBossRewards(state, defeatedPos);
-      }
-      state = applyRoleBossGoal(state, target.contentId, defeatedPos);
+      state = defeatMonster(state, target);
     }
     return state;
   }
@@ -1810,6 +1907,7 @@ function useMysteryConsumable(
   }
   if (player.stats.hp <= 0) {
     state.status = "lost";
+    state.story.killedBy = { cause: "item", contentId };
     state.messages = pushMessage(state, "不安定な遺物に命を奪われ、迷宮の暗闇に沈んだ。", "danger");
   }
   return state;
@@ -2158,6 +2256,7 @@ function rangedAttack(state: GameState, attacker: Entity, defender: Entity): Gam
   }
   if (defender.stats.hp <= 0) {
     state.status = "lost";
+    state.story.killedBy = { cause: "rangedCombat", contentId: attacker.contentId };
     state.messages = pushMessage(state, "迷宮の暗闇に倒れた。", "danger");
   }
   return state;
@@ -2177,6 +2276,12 @@ function runMonsterTurn(state: GameState): GameState {
   for (const monsterEntity of monsters) {
     if (state.status !== "playing") {
       break;
+    }
+    if (monsterEntity.conditions?.some((condition) => condition.kind === "dazed")) {
+      monsterEntity.conditions = monsterEntity.conditions
+        .map((condition) => condition.kind === "dazed" ? { ...condition, turns: condition.turns - 1 } : condition)
+        .filter((condition) => condition.turns > 0);
+      continue;
     }
     const distance = chebyshev(monsterEntity.pos, player.pos);
     if (shouldKeepDistance(monsterEntity.contentId) && distance <= 2 && hasLineOfSight(state, monsterEntity.pos, player.pos)) {
@@ -2289,6 +2394,7 @@ function tickPlayerConditions(state: GameState): GameState {
   }
   if (player.stats.hp <= 0) {
     state.status = "lost";
+    state.story.killedBy = { cause: activeConditions.some((condition) => condition.kind === "bleeding") ? "bleeding" : "venom" };
     state.messages = pushMessage(state, "迷宮の暗闇に倒れた。", "danger");
   }
   return state;
@@ -2465,6 +2571,7 @@ function cloneState(state: GameState): GameState {
     playerProgress: { ...state.playerProgress },
     runObjectives: { ...state.runObjectives },
     runIdentity: { ...state.runIdentity },
+    lantern: { ...state.lantern },
     knownRoleTruths: [...state.knownRoleTruths],
     pendingDecision: state.pendingDecision ? {
       ...state.pendingDecision,

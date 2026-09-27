@@ -1,5 +1,6 @@
 import { runSimulation } from "./simulation";
 import type { DecisionPolicy } from "../core/autonomous";
+import type { WatcherPolicy } from "../ai/watcher";
 
 declare const Bun: { argv: string[] };
 
@@ -12,6 +13,7 @@ const configPath = optionValue("--config") ?? "public/config/game-balance.json";
 const label = optionValue("--label") ?? "single";
 const logLimit = parseLogLimit(optionValue("--log-limit"));
 const decisionPolicy = parseDecisionPolicy(optionValue("--decision-policy"));
+const watcherPolicy = parseWatcherPolicy(optionValue("--watcher"));
 
 const result = await runSimulation({
   seed,
@@ -23,6 +25,7 @@ const result = await runSimulation({
   profile,
   logLimit,
   decisionPolicy,
+  watcherPolicy,
 });
 
 console.log(JSON.stringify(result));
@@ -36,6 +39,12 @@ function parseDecisionPolicy(value: string | undefined): DecisionPolicy {
   if (!value) return "temperament";
   if (value === "temperament" || value === "always-continue" || value === "return-3" || value === "return-6") return value;
   throw new Error("--decision-policy must be temperament, always-continue, return-3, or return-6");
+}
+
+function parseWatcherPolicy(value: string | undefined): WatcherPolicy {
+  if (!value || value === "none") return "none";
+  if (value === "lantern") return value;
+  throw new Error("--watcher must be none or lantern");
 }
 
 function parseLogLimit(value: string | undefined): number | null | undefined {

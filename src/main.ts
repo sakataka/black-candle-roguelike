@@ -20,7 +20,8 @@ import {
   temperamentDescription,
   temperamentLabel,
 } from "./game/core/autonomous";
-import { applyAction, biomeThemeName, createInitialGame, observeGame, playableRoles } from "./game/core/game";
+import { chooseWatcherAction } from "./game/ai/watcher";
+import { applyAction, biomeThemeName, canInvokeLantern, createInitialGame, lanternRiteLabel, observeGame, playableRoles } from "./game/core/game";
 import { paceDelayMs, paceKindFor, type PaceKind } from "./game/core/pacing";
 import { analyzeRun, createRunLog, recordTurn } from "./game/core/runLog";
 import { deriveVisualEvents, type VisualEvent } from "./game/core/visualEvents";
@@ -30,6 +31,7 @@ import type {
   EquipmentConfig,
   GameAction,
   GameState,
+  LanternRiteId,
   MissionId,
   RoleTruthId,
   RunLog,
@@ -39,6 +41,10 @@ import type {
 } from "./game/types";
 
 const CAMPAIGN_STORAGE_KEY = "black-candle-campaign-v1";
+const PAUSE_ICON = '<svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true"><rect x="3" y="2" width="3.5" height="12" rx="1" fill="currentColor"/><rect x="9.5" y="2" width="3.5" height="12" rx="1" fill="currentColor"/></svg>';
+const PLAY_ICON = '<svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true"><path d="M4 2.2v11.6c0 .6.7 1 1.2.6l8.3-5.8c.4-.3.4-.9 0-1.2L5.2 1.6C4.7 1.2 4 1.6 4 2.2z" fill="currentColor"/></svg>';
+const lanternRiteOrder: LanternRiteId[] = ["flare", "mend", "guide", "ward"];
+const lanternRiteKeys: Record<LanternRiteId, string> = { flare: "Q", mend: "W", guide: "E", ward: "R" };
 
 declare global {
   interface Window {
@@ -68,6 +74,7 @@ app.innerHTML = `
       <div class="header-actions">
         <div class="speed-selector" aria-label="観測速度">
           <span>観測速度</span>
+          <button type="button" id="pause-toggle" class="pause-toggle" aria-pressed="false" aria-label="一時停止" title="一時停止 (Space)"></button>
           <button type="button" data-speed="0.5" aria-pressed="false">0.5×</button>
           <button type="button" data-speed="1" class="is-active" aria-pressed="true">1×</button>
           <button type="button" data-speed="2" aria-pressed="false">2×</button>
@@ -100,10 +107,34 @@ app.innerHTML = `
           </div>
           <div class="live-score"><span>暫定得点</span><strong id="live-score">0</strong></div>
         </div>
-        <div id="pixi-root" class="pixi-root"></div>
+        <div class="map-stage">
+          <div id="pixi-root" class="pixi-root"></div>
+          <p id="pause-banner" class="pause-banner" hidden>一時停止中 — Space で再開</p>
+        </div>
+        <section class="lantern-bar" aria-label="灯守の介入">
+          <div class="lantern-embers">
+            <span>灯火</span>
+            <div id="lantern-pips" class="lantern-pips" aria-live="polite"></div>
+            <small id="lantern-hint">危機に灯を捧げると、探索者の手番を使わず介入できます。</small>
+          </div>
+          <div id="lantern-rites" class="lantern-rites"></div>
+        </section>
       </section>
 
       <aside class="observer-sidebar">
+        <section class="side-card vitals-card">
+          <div class="vitals-heading">
+            <span id="vitals-portrait" class="vitals-portrait" aria-hidden="true"></span>
+            <div><strong id="vitals-name">-</strong><small id="hero-role">-</small></div>
+            <em id="vitals-level">Lv1</em>
+          </div>
+          <div class="vitals-hp" id="vitals-hp">
+            <div class="vitals-hp-label"><span>HP</span><strong id="vitals-hp-value">-</strong></div>
+            <div class="vitals-hp-track"><i id="vitals-hp-fill"></i></div>
+          </div>
+          <div id="vitals-conditions" class="vitals-conditions"></div>
+          <div id="hero-stats" class="stat-grid"></div>
+        </section>
         <section class="side-card objective-card">
           <div class="section-heading"><h2>次の動き</h2><span id="explored-ratio">0%</span></div>
           <strong id="objective-title">未探索を広げる</strong>
@@ -113,20 +144,16 @@ app.innerHTML = `
           <div class="section-heading"><h2>遠征記録</h2><span>直近</span></div>
           <ol id="message-list" class="message-list"></ol>
         </section>
-        <section class="side-card truth-card">
-          <div class="section-heading"><h2>物語進捗</h2><span id="story-progress-count">0/6</span></div>
-          <div class="story-progress"><i id="story-progress-fill"></i></div>
-          <div id="story-milestones" class="story-milestones"></div>
-          <div class="subsection-heading"><strong>三つの真相</strong><span id="truth-count">0/3</span></div>
-          <div id="truth-list" class="truth-list"></div>
-        </section>
       </aside>
     </section>
 
     <section class="lower-grid">
-      <section class="lower-card hero-card">
-        <div class="section-heading"><h2>探索者</h2><span id="hero-role">-</span></div>
-        <div id="hero-stats" class="stat-grid"></div>
+      <section class="lower-card truth-card">
+        <div class="section-heading"><h2>物語進捗</h2><span id="story-progress-count">0/6</span></div>
+        <div class="story-progress"><i id="story-progress-fill"></i></div>
+        <div id="story-milestones" class="story-milestones"></div>
+        <div class="subsection-heading"><strong>三つの真相</strong><span id="truth-count">0/3</span></div>
+        <div id="truth-list" class="truth-list"></div>
       </section>
       <section class="lower-card inventory-card">
         <div class="section-heading"><h2>携行品</h2><span id="inventory-count">0</span></div>
@@ -210,6 +237,7 @@ let archivedRunId: string | null = null;
 let scheduledPace: PaceKind = "exploration";
 let pendingVisualEvents: VisualEvent[] = [];
 let pendingIntent: AutoplayIntent | null = null;
+let paused = false;
 let focusedModal: HTMLElement | null = null;
 
 installEvents();
@@ -217,7 +245,16 @@ installDebugBridge();
 renderCandidateSelection();
 render();
 await renderer.mount(pixiRoot);
+syncViewport();
+window.addEventListener("resize", syncViewport);
+requireElement<HTMLButtonElement>("#pause-toggle").innerHTML = PAUSE_ICON;
 render();
+
+function syncViewport(): void {
+  const narrow = window.matchMedia("(max-width: 700px)").matches;
+  renderer.setViewport(narrow ? 9 : 16, narrow ? 9 : 10);
+  render();
+}
 
 function installEvents(): void {
   document.querySelector(".speed-selector")?.addEventListener("click", (event) => {
@@ -230,6 +267,12 @@ function installEvents(): void {
       candidate.setAttribute("aria-pressed", String(active));
     });
     if (autoplayTimer !== null) scheduleAutoplay(scheduledPace);
+  });
+  requireElement<HTMLButtonElement>("#pause-toggle").addEventListener("click", () => setPaused(!paused));
+  requireElement<HTMLDivElement>("#lantern-rites").addEventListener("click", (event) => {
+    const button = (event.target as HTMLElement).closest<HTMLButtonElement>("button[data-rite]");
+    if (!button || button.disabled) return;
+    invokeLanternRite(button.dataset.rite as LanternRiteId);
   });
   requireElement<HTMLButtonElement>("#new-expedition").addEventListener("click", openNewExpedition);
   requireElement<HTMLButtonElement>("#end-new-expedition").addEventListener("click", openNewExpedition);
@@ -266,6 +309,18 @@ function installEvents(): void {
       }
       return;
     }
+    if (!focusedModal && !event.metaKey && !event.ctrlKey && !event.altKey) {
+      if (event.key === " ") {
+        event.preventDefault();
+        if (state.status === "playing") setPaused(!paused);
+        return;
+      }
+      const rite = lanternRiteOrder.find((candidate) => lanternRiteKeys[candidate].toLowerCase() === event.key.toLowerCase());
+      if (rite) {
+        invokeLanternRite(rite);
+        return;
+      }
+    }
     if (!["1", "2", "3", "4"].includes(event.key)) return;
     const index = Number(event.key) - 1;
     const visibleButtons = !candidateDialog.hidden
@@ -298,8 +353,9 @@ function startExpedition(roleId: string): void {
   candidateDialog.hidden = true;
   decisionDialog.hidden = true;
   endDialog.hidden = true;
+  paused = false;
   render();
-  scheduleAutoplay("exploration");
+  setPaused(false);
 }
 
 function renderCandidateSelection(): void {
@@ -359,8 +415,8 @@ function stepAutoplay(): void {
 
 function scheduleAutoplay(pace: PaceKind): void {
   stopAutoplay();
-  if (state.status !== "playing" || state.pendingDecision || !candidateDialog.hidden) return;
   scheduledPace = pace;
+  if (paused || state.status !== "playing" || state.pendingDecision || !candidateDialog.hidden) return;
   autoplayTimer = window.setTimeout(stepAutoplay, currentStepMs(pace));
 }
 
@@ -422,16 +478,8 @@ function render(): void {
   setText("#explored-ratio", `${Math.round(observation.exploration.exploredTileRatio * 100)}%`);
   setText("#objective-title", objectiveLabel(observation.exploration.objective));
   setText("#objective-detail", objectiveDetail(observation));
-  setText("#hero-role", getContentName(player.contentId));
-  const progress = observation.playerProgress;
-  requireElement<HTMLDivElement>("#hero-stats").innerHTML = [
-    ["HP", player.stats ? `${player.stats.hp}/${player.stats.maxHp}` : "-"],
-    ["Lv", String(progress.level)],
-    ["攻撃", String(player.stats?.attack ?? "-")],
-    ["防御", String(player.stats?.defense ?? "-")],
-    ["Gold", String(progress.gold)],
-    ["固有", String(state.runObjectives.roleGoalProgress)],
-  ].map(([label, value]) => `<div><span>${label}</span><strong>${value}</strong></div>`).join("");
+  renderVitals(observation);
+  renderLantern(observation);
 
   requireElement<HTMLOListElement>("#message-list").replaceChildren(...[...state.messages.slice(-8)].reverse().map((entry) => {
     const item = document.createElement("li");
@@ -445,6 +493,102 @@ function render(): void {
   renderDecision(observation);
   renderEnd();
   syncModalAccessibility();
+}
+
+function renderVitals(observation: ReturnType<typeof observeGame>): void {
+  const player = observation.player;
+  const progress = observation.playerProgress;
+  setText("#vitals-name", state.runIdentity.name);
+  setText("#hero-role", `${getContentName(player.contentId)} · ${temperamentLabel(state.runIdentity.temperament)}`);
+  setText("#vitals-level", `Lv${progress.level}`);
+  const portrait = requireElement<HTMLElement>("#vitals-portrait");
+  if (portrait.dataset.roleId !== player.contentId) {
+    portrait.dataset.roleId = player.contentId;
+    applySprite(portrait, assetForContent(player.contentId), 44);
+  }
+  const hp = player.stats?.hp ?? 0;
+  const maxHp = player.stats?.maxHp ?? 1;
+  const ratio = Math.max(0, Math.min(1, hp / maxHp));
+  setText("#vitals-hp-value", `${Math.max(0, hp)} / ${maxHp}`);
+  const fill = requireElement<HTMLElement>("#vitals-hp-fill");
+  fill.style.width = `${ratio * 100}%`;
+  const hpTone = ratio <= 0.3 ? "danger" : ratio <= 0.6 ? "warning" : "safe";
+  requireElement<HTMLElement>("#vitals-hp").dataset.tone = hpTone;
+  const conditions = player.conditions ?? [];
+  requireElement<HTMLElement>("#vitals-conditions").innerHTML = conditions.length
+    ? conditions.map((condition) => `<span class="condition-tag condition-${conditionTone(condition)}">${conditionLabel(condition)} ${condition.turns}手</span>`).join("")
+    : '<span class="condition-tag condition-normal">異常なし</span>';
+  requireElement<HTMLDivElement>("#hero-stats").innerHTML = [
+    ["攻撃", String(player.stats?.attack ?? "-")],
+    ["防御", String(player.stats?.defense ?? "-")],
+    ["Gold", String(progress.gold)],
+  ].map(([label, value]) => `<div><span>${label}</span><strong>${value}</strong></div>`).join("");
+}
+
+function lanternRiteDescription(rite: LanternRiteId): string {
+  const config = getGameConfig().lantern.rites[rite];
+  const parts: string[] = [];
+  if (config.dazeTurns) parts.push(`見える敵を${config.dazeTurns}手怯ませる`);
+  if (config.healPercent) parts.push(`HPを${config.healPercent}%回復`);
+  if (config.cureConditions) parts.push("出血・毒を払う");
+  if (config.revealRadius) parts.push(`周囲${config.revealRadius}マスを照らす`);
+  if (config.revealTraps) parts.push("隠れた罠を暴く");
+  if (config.guardedTurns) parts.push(`護り${config.guardedTurns}手`);
+  if (config.pushVisibleMonsters) parts.push("敵を押し戻す");
+  return parts.join("・");
+}
+
+function renderLantern(observation: ReturnType<typeof observeGame>): void {
+  const lantern = state.lantern;
+  const pips = requireElement<HTMLDivElement>("#lantern-pips");
+  pips.setAttribute("aria-label", `灯火 ${lantern.embers} / ${lantern.maxEmbers}`);
+  pips.innerHTML = Array.from({ length: lantern.maxEmbers }, (_, index) => `<i class="${index < lantern.embers ? "is-lit" : ""}"></i>`).join("");
+  const suggestion = chooseWatcherAction(observation, "lantern");
+  const suggested = suggestion?.type === "invokeLantern" ? suggestion.rite : null;
+  setText("#lantern-hint", suggested
+    ? `黒燭が揺れている — 「${lanternRiteLabel(suggested)}」が効きそうだ。`
+    : state.status === "playing" ? "危機に灯を捧げると、探索者の手番を使わず介入できます。" : "遠征は終わった。灯は静かに燃えている。");
+  const container = requireElement<HTMLDivElement>("#lantern-rites");
+  if (container.childElementCount !== lanternRiteOrder.length) {
+    container.replaceChildren(...lanternRiteOrder.map((rite) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.dataset.rite = rite;
+      button.className = `lantern-rite rite-${rite}`;
+      button.innerHTML = `<kbd>${lanternRiteKeys[rite]}</kbd><strong>${lanternRiteLabel(rite)}</strong><small>${escapeHtml(lanternRiteDescription(rite))}</small><em></em>`;
+      return button;
+    }));
+  }
+  for (const button of container.querySelectorAll<HTMLButtonElement>("button[data-rite]")) {
+    const rite = button.dataset.rite as LanternRiteId;
+    const cost = getGameConfig().lantern.rites[rite].cost;
+    button.disabled = !canInvokeLantern(state, rite);
+    button.classList.toggle("is-suggested", rite === suggested && !button.disabled);
+    button.setAttribute("aria-label", `${lanternRiteLabel(rite)}（灯火${cost}）: ${lanternRiteDescription(rite)}`);
+    const costLabel = button.querySelector("em");
+    if (costLabel) costLabel.textContent = `灯火 ${cost}`;
+  }
+}
+
+function invokeLanternRite(rite: LanternRiteId): void {
+  if (!canInvokeLantern(state, rite)) return;
+  applyLoggedAction({ type: "invokeLantern", rite }, "player");
+  render();
+}
+
+function setPaused(value: boolean): void {
+  paused = value;
+  const toggle = requireElement<HTMLButtonElement>("#pause-toggle");
+  toggle.setAttribute("aria-pressed", String(paused));
+  toggle.innerHTML = paused ? PLAY_ICON : PAUSE_ICON;
+  toggle.setAttribute("aria-label", paused ? "再開" : "一時停止");
+  toggle.classList.toggle("is-active", paused);
+  requireElement<HTMLElement>("#pause-banner").hidden = !paused || state.status !== "playing";
+  if (paused) {
+    stopAutoplay();
+  } else {
+    scheduleAutoplay(scheduledPace);
+  }
 }
 
 function renderInventory(inventory: NonNullable<GameState["entities"][number]["inventory"]>): void {
@@ -622,6 +766,7 @@ function equipmentDetail(equipment: EquipmentConfig): string {
 
 function conditionLabel(condition: StatusCondition): string {
   if (condition.kind === "guarded") return "護り";
+  if (condition.kind === "dazed") return "怯み";
   if (condition.kind === "bleeding") return "出血";
   return "毒";
 }

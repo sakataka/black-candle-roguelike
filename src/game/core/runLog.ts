@@ -58,6 +58,7 @@ export function createRunLog(seed: number, roleId: string, options: RunLogOption
         merchantService: 0,
         descend: 0,
         resolveDecision: 0,
+        invokeLantern: 0,
       },
       damageEvents: 0,
       damageTaken: 0,
@@ -140,7 +141,7 @@ export function analyzeRun(log: RunLog, finalState: GameState, finalObservation 
     riskyTrapSteps: log.totals.riskyTrapSteps,
   };
   const lastTurns = log.entries.slice(-30);
-  const deathCause = finalState.status === "stranded" ? "signalLoss" : finalState.status === "lost" ? classifyDeathCause(lastTurns, finalState.messages) : null;
+  const deathCause = finalState.status === "stranded" ? "signalLoss" : finalState.status === "lost" ? finalState.story.killedBy ? deathCauseFromKill(finalState.story.killedBy.cause) : classifyDeathCause(lastTurns, finalState.messages) : null;
   const keyFindings = buildKeyFindings(log, finalState, deathCause, finalObservation);
   const aiImprovementHints = buildAiImprovementHints(log, finalState, deathCause);
   const summaryText = summaryFor(finalState.status, deathCause, stats);
@@ -235,6 +236,10 @@ function eventKindsFor(action: GameAction, messages: GameMessage[]): string[] {
     }
   }
   return [...kinds];
+}
+
+function deathCauseFromKill(cause: NonNullable<GameState["story"]["killedBy"]>["cause"]): DeathCause {
+  return cause === "item" ? "unknown" : cause;
 }
 
 function classifyDeathCause(entries: RunLogEntry[], finalMessages: GameMessage[]): DeathCause {

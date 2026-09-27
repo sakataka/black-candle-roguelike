@@ -29,6 +29,25 @@ export type EndingId = "inherit-flame" | "extinguish-flame" | "divide-flame";
 
 export type MissionId = "guardian-vow" | "relic-ledger" | "swift-route";
 
+export type LanternRiteId = "flare" | "mend" | "guide" | "ward";
+
+export type LanternState = {
+  embers: number;
+  maxEmbers: number;
+  ritesUsed: number;
+};
+
+export type LanternRiteConfig = {
+  cost: number;
+  dazeTurns?: number;
+  healPercent?: number;
+  cureConditions?: boolean;
+  revealRadius?: number;
+  revealTraps?: number;
+  guardedTurns?: number;
+  pushVisibleMonsters?: boolean;
+};
+
 type DecisionKind = "checkpoint" | "context" | "final";
 
 export type RunIdentity = {
@@ -90,6 +109,7 @@ export type RunStoryState = {
   coreDisposition?: "research" | "relic";
   endingId?: EndingId;
   turnWarningShown: boolean;
+  killedBy?: { cause: "combat" | "rangedCombat" | "trap" | "bleeding" | "venom" | "item"; contentId?: string };
 };
 
 export type ScoreBreakdown = {
@@ -161,7 +181,7 @@ export type Stats = {
   defense: number;
 };
 
-export type ConditionKind = "guarded" | "bleeding" | "venomed";
+export type ConditionKind = "guarded" | "bleeding" | "venomed" | "dazed";
 
 export type StatusCondition = {
   kind: ConditionKind;
@@ -304,6 +324,24 @@ export type GameConfig = {
     runTurnWarning: number;
     runTurnLimit: number;
   };
+  lantern: {
+    startEmbers: number;
+    maxEmbers: number;
+    embersPerFloor: number;
+    embersPerGuardian: number;
+    rites: Record<LanternRiteId, LanternRiteConfig>;
+    /** batch simulation 用の灯守AIの介入閾値。 */
+    watcher: {
+      mendHpRatio: number;
+      mendAfflictedHpRatio: number;
+      flareAdjacentHostiles: number;
+      flareBossHpRatio: number;
+      wardRangedThreats: number;
+      wardHpRatio: number;
+      guideMinEmbers: number;
+      guideFloorTurns: number;
+    };
+  };
   autonomous: {
     revelationsPerRun: number;
     scoring: {
@@ -402,6 +440,7 @@ export type GameState = {
   runIdentity: RunIdentity;
   directive: DirectiveId;
   revelationsRemaining: number;
+  lantern: LanternState;
   pendingDecision: PendingDecision | null;
   knownRoleTruths: RoleTruthId[];
   story: RunStoryState;
@@ -428,9 +467,11 @@ export type GameAction =
   | { type: "useItem"; contentId: string }
   | { type: "merchantService"; serviceId: MerchantServiceId }
   | { type: "descend" }
-  | { type: "resolveDecision"; optionId: string };
+  | { type: "resolveDecision"; optionId: string }
+  /** 灯守（観戦者）の介入。探索者の手番を消費しない。 */
+  | { type: "invokeLantern"; rite: LanternRiteId };
 
-type VisibleEntity = Pick<Entity, "id" | "kind" | "contentId" | "pos" | "stats" | "hostile" | "blocksMovement" | "goldAmount">;
+type VisibleEntity = Pick<Entity, "id" | "kind" | "contentId" | "pos" | "stats" | "hostile" | "blocksMovement" | "goldAmount" | "conditions">;
 
 type ExplorationObjective = "explore" | "findStairs" | "defeatBoss" | "descend" | "resolveStall";
 
@@ -470,6 +511,7 @@ export type GameObservation = {
   runIdentity: RunIdentity;
   directive: DirectiveId;
   revelationsRemaining: number;
+  lantern: LanternState;
   pendingDecision: PendingDecision | null;
   story: RunStoryState;
   messages: GameMessage[];

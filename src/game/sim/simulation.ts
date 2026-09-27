@@ -1,4 +1,5 @@
 import { chooseAutoplayAction, getAutoplayDebugState, resetAutoplayState } from "../ai/autoplay";
+import { chooseWatcherAction, type WatcherPolicy } from "../ai/watcher";
 import { getGameConfig, loadBunGameConfig } from "../content/config";
 import { applyAction, createInitialGame, observeGame } from "../core/game";
 import { paceDelayMs, paceKindFor, type PaceKind } from "../core/pacing";
@@ -16,6 +17,7 @@ export type SimulationRunInput = {
   profile?: boolean;
   logLimit?: number | null;
   decisionPolicy?: DecisionPolicy;
+  watcherPolicy?: WatcherPolicy;
 };
 
 export type SimulationProfile = {
@@ -102,6 +104,7 @@ export async function runSimulation(input: SimulationRunInput): Promise<Simulati
     merchantService: 0,
     descend: 0,
     resolveDecision: 0,
+    invokeLantern: 0,
   };
 
   const configStartMs = performance.now();
@@ -124,7 +127,7 @@ export async function runSimulation(input: SimulationRunInput): Promise<Simulati
   addProfileMs(profile, "initMs", performance.now() - initStartMs);
 
   const loopStartMs = performance.now();
-  const maximumSteps = input.turns + 16;
+  const maximumSteps = input.turns + 16 + 64;
   for (let step = 0; step < maximumSteps && state.status === "playing"; step += 1) {
     if (!state.pendingDecision && state.runTurn >= input.turns) {
       break;
@@ -133,7 +136,8 @@ export async function runSimulation(input: SimulationRunInput): Promise<Simulati
     if (!beforeObservation.pendingDecision) {
       projectedDisplayMs += paceDelayMs(scheduledPace);
     }
-    const action = timeProfile(profile, "chooseAutoplayAction", () => beforeObservation.pendingDecision
+    const watcherAction = chooseWatcherAction(beforeObservation, input.watcherPolicy ?? "none");
+    const action = watcherAction ?? timeProfile(profile, "chooseAutoplayAction", () => beforeObservation.pendingDecision
       ? chooseDecisionAction(beforeObservation, input.decisionPolicy ?? "temperament")
       : chooseAutoplayAction(beforeObservation));
     const debug = timeProfile(profile, "getAutoplayDebugState", () => getAutoplayDebugState(beforeObservation));
@@ -171,7 +175,7 @@ export async function runSimulation(input: SimulationRunInput): Promise<Simulati
       }
     }
     maxTurnsWithoutKnownTileGrowth = Math.max(maxTurnsWithoutKnownTileGrowth, turnsWithoutKnownTileGrowth);
-    if (action.type !== "resolveDecision") {
+    if (action.type !== "resolveDecision" && action.type !== "invokeLantern") {
       executedTurns += 1;
     }
     scheduledPace = paceKindFor(action, state, logEntry.messageDelta);
