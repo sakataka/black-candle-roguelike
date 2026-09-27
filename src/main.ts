@@ -619,7 +619,7 @@ function archiveCompletedRun(): void {
 
 function render(): void {
   // デバッグで一気に進めた時などに大量の演出が重ならないよう、直近分だけ描く。
-  renderer.render(state, { events: pendingVisualEvents.slice(-24), intent: pendingIntent, stepMs: currentStepMs() });
+  renderer.render(state, { events: pendingVisualEvents.slice(-24), intent: pendingIntent, stepMs: currentStepMs(), lightStrength: lightStrengthFor(state) });
   pendingVisualEvents = [];
   pendingIntent = null;
   const observation = observeGame(state);
@@ -661,6 +661,14 @@ function render(): void {
   renderDecision(observation);
   renderEnd();
   syncModalAccessibility();
+}
+
+/** 灯火の残りと灯路の残り時間で、探索者を照らす光の強さを決める。 */
+function lightStrengthFor(current: GameState): number {
+  const rules = getGameConfig().rules;
+  const emberRatio = current.lantern.maxEmbers > 0 ? current.lantern.embers / current.lantern.maxEmbers : 1;
+  const routeLeft = Math.max(0, rules.runTurnLimit - current.runTurn) / Math.max(1, rules.runTurnLimit - rules.runTurnWarning);
+  return Math.min(0.55 + emberRatio * 0.45, 0.35 + Math.min(1, routeLeft) * 0.65);
 }
 
 function renderVitals(observation: ReturnType<typeof observeGame>): void {

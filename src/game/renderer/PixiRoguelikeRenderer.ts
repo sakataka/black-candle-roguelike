@@ -603,12 +603,13 @@ export class PixiRoguelikeRenderer {
     if (!context) return Texture.EMPTY;
     const center = size / 2;
     const gradient = context.createRadialGradient(center, center, 0, center, center, center);
-    gradient.addColorStop(0, "rgba(255, 190, 110, 0.07)");
-    gradient.addColorStop(0.17, "rgba(255, 170, 90, 0.03)");
-    gradient.addColorStop(0.3, "rgba(12, 8, 6, 0.08)");
-    gradient.addColorStop(0.45, "rgba(6, 4, 3, 0.42)");
-    gradient.addColorStop(0.62, "rgba(3, 2, 2, 0.66)");
-    gradient.addColorStop(1, "rgba(0, 0, 0, 0.78)");
+    // 視界半径（約9マス）の内側はほぼ素通しにし、外側だけを沈める。
+    gradient.addColorStop(0, "rgba(255, 190, 110, 0.08)");
+    gradient.addColorStop(0.2, "rgba(255, 170, 90, 0.03)");
+    gradient.addColorStop(0.34, "rgba(10, 7, 5, 0.04)");
+    gradient.addColorStop(0.52, "rgba(6, 4, 3, 0.22)");
+    gradient.addColorStop(0.72, "rgba(3, 2, 2, 0.5)");
+    gradient.addColorStop(1, "rgba(0, 0, 0, 0.72)");
     context.fillStyle = gradient;
     context.fillRect(0, 0, size, size);
     return Texture.from(canvas);

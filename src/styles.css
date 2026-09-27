@@ -643,7 +643,8 @@ button:focus-visible {
   .candidate-list { grid-template-columns: 1fr; gap: 8px; margin-top: 16px; }
   .mission-list { grid-template-columns: 1fr; }
   .institute { grid-template-columns: 1fr; }
-  .institute-facilities { grid-template-columns: 1fr; }
+  .institute-facilities { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .facility-card small { display: none; }
   .candidate-card { grid-template-columns: 64px 1fr; grid-template-rows: auto; padding: 12px; }
   .candidate-portrait { width: 64px; height: 64px; background-size: auto; }
   .candidate-body > small { margin-top: 5px; }
