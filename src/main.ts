@@ -1308,7 +1308,7 @@ function installInsightHover(plot: HTMLElement, points: RunInsights["timeline"],
     hoverLine.setAttribute("visibility", "hidden");
   };
   plot.addEventListener("pointerleave", hide);
-  plot.addEventListener("pointermove", (event) => {
+  const showPoint = (event: PointerEvent) => {
     const rect = plot.getBoundingClientRect();
     const ratio = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width));
     const turn = ratio * totalTurns;
@@ -1324,7 +1324,9 @@ function installInsightHover(plot: HTMLElement, points: RunInsights["timeline"],
     tooltip.innerHTML = `<strong>${nearestPoint.runTurn}手 · F${nearestPoint.floor}</strong><span>HP ${Math.round(nearestPoint.hpRatio * 100)}%</span>`;
     const left = (nearestPoint.runTurn / totalTurns) * rect.width;
     tooltip.style.left = `${Math.min(rect.width - 90, Math.max(0, left - 45))}px`;
-  });
+  };
+  plot.addEventListener("pointermove", showPoint);
+  plot.addEventListener("pointerdown", showPoint);
 }
 
 function renderRunComparison(): void {

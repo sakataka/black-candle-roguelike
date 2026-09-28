@@ -30,7 +30,7 @@ html {
 
 body {
   min-width: 320px;
-  min-height: 100vh;
+  min-height: 100dvh;
   background:
     radial-gradient(circle at 50% -10%, rgba(155, 101, 41, 0.18), transparent 38rem),
     linear-gradient(rgba(255, 255, 255, 0.015) 1px, transparent 1px),
@@ -62,7 +62,7 @@ button:focus-visible {
 
 .observer-shell {
   width: min(1680px, 100%);
-  min-height: 100vh;
+  min-height: 100dvh;
   margin: 0 auto;
   padding: 14px 20px 20px;
 }
@@ -709,4 +709,16 @@ button:focus-visible {
 @media (prefers-contrast: more) {
   :root { --muted: #c1b7a5; --line: rgba(240, 204, 123, 0.42); }
   .map-panel, .side-card, .lower-card, .modal-panel { border-color: rgba(240, 204, 123, 0.56); }
+}
+
+/* Keep the game's art direction; reserve phone safe areas and touch targets. */
+@media (max-width:640px) {
+ body { min-width:0; }
+ .observer-shell { padding:calc(10px + env(safe-area-inset-top)) calc(10px + env(safe-area-inset-right)) calc(10px + env(safe-area-inset-bottom)) calc(10px + env(safe-area-inset-left)); }
+ .modal-layer { padding:calc(10px + env(safe-area-inset-top)) calc(10px + env(safe-area-inset-right)) calc(10px + env(safe-area-inset-bottom)) calc(10px + env(safe-area-inset-left)); }
+ button, .speed-selector button, input, textarea, select, summary, a { min-width:44px; min-height:44px; touch-action:manipulation; -webkit-tap-highlight-color:transparent; }
+ input, textarea, select { font-size:16px; }
+ button:not(:disabled):active, summary:active, a:active { filter:brightness(1.2); }
+ .header-actions { flex-wrap:wrap; gap:8px; }
+ .inventory-list { margin-left:10px; }
 }
