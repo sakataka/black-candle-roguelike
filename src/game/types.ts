@@ -245,7 +245,7 @@ export type ExpeditionRecord = {
   truthRecovered?: RoleTruthId;
   endingId?: EndingId;
   shardsEarned?: number;
-  veteranOutcome?: "promoted" | "scarred" | "fallen" | "recruited" | "keeper";
+  veteranOutcome?: "promoted" | "scarred" | "fallen" | "recruited" | "keeper" | "roster-full";
   heat?: number;
   cycle?: number;
   gravesRecovered?: number;

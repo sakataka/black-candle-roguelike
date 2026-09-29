@@ -560,6 +560,9 @@ function updateRoster(campaign: CampaignState, state: GameState, deathCause: str
     };
     return { roster: others, fallen: [fallenEntry, ...campaign.fallen].slice(0, 30), outcome: "fallen" };
   }
+  if (!existing && campaign.roster.length >= config.rosterLimit) {
+    return { roster: [...campaign.roster], fallen: [...campaign.fallen], outcome: "roster-full" };
+  }
   const hpRatio = player?.stats ? player.stats.hp / player.stats.maxHp : 1;
   const scars = [...(existing?.scars ?? [])];
   let outcome: ExpeditionRecord["veteranOutcome"] = existing ? "promoted" : "recruited";
@@ -578,7 +581,7 @@ function updateRoster(campaign: CampaignState, state: GameState, deathCause: str
     expeditions: (existing?.expeditions ?? 0) + 1,
     scars,
   };
-  return { roster: [veteran, ...others].slice(0, config.rosterLimit), fallen: [...campaign.fallen], outcome };
+  return { roster: [veteran, ...others], fallen: [...campaign.fallen], outcome };
 }
 
 export function facilityUpgradeCost(campaign: CampaignState, facilityId: FacilityId): number | null {

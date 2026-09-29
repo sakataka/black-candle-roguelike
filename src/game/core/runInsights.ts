@@ -1,6 +1,7 @@
 import { getGameConfig } from "../content/config";
+import { unlockedTacticIds } from "./autonomous";
 import { getContentName } from "../content/entities";
-import type { DeathCause, GameState, LanternRiteId, RunLog, RunLogEntry } from "../types";
+import type { CampaignState, DeathCause, GameState, LanternRiteId, RunLog, RunLogEntry } from "../types";
 
 export type TimelinePoint = { runTurn: number; hpRatio: number; floor: number };
 
@@ -36,7 +37,7 @@ export type RunInsights = {
 const BURST_WINDOW = 8;
 
 /** 遠征記録から、結果画面で振り返るための軌跡・転機・次回への示唆を組み立てる。 */
-export function buildRunInsights(log: RunLog, finalState: GameState, deathCause: DeathCause | null): RunInsights {
+export function buildRunInsights(log: RunLog, finalState: GameState, deathCause: DeathCause | null, campaign: CampaignState): RunInsights {
   const entries = log.entries.filter((entry) => entry.runTurn !== undefined);
   const timeline = sampleTimeline(entries);
   const markers = collectMarkers(entries, finalState);
@@ -50,7 +51,7 @@ export function buildRunInsights(log: RunLog, finalState: GameState, deathCause:
     timeline,
     markers,
     turningPoints,
-    advice: adviceFor(finalState, deathCause, entries),
+    advice: adviceFor(finalState, deathCause, entries, campaign),
     totalTurns: Math.max(1, finalState.runTurn),
   };
 }
@@ -171,11 +172,12 @@ function finalTurningPoint(entries: RunLogEntry[], finalState: GameState, deathC
   return null;
 }
 
-function adviceFor(finalState: GameState, deathCause: DeathCause | null, entries: RunLogEntry[]): RunAdvice[] {
+function adviceFor(finalState: GameState, deathCause: DeathCause | null, entries: RunLogEntry[], campaign: CampaignState): RunAdvice[] {
   const tactics = getGameConfig().tactics.definitions;
   const advice: RunAdvice[] = [];
+  const unlocked = new Set(unlockedTacticIds(campaign));
   const addTactic = (id: string, reason: string) => {
-    if (tactics[id] && !tactics[id].locked && !finalState.tactics.includes(id)) advice.push({ kind: "tactic", id, label: tactics[id].label, reason });
+    if (tactics[id] && unlocked.has(id) && !finalState.tactics.includes(id)) advice.push({ kind: "tactic", id, label: tactics[id].label, reason });
   };
   const addRite = (id: LanternRiteId, reason: string) => advice.push({ kind: "rite", id, label: riteLabel(id), reason });
   const lanternUses = entries.filter((entry) => entry.action.type === "invokeLantern").length;

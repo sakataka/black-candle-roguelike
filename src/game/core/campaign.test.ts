@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, test } from "bun:test";
-import { loadBunGameConfig } from "../content/config";
+import { getGameConfig, loadBunGameConfig } from "../content/config";
 import {
   campaignBonusEmbers,
   campaignTacticSlots,
@@ -64,4 +64,39 @@ describe("遠征団と灰灯院", () => {
     const broke = upgradeFacility({ ...createCampaignState(), shards: 0 }, "war-room");
     expect(broke.facilities["war-room"]).toBe(0);
   });
+  test("満員時の新人生還は古参を失わず、戦果は記録する", () => {
+    let campaign = createCampaignState();
+    for (let seed = 1; seed <= getGameConfig().campaign.rosterLimit; seed += 1) {
+      const state = createInitialGame(seed);
+      state.status = "returned";
+      campaign = recordCampaignResult(campaign, state, null);
+    }
+    campaign.roster[campaign.roster.length - 1].rank = 3;
+    const originalRoster = structuredClone(campaign.roster);
+    for (const status of ["returned", "won"] as const) {
+      const newcomer = createInitialGame(100);
+      newcomer.status = status;
+      const next = recordCampaignResult(campaign, newcomer, null);
+      expect(next.roster).toEqual(originalRoster);
+      expect(next.fallen).toEqual(campaign.fallen);
+      expect(next.expeditions[0].veteranOutcome).toBe("roster-full");
+      expect(next.shards).toBeGreaterThan(campaign.shards);
+    }
+    const veteran = campaign.roster[0];
+    const returned = createInitialGame(101, veteran.identity.roleId, { identity: veteran.identity });
+    returned.status = "returned";
+    const promoted = recordCampaignResult(campaign, returned, null);
+    expect(promoted.roster).toHaveLength(originalRoster.length);
+    expect(promoted.roster[0].rank).toBe(veteran.rank + 1);
+    expect(promoted.roster.slice(1)).toEqual(originalRoster.slice(1));
+    returned.status = "lost";
+    const afterLoss = recordCampaignResult(campaign, returned, "combat");
+    const replacement = createInitialGame(102);
+    replacement.status = "returned";
+    const recruited = recordCampaignResult(afterLoss, replacement, null);
+    expect(recruited.roster).toHaveLength(originalRoster.length);
+    expect(recruited.expeditions[0].veteranOutcome).toBe("recruited");
+    expect(campaign.roster).toEqual(originalRoster);
+  });
+
 });

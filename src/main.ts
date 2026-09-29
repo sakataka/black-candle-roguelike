@@ -204,7 +204,7 @@ app.innerHTML = `
       <div id="tactic-list" class="tactic-list" aria-label="作戦カード"></div>
       <div class="candidate-heading"><strong>遠征団</strong><small>生還した古参は位階が上がって強くなるが、瀕死で帰ると古傷を負う。倒れた者は戻らない。</small></div>
       <div id="veteran-list" class="candidate-list"></div>
-      <div class="candidate-heading"><strong>新たな志願者</strong></div>
+      <div class="candidate-heading"><strong>新たな志願者</strong><small id="recruit-capacity"></small></div>
       <div id="candidate-list" class="candidate-list"></div>
     </div>
   </section>
@@ -509,6 +509,9 @@ function renderCandidateSelection(): void {
   renderInstitute();
   renderCycle();
   renderVeterans();
+  setText("#recruit-capacity", campaign.roster.length >= getGameConfig().campaign.rosterLimit
+    ? "遠征団は満員です。志願者は遠征できますが、生還しても加入しません。古参は全員残ります。"
+    : `生還すると遠征団に加入します（${campaign.roster.length}/${getGameConfig().campaign.rosterLimit}人）。`);
   const indexOffset = campaign.roster.length;
   const recruits = recruitIdentities();
   candidateList.replaceChildren(...playableRoles().map((role, index) => {
@@ -1227,7 +1230,7 @@ function renderEnd(): void {
     ? `${endingLabel(state.story.endingId)}の結末を遠征録へ刻みました。`
     : `${review.summaryText} 得点は${review.score.total.toLocaleString("ja-JP")}点です。`;
   renderRunComparison();
-  renderRunInsights(buildRunInsights(runLog, state, review.deathCause));
+  renderRunInsights(buildRunInsights(runLog, state, review.deathCause, campaign));
   const rows: Array<[string, number]> = [
     ["進行", review.score.depth], ["守護者", review.score.guardians], ["職業目的", review.score.roleObjective],
     ["発見", review.score.discoveries], ["生還", review.score.survival], ["持帰り", review.score.recoveredValue],
@@ -1364,6 +1367,7 @@ function veteranOutcomeLabel(record: CampaignState["expeditions"][number]): stri
   if (record.veteranOutcome === "fallen") return `${record.identity.name}は倒れ、F${record.floor}に墓標が残った`;
   if (record.veteranOutcome === "scarred") return `古傷を負って帰還${veteran ? `（位階${veteran.rank}）` : ""}`;
   if (record.veteranOutcome === "promoted") return `位階${veteran?.rank ?? ""}へ昇格`;
+  if (record.veteranOutcome === "roster-full") return "遠征団が満員のため加入しなかった（古参は全員残っています）";
   if (record.veteranOutcome === "recruited") return "遠征団に加わった";
   return "";
 }
