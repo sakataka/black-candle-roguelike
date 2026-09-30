@@ -53,13 +53,13 @@ TypeScript + Vite + PixiJS で作っている自律遠征ローグライクで�
 
 ```sh
 bun install
-bun run dev -- --host 127.0.0.1 --port 1420
+localweb dev black-candle
 ```
 
-確認先:
+port は LocalWeb が割り当てます。確認先:
 
 ```text
-http://127.0.0.1:1420/
+http://black-candle-dev.localhost/
 ```
 
 ## ビルド

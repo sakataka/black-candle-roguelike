@@ -73,7 +73,7 @@
 - コード・依存関係・ビルド設定の変更後は `bun run build` と標準testを通す。
 - AIやcore変更後は、headless simulationでクラッシュせず進行することを確認する。
 - ゲーム性・バランス・AI判断・出現テーブル・職業・敵・アイテムに関わる変更後は、`simulate:batch` で複数seed/職業の到達分布を確認し、必要なら候補config比較でPDCA/PDCMを回す。
-- 見た目を変えた場合は、起動中の `http://127.0.0.1:1420/` をブラウザでリロードしてスクリーンショット確認する。
+- 見た目を変えた場合は、起動中の `http://black-candle-dev.localhost/`（`localweb dev black-candle`）をブラウザでリロードしてスクリーンショット確認する。
 - 既存dev serverが起動中なら、不要に別サーバーを増やさない。
 
 ## スコープ注意
