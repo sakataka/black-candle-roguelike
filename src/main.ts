@@ -83,143 +83,168 @@ if (!app) throw new Error("Missing #app root");
 
 app.innerHTML = `
   <main class="observer-shell" tabindex="-1">
-    <header class="observer-header">
-      <div class="brand-block">
-        <p class="eyebrow">灰灯院・遠征観測室</p>
-        <h1>黒燭の迷宮</h1>
-        <p class="brand-copy">探索者は自ら歩く。灯守は、運命の節目だけを選ぶ。</p>
+    <header class="topbar">
+      <div class="topbar-brand">
+        <span id="brand-mark" class="brand-mark" aria-hidden="true"></span>
+        <div><h1>黒燭の迷宮</h1><p>灰灯院・遠征観測室</p></div>
       </div>
-      <div class="header-actions">
-        <div class="speed-selector" aria-label="観測速度">
-          <span>観測速度</span>
+      <div class="topbar-run">
+        <div class="depth-chip"><span id="biome-kicker">地下1階</span><strong id="biome-title">黒石迷宮</strong></div>
+        <div class="turn-meter" id="turn-meter">
+          <div class="turn-meter-label"><span id="turn-meter-label">灯路</span><strong id="run-turn">0 / 0手</strong></div>
+          <div class="turn-meter-track"><i id="turn-meter-fill"></i></div>
+        </div>
+        <div class="live-score"><span>暫定得点</span><strong id="live-score">0</strong></div>
+      </div>
+      <div class="topbar-controls">
+        <div class="speed-selector" role="group" aria-label="観測速度">
           <button type="button" id="pause-toggle" class="pause-toggle" aria-pressed="false" aria-label="一時停止" title="一時停止 (Space)"></button>
           <button type="button" data-speed="0.5" aria-pressed="false">0.5×</button>
           <button type="button" data-speed="1" class="is-active" aria-pressed="true">1×</button>
           <button type="button" data-speed="2" aria-pressed="false">2×</button>
           <button type="button" data-speed="3" aria-pressed="false">3×</button>
         </div>
-        <button id="sound-toggle" class="secondary-button sound-toggle" type="button" aria-pressed="true" aria-label="音を消す" title="効果音のオン・オフ (M)"></button>
-        <button id="new-expedition" class="secondary-button" type="button">新しい遠征</button>
+        <button id="sound-toggle" class="icon-button" type="button" aria-pressed="true" aria-label="音を消す" title="効果音のオン・オフ (M)"></button>
+        <button id="new-expedition" class="secondary-button" type="button" title="灰灯院を開く（観戦は一時停止）">灰灯院</button>
       </div>
     </header>
 
-    <section class="run-ribbon" aria-label="遠征状況">
-      <div><span>探索者</span><strong id="run-delver">-</strong></div>
-      <div><span>気質</span><strong id="run-temperament">-</strong></div>
-      <div><span>方針</span><strong id="run-directive">-</strong></div>
-      <div><span>任務</span><strong id="run-mission">-</strong></div>
-      <div><span>啓示</span><strong id="run-revelations">-</strong></div>
-      <div><span>深度</span><strong id="run-floor">-</strong></div>
-      <div><span>観測手</span><strong id="run-turn">-</strong></div>
-      <div class="turn-meter" aria-label="灯路の残り">
-        <span id="turn-meter-label">灯路</span>
-        <div><i id="turn-meter-fill"></i></div>
+    <section class="stage" aria-label="黒燭越しの迷宮">
+      <div class="map-stage" id="map-stage">
+        <div id="pixi-root" class="pixi-root"></div>
+        <p id="pause-banner" class="pause-banner" hidden>一時停止中 — Space で再開</p>
       </div>
+      <section class="lantern-dock" aria-label="灯守の介入">
+        <div class="lantern-embers">
+          <div class="lantern-embers-head"><span>灯火</span><strong id="lantern-count">0/0</strong></div>
+          <div id="lantern-pips" class="lantern-pips" aria-live="polite"></div>
+          <small id="lantern-hint">危機に灯を捧げると、探索者の手番を使わず介入できます。</small>
+        </div>
+        <div id="lantern-rites" class="lantern-rites"></div>
+      </section>
     </section>
 
-    <section class="observer-layout">
-      <section class="map-panel" aria-label="黒燭越しの迷宮">
-        <div class="map-heading">
-          <div>
-            <p class="eyebrow" id="biome-kicker">観測中</p>
-            <h2 id="biome-title">黒石迷宮</h2>
-          </div>
-          <div class="live-score"><span>暫定得点</span><strong id="live-score">0</strong></div>
+    <div class="sidebar">
+      <section class="panel vitals-card" aria-label="探索者">
+        <div class="vitals-heading">
+          <span id="vitals-portrait" class="vitals-portrait" aria-hidden="true"></span>
+          <div><strong id="vitals-name">-</strong><small id="hero-role">-</small></div>
+          <em id="vitals-level">Lv1</em>
         </div>
-        <div class="map-stage">
-          <div id="pixi-root" class="pixi-root"></div>
-          <p id="pause-banner" class="pause-banner" hidden>一時停止中 — Space で再開</p>
+        <div class="vitals-hp" id="vitals-hp">
+          <div class="vitals-hp-label"><span>HP</span><strong id="vitals-hp-value">-</strong></div>
+          <div class="vitals-hp-track"><i id="vitals-hp-fill"></i></div>
         </div>
-        <section class="lantern-bar" aria-label="灯守の介入">
-          <div class="lantern-embers">
-            <span>灯火</span>
-            <div id="lantern-pips" class="lantern-pips" aria-live="polite"></div>
-            <small id="lantern-hint">危機に灯を捧げると、探索者の手番を使わず介入できます。</small>
-          </div>
-          <div id="lantern-rites" class="lantern-rites"></div>
-        </section>
+        <div id="hero-stats" class="stat-row"></div>
+        <div class="vitals-tags"><div id="vitals-conditions" class="tag-row"></div><div id="vitals-tactics" class="tag-row"></div></div>
       </section>
-
-      <aside class="observer-sidebar">
-        <section class="side-card vitals-card">
-          <div class="vitals-heading">
-            <span id="vitals-portrait" class="vitals-portrait" aria-hidden="true"></span>
-            <div><strong id="vitals-name">-</strong><small id="hero-role">-</small></div>
-            <em id="vitals-level">Lv1</em>
-          </div>
-          <div class="vitals-hp" id="vitals-hp">
-            <div class="vitals-hp-label"><span>HP</span><strong id="vitals-hp-value">-</strong></div>
-            <div class="vitals-hp-track"><i id="vitals-hp-fill"></i></div>
-          </div>
-          <div id="vitals-conditions" class="vitals-conditions"></div>
-          <div id="vitals-tactics" class="vitals-tactics"></div>
-          <div id="hero-stats" class="stat-grid"></div>
-        </section>
-        <section class="side-card objective-card">
-          <div class="section-heading"><h2>次の動き</h2><span id="explored-ratio">0%</span></div>
+      <section class="panel expedition-card" aria-label="遠征の目的">
+        <div class="mission-line">
+          <span class="panel-label">任務</span>
+          <strong id="run-mission">-</strong>
+          <em id="run-mission-progress">0/0</em>
+        </div>
+        <div class="mission-track"><i id="mission-fill"></i></div>
+        <div class="expedition-meta">
+          <span>方針 <strong id="run-directive">-</strong></span>
+          <span>啓示 <strong id="run-revelations">-</strong></span>
+          <span>探索 <strong id="explored-ratio">0%</strong></span>
+        </div>
+        <div class="objective">
+          <span class="panel-label">次の動き</span>
           <strong id="objective-title">未探索を広げる</strong>
           <p id="objective-detail">黒燭が映す道筋を追っています。</p>
-        </section>
-        <section class="side-card log-card">
-          <div class="section-heading"><h2>遠征記録</h2><span>直近</span></div>
-          <ol id="message-list" class="message-list"></ol>
-        </section>
-      </aside>
-    </section>
-
-    <section class="lower-grid">
-      <section class="lower-card truth-card">
-        <div class="section-heading"><h2>物語進捗</h2><span id="story-progress-count">0/6</span></div>
-        <div class="story-progress"><i id="story-progress-fill"></i></div>
-        <div id="story-milestones" class="story-milestones"></div>
-        <div class="subsection-heading"><strong>三つの真相</strong><span id="truth-count">0/3</span></div>
-        <div id="truth-list" class="truth-list"></div>
+        </div>
       </section>
-      <section class="lower-card inventory-card">
-        <div class="section-heading"><h2>携行品</h2><span id="inventory-count">0</span></div>
-        <ul id="inventory-list" class="inventory-list"></ul>
+      <section class="panel inventory-card" aria-label="装備と携行品">
+        <div class="panel-heading"><h2>装備と携行品</h2><span id="inventory-count">0</span></div>
+        <div id="equipment-list" class="equipment-list"></div>
+        <ul id="inventory-list" class="inventory-grid"></ul>
+        <p id="inventory-caption" class="inventory-caption" aria-live="polite"></p>
       </section>
-      <section class="lower-card archive-card">
-        <div class="section-heading"><h2>遠征進捗</h2><span id="archive-count">0</span></div>
-        <div id="campaign-summary" class="campaign-summary"></div>
-        <ol id="archive-list" class="archive-list"></ol>
+      <section class="panel log-card" aria-label="遠征記録">
+        <div class="panel-heading"><h2>遠征記録</h2><span>新しい順</span></div>
+        <ol id="message-list" class="message-list"></ol>
       </section>
-    </section>
-    <footer class="observer-footer">効果音: SFX Forge で生成（一部は Sound effects generated with Woosh (Sony AI)、Sonniss #GameAudioGDC Bundle の素材を含む）。</footer>
+    </div>
   </main>
 
-  <section id="candidate-dialog" class="modal-layer" aria-live="polite">
-    <div class="modal-panel candidate-panel" role="dialog" aria-modal="true" aria-labelledby="candidate-title">
-      <p class="eyebrow">灰灯院 · 遠征者選定</p>
-      <h2 id="candidate-title">誰を黒燭の迷宮へ送るか</h2>
-      <section class="institute" aria-label="灰灯院の施設">
-        <div class="institute-shards"><span><i id="shard-icon" class="shard-icon" aria-hidden="true"></i>灯片</span><strong id="institute-shards">0</strong><small>遠征の得点・任務・真相・生還で得られる。</small></div>
-        <div id="institute-facilities" class="institute-facilities"></div>
-        <div id="institute-infirmary" class="institute-infirmary"></div>
-        <div id="institute-cycle" class="institute-cycle"></div>
-      </section>
-      <p>先に遠征任務を定めます。職業と気質だけでなく、任務もAIが目指す一周の目的になります。</p>
-      <div id="mission-list" class="mission-list" aria-label="遠征任務"></div>
-      <div class="tactic-heading"><strong>作戦カード</strong><span id="tactic-count">0/2</span><small>探索者の判断の癖を決めます。節目の判断でも組み替えられます。</small></div>
-      <div id="tactic-list" class="tactic-list" aria-label="作戦カード"></div>
-      <div class="candidate-heading"><strong>遠征団</strong><small>生還した古参は位階が上がって強くなるが、瀕死で帰ると古傷を負う。倒れた者は戻らない。</small></div>
-      <div id="veteran-list" class="candidate-list"></div>
-      <div class="candidate-heading"><strong>新たな志願者</strong><small id="recruit-capacity"></small></div>
-      <div id="candidate-list" class="candidate-list"></div>
+  <section id="candidate-dialog" class="modal-layer prepare-layer" aria-live="polite">
+    <div class="prepare-screen" role="dialog" aria-modal="true" aria-labelledby="candidate-title">
+      <header class="prepare-header">
+        <div>
+          <p class="eyebrow">灰灯院 · 遠征の支度</p>
+          <h2 id="candidate-title">誰を黒燭の迷宮へ送るか</h2>
+        </div>
+        <div class="prepare-header-actions">
+          <div class="shard-balance" title="遠征の得点・任務・真相・生還で得られる。施設の強化と療房に使う。"><i id="shard-icon" class="shard-icon" aria-hidden="true"></i><span>灯片</span><strong id="institute-shards">0</strong></div>
+          <button id="resume-run" class="secondary-button" type="button" hidden>観戦に戻る <kbd>Esc</kbd></button>
+        </div>
+      </header>
+      <div class="prepare-body">
+        <div class="prepare-main">
+          <section class="prepare-step" aria-labelledby="step-mission">
+            <div class="step-heading"><span class="step-no">1</span><h3 id="step-mission">遠征任務</h3><small>任務もAIが目指す一周の目的になる。</small></div>
+            <div id="mission-list" class="mission-list"></div>
+          </section>
+          <section class="prepare-step" aria-labelledby="step-tactics">
+            <div class="step-heading"><span class="step-no">2</span><h3 id="step-tactics">作戦カード</h3><em id="tactic-count">0/2</em><small>探索者の判断の癖。3階・6階の節目でも組み替えられる。</small></div>
+            <div id="tactic-list" class="tactic-list"></div>
+          </section>
+          <section class="prepare-step" aria-labelledby="step-delver">
+            <div class="step-heading"><span class="step-no">3</span><h3 id="step-delver">探索者</h3><small>番号キー 1〜4 でも選べる。</small></div>
+            <div class="candidate-group"><strong>遠征団</strong><small>生還した古参は位階が上がって強くなる。瀕死で帰ると古傷を負い、倒れた者は戻らない。</small></div>
+            <div id="veteran-list" class="candidate-list"></div>
+            <div class="candidate-group"><strong>新たな志願者</strong><small id="recruit-capacity"></small></div>
+            <div id="candidate-list" class="candidate-list"></div>
+          </section>
+        </div>
+        <aside class="prepare-side" aria-label="灰灯院">
+          <section class="side-section">
+            <div class="side-heading"><h3>施設</h3><small>灯片で強化すると、以後の遠征すべてに効く。</small></div>
+            <div id="institute-facilities" class="institute-facilities"></div>
+            <div id="institute-infirmary" class="institute-infirmary"></div>
+          </section>
+          <section class="side-section">
+            <div id="institute-cycle" class="institute-cycle"></div>
+          </section>
+          <section class="side-section">
+            <div class="side-heading"><h3>物語進捗</h3><span id="story-progress-count">0/6</span></div>
+            <div class="story-progress"><i id="story-progress-fill"></i></div>
+            <div id="story-milestones" class="story-milestones"></div>
+            <div class="side-subheading"><strong>三つの真相</strong><span id="truth-count">0/3</span></div>
+            <div id="truth-list" class="truth-list"></div>
+          </section>
+          <section class="side-section">
+            <div class="side-heading"><h3>遠征録</h3><span id="archive-count">0件</span></div>
+            <div id="campaign-summary" class="campaign-summary"></div>
+            <ol id="archive-list" class="archive-list"></ol>
+          </section>
+          <p class="credit">効果音: SFX Forge で生成（一部は Sound effects generated with Woosh (Sony AI)、Sonniss #GameAudioGDC Bundle の素材を含む）。</p>
+        </aside>
+      </div>
+      <footer class="prepare-footer">
+        <div id="depart-summary" class="depart-summary"></div>
+        <button id="depart-button" class="primary-button" type="button">出発する</button>
+      </footer>
     </div>
   </section>
 
   <section id="decision-dialog" class="modal-layer" hidden aria-live="assertive">
     <div class="modal-panel decision-panel" role="dialog" aria-modal="true" aria-labelledby="decision-title">
-      <p class="eyebrow">黒燭からの問い</p>
+      <p class="eyebrow" id="decision-kicker">黒燭からの問い</p>
       <h2 id="decision-title">灯守の判断</h2>
-      <p id="decision-body"></p>
-      <section id="decision-context" class="decision-context" aria-label="判断材料"></section>
+      <p id="decision-body" class="modal-lead"></p>
+      <div id="decision-status" class="decision-status" aria-label="探索者の状態"></div>
+      <div id="decision-options" class="decision-options"></div>
       <section id="decision-tactics" class="decision-tactics" aria-label="作戦の組み替え" hidden>
-        <div class="tactic-heading"><strong>作戦を組み替える</strong><span id="decision-tactic-count">0/2</span><small>組み替えると下の先読みが更新されます。</small></div>
+        <div class="step-heading"><h3>作戦を組み替える</h3><em id="decision-tactic-count">0/2</em><small>組み替えると各案の先読みが更新される。</small></div>
         <div id="decision-tactic-list" class="tactic-list is-compact"></div>
       </section>
-      <div id="decision-options" class="decision-options"></div>
+      <details class="decision-details">
+        <summary>装備と遠征の詳細</summary>
+        <section id="decision-context" class="decision-context" aria-label="判断材料"></section>
+      </details>
       <p id="decision-hint" class="modal-hint"></p>
     </div>
   </section>
@@ -228,12 +253,16 @@ app.innerHTML = `
     <div class="modal-panel result-panel" role="dialog" aria-modal="true" aria-labelledby="end-title">
       <p id="end-kicker" class="eyebrow">遠征終了</p>
       <h2 id="end-title">遠征記録</h2>
-      <p id="end-summary"></p>
+      <p id="end-summary" class="modal-lead"></p>
+      <div id="end-stats" class="end-stats"></div>
       <div id="run-comparison" class="run-comparison"></div>
       <section id="run-insights" class="run-insights" aria-label="遠征の軌跡"></section>
+      <div class="result-section-heading"><h3>得点の内訳</h3></div>
       <div id="score-breakdown" class="score-breakdown"></div>
       <div id="decision-history" class="decision-history"></div>
-      <button id="end-new-expedition" class="primary-button" type="button">次の探索者を選ぶ</button>
+      <div class="modal-footer">
+        <button id="end-new-expedition" class="primary-button" type="button">灰灯院へ戻り、次の遠征を支度する</button>
+      </div>
     </div>
   </section>
 `;
@@ -244,6 +273,7 @@ const renderer = new PixiRoguelikeRenderer();
 const soundscape = new Soundscape(`${import.meta.env.BASE_URL}sfx/`, loadSoundPreference());
 const observerShell = requireElement<HTMLElement>(".observer-shell");
 const pixiRoot = requireElement<HTMLDivElement>("#pixi-root");
+const mapStage = requireElement<HTMLDivElement>("#map-stage");
 const candidateDialog = requireElement<HTMLElement>("#candidate-dialog");
 const missionList = requireElement<HTMLDivElement>("#mission-list");
 const candidateList = requireElement<HTMLDivElement>("#candidate-list");
@@ -258,6 +288,7 @@ const decisionDialog = requireElement<HTMLElement>("#decision-dialog");
 const decisionTitle = requireElement<HTMLHeadingElement>("#decision-title");
 const decisionBody = requireElement<HTMLParagraphElement>("#decision-body");
 const decisionContext = requireElement<HTMLElement>("#decision-context");
+const decisionStatus = requireElement<HTMLDivElement>("#decision-status");
 const decisionOptions = requireElement<HTMLDivElement>("#decision-options");
 const decisionHint = requireElement<HTMLParagraphElement>("#decision-hint");
 const endDialog = requireElement<HTMLElement>("#end-dialog");
@@ -265,6 +296,9 @@ const endKicker = requireElement<HTMLParagraphElement>("#end-kicker");
 const endTitle = requireElement<HTMLHeadingElement>("#end-title");
 const endSummary = requireElement<HTMLParagraphElement>("#end-summary");
 const runComparison = requireElement<HTMLDivElement>("#run-comparison");
+const endStats = requireElement<HTMLDivElement>("#end-stats");
+const departButton = requireElement<HTMLButtonElement>("#depart-button");
+const resumeButton = requireElement<HTMLButtonElement>("#resume-run");
 const scoreBreakdown = requireElement<HTMLDivElement>("#score-breakdown");
 const decisionHistory = requireElement<HTMLDivElement>("#decision-history");
 const runInsightsPanel = requireElement<HTMLElement>("#run-insights");
@@ -291,6 +325,10 @@ let selectedTactics: string[] = loadSelectedTactics();
 let draftTactics: string[] | null = null;
 let draftDecisionId: string | null = null;
 let focusedModal: HTMLElement | null = null;
+/** 灰灯院で選んでいる探索者。古参は id、志願者は職業で指す。 */
+let selectedDelver: { kind: "veteran"; id: string } | { kind: "recruit"; roleId: string } | null = null;
+/** 実際に送り出した遠征があるか。起動直後の仮の盤面と区別する。 */
+let runActive = false;
 
 installEvents();
 installDebugBridge();
@@ -298,14 +336,33 @@ renderCandidateSelection();
 render();
 await renderer.mount(pixiRoot);
 syncViewport();
-window.addEventListener("resize", syncViewport);
+new ResizeObserver(syncViewport).observe(mapStage);
 requireElement<HTMLButtonElement>("#pause-toggle").innerHTML = PAUSE_ICON;
+applySprite(requireElement<HTMLElement>("#brand-mark"), assetForContent("ui.heat"), 30);
 syncSoundToggle();
 render();
 
+/** マップ枠の大きさに合わせて表示タイル数を決め、枠いっぱいに1タイルを大きく見せる。 */
 function syncViewport(): void {
-  const narrow = window.matchMedia("(max-width: 700px)").matches;
-  renderer.setViewport(narrow ? 9 : 16, narrow ? 9 : 10);
+  const width = mapStage.clientWidth;
+  const height = mapStage.clientHeight;
+  if (width <= 0 || height <= 0) return;
+  const narrow = width < 560;
+  const targetTile = narrow ? 46 : 64;
+  const columns = Math.max(narrow ? 7 : 10, Math.min(22, Math.round(width / targetTile)));
+  let tile = width / columns;
+  let rows = Math.max(6, Math.min(14, Math.floor(height / tile)));
+  // 縦が足りない時は、縦に合わせてタイルを縮める。
+  if (rows * tile > height) {
+    tile = height / rows;
+  }
+  rows = Math.max(6, rows);
+  renderer.setViewport(columns, rows);
+  const canvas = pixiRoot.querySelector("canvas");
+  if (canvas) {
+    canvas.style.width = `${Math.floor(columns * tile)}px`;
+    canvas.style.height = `${Math.floor(rows * tile)}px`;
+  }
   render();
 }
 
@@ -329,8 +386,8 @@ function installEvents(): void {
   document.addEventListener("click", (event) => {
     const button = (event.target as HTMLElement).closest<HTMLButtonElement>("button");
     if (!button || button.id === "sound-toggle") return;
-    if (button.matches("[data-tactic-id], [data-heat], [data-mission-id], [data-speed]")) soundscape.play("ui_move", 0.7);
-    else if (button.matches("[data-option-id], [data-role-id], [data-veteran-id], [data-facility-id], [data-treat-veteran], [data-adopt-tactic], #new-expedition, #end-new-expedition")) soundscape.play("ui_confirm", 0.8);
+    if (button.matches("[data-tactic-id], [data-heat], [data-mission-id], [data-speed], [data-role-id], [data-veteran-id], #resume-run")) soundscape.play("ui_move", 0.7);
+    else if (button.matches("[data-option-id], [data-facility-id], [data-treat-veteran], [data-adopt-tactic], #new-expedition, #end-new-expedition, #depart-button")) soundscape.play("ui_confirm", 0.8);
   });
   requireElement<HTMLDivElement>("#lantern-rites").addEventListener("click", (event) => {
     const button = (event.target as HTMLElement).closest<HTMLButtonElement>("button[data-rite]");
@@ -352,21 +409,29 @@ function installEvents(): void {
   candidateList.addEventListener("click", (event) => {
     const button = (event.target as HTMLElement).closest<HTMLButtonElement>("button[data-role-id]");
     if (!button) return;
-    startExpedition(button.dataset.roleId ?? playableRoles()[0].id);
+    selectDelver({ kind: "recruit", roleId: button.dataset.roleId ?? playableRoles()[0].id });
   });
   veteranList.addEventListener("click", (event) => {
     const button = (event.target as HTMLElement).closest<HTMLButtonElement>("button[data-veteran-id]");
-    const veteran = campaign.roster.find((entry) => entry.id === button?.dataset.veteranId);
-    if (!veteran) return;
-    startExpedition(veteran.identity.roleId, veteran);
+    if (!button?.dataset.veteranId) return;
+    selectDelver({ kind: "veteran", id: button.dataset.veteranId });
   });
+  departButton.addEventListener("click", departSelected);
+  resumeButton.addEventListener("click", resumeObserving);
+  const inventoryList = requireElement<HTMLUListElement>("#inventory-list");
+  const showInventoryName = (event: Event) => {
+    const slot = (event.target as HTMLElement).closest<HTMLElement>("[data-item-label]");
+    if (slot) setText("#inventory-caption", slot.dataset.itemLabel ?? "");
+  };
+  inventoryList.addEventListener("pointerover", showInventoryName);
+  inventoryList.addEventListener("click", showInventoryName);
+  inventoryList.addEventListener("pointerleave", () => setText("#inventory-caption", ""));
   instituteFacilities.addEventListener("click", (event) => {
     const button = (event.target as HTMLElement).closest<HTMLButtonElement>("button[data-facility-id]");
     if (!button || button.disabled) return;
     campaign = upgradeFacility(campaign, button.dataset.facilityId as FacilityId);
     saveCampaign(campaign);
     renderCandidateSelection();
-    renderArchive();
   });
   instituteCycle.addEventListener("click", (event) => {
     const button = (event.target as HTMLElement).closest<HTMLButtonElement>("button[data-heat]");
@@ -443,6 +508,20 @@ function installEvents(): void {
         return;
       }
     }
+    if (!candidateDialog.hidden) {
+      if (event.key === "Escape" && !resumeButton.hidden) {
+        event.preventDefault();
+        resumeObserving();
+        return;
+      }
+      // 選択済みの探索者カードか、ボタン以外にフォーカスがある時の Enter は出発にする。
+      const active = document.activeElement;
+      if (event.key === "Enter" && (!(active instanceof HTMLButtonElement) || active.matches(".candidate-card.is-selected"))) {
+        event.preventDefault();
+        departButton.click();
+        return;
+      }
+    }
     if (!["1", "2", "3", "4"].includes(event.key)) return;
     const index = Number(event.key) - 1;
     const visibleButtons = !candidateDialog.hidden
@@ -458,10 +537,57 @@ function openNewExpedition(): void {
   stopAutoplay();
   endDialog.hidden = true;
   decisionDialog.hidden = true;
-  candidateSeed = nextSeed();
+  // 同じ迷宮を二度引かないよう、今の遠征と同じseedなら候補を引き直す。観戦途中で開閉しても志願者は変わらない。
+  if (candidateSeed === state.seed) {
+    candidateSeed = nextSeed();
+    selectedDelver = null;
+  }
   renderCandidateSelection();
   candidateDialog.hidden = false;
+  candidateDialog.scrollTop = 0;
   syncModalAccessibility();
+}
+
+/** 観戦途中に灰灯院を開いた時、遠征を捨てずに観戦へ戻る。 */
+function resumeObserving(): void {
+  if (!runActive || state.status !== "playing") return;
+  candidateDialog.hidden = true;
+  render();
+  if (!paused && !state.pendingDecision) scheduleAutoplay(scheduledPace);
+}
+
+function selectDelver(next: NonNullable<typeof selectedDelver>): void {
+  selectedDelver = next;
+  renderCandidateSelection();
+}
+
+function departSelected(): void {
+  const delver = resolveSelectedDelver();
+  if (!delver) return;
+  startExpedition(delver.roleId, delver.veteran);
+}
+
+/** 選択中の探索者を解決する。古参が倒れて消えた時などは先頭の候補に戻す。 */
+function resolveSelectedDelver(): { roleId: string; veteran?: Veteran; name: string; roleName: string; temperament: string } | null {
+  if (selectedDelver?.kind === "veteran") {
+    const veteranId = selectedDelver.id;
+    const veteran = campaign.roster.find((entry) => entry.id === veteranId);
+    if (veteran) return { roleId: veteran.identity.roleId, veteran, name: veteran.identity.name, roleName: getContentName(veteran.identity.roleId), temperament: temperamentLabel(veteran.identity.temperament) };
+  }
+  if (selectedDelver?.kind === "recruit") {
+    const roleId = selectedDelver.roleId;
+    const identity = recruitIdentities().find((entry) => entry.roleId === roleId);
+    if (identity) return { roleId, name: identity.name, roleName: getContentName(roleId), temperament: temperamentLabel(identity.temperament) };
+  }
+  const veteran = campaign.roster[0];
+  if (veteran) {
+    selectedDelver = { kind: "veteran", id: veteran.id };
+    return resolveSelectedDelver();
+  }
+  const roleId = playableRoles()[0]?.id;
+  if (!roleId) return null;
+  selectedDelver = { kind: "recruit", roleId };
+  return resolveSelectedDelver();
 }
 
 function startExpedition(roleId: string, veteran?: Veteran): void {
@@ -483,6 +609,7 @@ function startExpedition(roleId: string, veteran?: Veteran): void {
   runLog = createRunLog(state.seed, roleId, {}, selectedIdentity);
   currentReview = null;
   archivedRunId = null;
+  runActive = true;
   candidateDialog.hidden = true;
   decisionDialog.hidden = true;
   endDialog.hidden = true;
@@ -492,13 +619,15 @@ function startExpedition(roleId: string, veteran?: Veteran): void {
 }
 
 function renderCandidateSelection(): void {
+  // 再描画でボタンが作り直されてもキーボード操作の位置を失わないよう、フォーカス先を覚えて戻す。
+  const focusKey = focusedDataKey();
   missionList.replaceChildren(...expeditionMissions.map((mission) => {
     const button = document.createElement("button");
     button.type = "button";
     button.dataset.missionId = mission.id;
     button.className = mission.id === selectedMissionId ? "mission-option is-selected" : "mission-option";
     button.setAttribute("aria-pressed", String(mission.id === selectedMissionId));
-    button.innerHTML = `<strong>${escapeHtml(mission.label)}</strong><small>${escapeHtml(mission.description)}</small><em>${escapeHtml(mission.targetLabel)} · 報酬 ${escapeHtml(mission.rewardLabel)}</em>`;
+    button.innerHTML = `<strong>${escapeHtml(mission.label)}</strong><small>${escapeHtml(mission.description)}</small><em>${escapeHtml(mission.targetLabel)}</em><span class="mission-reward">報酬 ${escapeHtml(mission.rewardLabel)}</span>`;
     return button;
   }));
   const slots = campaignTacticSlots(campaign);
@@ -508,35 +637,107 @@ function renderCandidateSelection(): void {
   setText("#tactic-count", `${selectedTactics.length}/${slots}`);
   renderInstitute();
   renderCycle();
+  const delver = resolveSelectedDelver();
   renderVeterans();
   setText("#recruit-capacity", campaign.roster.length >= getGameConfig().campaign.rosterLimit
-    ? "遠征団は満員です。志願者は遠征できますが、生還しても加入しません。古参は全員残ります。"
-    : `生還すると遠征団に加入します（${campaign.roster.length}/${getGameConfig().campaign.rosterLimit}人）。`);
+    ? "遠征団は満員。志願者は遠征できるが、生還しても加入しない（古参は全員残る）。"
+    : `生還すると遠征団に加わる（${campaign.roster.length}/${getGameConfig().campaign.rosterLimit}人）。`);
   const indexOffset = campaign.roster.length;
   const recruits = recruitIdentities();
   candidateList.replaceChildren(...playableRoles().map((role, index) => {
     const identity = recruits[index];
-    const button = document.createElement("button");
-    button.type = "button";
-    button.dataset.roleId = role.id;
-    button.className = "candidate-card";
-    const asset = assetForContent(role.id);
-    const portrait = document.createElement("span");
-    portrait.className = "candidate-portrait";
-    applySprite(portrait, asset, 72);
-    const body = document.createElement("span");
-    body.className = "candidate-body";
-    body.innerHTML = `
-      <span class="candidate-index">${index + indexOffset + 1 <= 4 ? index + indexOffset + 1 : ""}</span>
-      <strong>${identity.name}</strong>
-      <em>${getContentName(role.id)}</em>
-      <span class="temperament-tag temperament-${identity.temperament}">${temperamentLabel(identity.temperament)}</span>
-      <small>${temperamentDescription(identity.temperament)}</small>
-      <small>HP ${role.stats.maxHp} / 攻撃 ${role.stats.attack} / 防御 ${role.stats.defense}</small>
-    `;
-    button.append(portrait, body);
-    return button;
+    const selected = selectedDelver?.kind === "recruit" && selectedDelver.roleId === role.id;
+    return candidateCard({
+      dataKey: ["roleId", role.id],
+      selected,
+      shortcut: index + indexOffset + 1,
+      roleId: role.id,
+      name: escapeHtml(identity.name),
+      meta: getContentName(role.id),
+      temperament: identity.temperament,
+      extra: `<small>${temperamentDescription(identity.temperament)}</small>`,
+      stats: { hp: role.stats.maxHp, attack: role.stats.attack, defense: role.stats.defense },
+    });
   }));
+  renderDepartSummary(delver);
+  renderTruths();
+  renderArchive();
+  restoreFocus(candidateDialog, focusKey);
+}
+
+function candidateCard(options: {
+  dataKey: ["roleId" | "veteranId", string];
+  selected: boolean;
+  veteran?: boolean;
+  shortcut: number;
+  roleId: string;
+  name: string;
+  meta: string;
+  temperament: Veteran["identity"]["temperament"];
+  extra: string;
+  stats: { hp: number; attack: number; defense: number };
+}): HTMLButtonElement {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.dataset[options.dataKey[0]] = options.dataKey[1];
+  button.className = `candidate-card${options.veteran ? " is-veteran" : ""}${options.selected ? " is-selected" : ""}`;
+  button.setAttribute("aria-pressed", String(options.selected));
+  const portrait = document.createElement("span");
+  portrait.className = "candidate-portrait";
+  applySprite(portrait, assetForContent(options.roleId), 64);
+  const body = document.createElement("span");
+  body.className = "candidate-body";
+  body.innerHTML = `
+    ${options.shortcut <= 4 ? `<kbd class="candidate-index">${options.shortcut}</kbd>` : ""}
+    <strong>${options.name}</strong>
+    <em>${escapeHtml(options.meta)}</em>
+    <span class="temperament-tag temperament-${options.temperament}">${temperamentLabel(options.temperament)}</span>
+    ${options.extra}
+    <span class="mini-stats"><span>HP <b>${options.stats.hp}</b></span><span>攻撃 <b>${options.stats.attack}</b></span><span>防御 <b>${options.stats.defense}</b></span></span>
+  `;
+  button.append(portrait, body);
+  return button;
+}
+
+function renderDepartSummary(delver: ReturnType<typeof resolveSelectedDelver>): void {
+  const summary = requireElement<HTMLDivElement>("#depart-summary");
+  departButton.disabled = !delver;
+  if (!delver) {
+    summary.innerHTML = '<span class="depart-note">送り出す探索者を選んでください。</span>';
+    return;
+  }
+  const tactics = tacticLabels(selectedTactics);
+  const heat = campaign.heat.selected;
+  const abandoning = runActive && state.status === "playing";
+  summary.innerHTML = `
+    <span class="depart-portrait" aria-hidden="true"></span>
+    <span class="depart-who"><strong>${escapeHtml(delver.name)}${delver.veteran ? ` <span class="rank-stars">${"★".repeat(delver.veteran.rank)}</span>` : ""}</strong><small>${escapeHtml(delver.roleName)} · ${escapeHtml(delver.temperament)}</small></span>
+    <span class="depart-plan">
+      <span>任務 <b>${escapeHtml(missionDefinition(selectedMissionId).label)}</b></span>
+      <span>作戦 <b>${tactics.length ? escapeHtml(tactics.join("・")) : "なし"}</b></span>
+      ${heat > 0 ? `<span>燭階 <b>${heat}</b></span>` : ""}
+    </span>
+    ${abandoning ? `<span class="depart-note is-warning">観戦中の遠征（${escapeHtml(state.runIdentity.name)}・地下${state.floor}階）は記録されずに終わる。</span>` : ""}
+  `;
+  applySprite(summary.querySelector<HTMLElement>(".depart-portrait") as HTMLElement, assetForContent(delver.roleId), 44);
+  departButton.textContent = abandoning ? "遠征を切り替えて出発" : `${delver.name}を送り出す`;
+  resumeButton.hidden = !abandoning;
+}
+
+function focusedDataKey(): string | null {
+  const active = document.activeElement;
+  if (!(active instanceof HTMLElement) || !candidateDialog.contains(active)) return null;
+  for (const key of ["missionId", "tacticId", "heat", "roleId", "veteranId", "facilityId", "treatScar"]) {
+    const value = active.dataset[key];
+    if (value !== undefined) return `[data-${key.replace(/[A-Z]/g, (char) => `-${char.toLowerCase()}`)}="${CSS.escape(value)}"]`;
+  }
+  return null;
+}
+
+function restoreFocus(container: HTMLElement, selector: string | null): void {
+  if (!selector) return;
+  const target = container.querySelector<HTMLElement>(selector);
+  if (target && document.activeElement !== target) target.focus({ preventScroll: true });
 }
 
 /** 古参や他の志願者と名前が重ならない志願者を職業ごとに用意する。 */
@@ -603,28 +804,22 @@ function renderVeterans(): void {
     veteranList.innerHTML = '<p class="empty-state">まだ帰還した古参はいない。生還した探索者はここに残る。</p>';
     return;
   }
+  const bonus = getGameConfig().campaign.veteranRankBonus;
   veteranList.replaceChildren(...campaign.roster.map((veteran, index) => {
     const role = playableRoles().find((candidate) => candidate.id === veteran.identity.roleId);
-    const bonus = getGameConfig().campaign.veteranRankBonus;
-    const button = document.createElement("button");
-    button.type = "button";
-    button.dataset.veteranId = veteran.id;
-    button.className = "candidate-card is-veteran";
-    const portrait = document.createElement("span");
-    portrait.className = "candidate-portrait";
-    applySprite(portrait, assetForContent(veteran.identity.roleId), 72);
-    const body = document.createElement("span");
-    body.className = "candidate-body";
-    body.innerHTML = `
-      <span class="candidate-index">${index + 1 <= 4 ? index + 1 : ""}</span>
-      <strong>${escapeHtml(veteran.identity.name)} <span class="rank-stars" aria-label="位階${veteran.rank}">${"★".repeat(veteran.rank)}</span></strong>
-      <em>${getContentName(veteran.identity.roleId)} · 遠征${veteran.expeditions}回</em>
-      <span class="temperament-tag temperament-${veteran.identity.temperament}">${temperamentLabel(veteran.identity.temperament)}</span>
-      ${veteran.scars.length ? `<span class="scar-tags">${veteran.scars.map((id) => `<i title="${escapeHtml(scars[id]?.description ?? "")}">${escapeHtml(scars[id]?.label ?? id)}</i>`).join("")}</span>` : ""}
-      <small>HP ${(role?.stats.maxHp ?? 0) + bonus.maxHp * veteran.rank} / 攻撃 ${(role?.stats.attack ?? 0) + bonus.attack * veteran.rank} / 防御 ${role?.stats.defense ?? 0}</small>
-    `;
-    button.append(portrait, body);
-    return button;
+    const selected = selectedDelver?.kind === "veteran" && selectedDelver.id === veteran.id;
+    return candidateCard({
+      dataKey: ["veteranId", veteran.id],
+      selected,
+      veteran: true,
+      shortcut: index + 1,
+      roleId: veteran.identity.roleId,
+      name: `${escapeHtml(veteran.identity.name)} <span class="rank-stars" aria-label="位階${veteran.rank}">${"★".repeat(veteran.rank)}</span>`,
+      meta: `${getContentName(veteran.identity.roleId)} · 遠征${veteran.expeditions}回`,
+      temperament: veteran.identity.temperament,
+      extra: veteran.scars.length ? `<span class="scar-tags">${veteran.scars.map((id) => `<i title="${escapeHtml(scars[id]?.description ?? "")}">${escapeHtml(scars[id]?.label ?? id)}</i>`).join("")}</span>` : "",
+      stats: { hp: (role?.stats.maxHp ?? 0) + bonus.maxHp * veteran.rank, attack: (role?.stats.attack ?? 0) + bonus.attack * veteran.rank, defense: role?.stats.defense ?? 0 },
+    });
   }));
 }
 
@@ -700,23 +895,25 @@ function render(): void {
   const player = observation.player;
   const config = getGameConfig();
   const score = calculateScore(state);
-  setText("#run-delver", `${state.runIdentity.name} / ${getContentName(state.runIdentity.roleId)}`);
-  setText("#run-temperament", temperamentLabel(state.runIdentity.temperament));
   setText("#run-directive", directiveLabel(state.directive));
   const runMission = missionDefinition(state.story.missionId);
   const runMissionProgress = missionProgress(state);
-  setText("#run-mission", state.story.missionCompleted ? `${runMission.label} ✓` : `${runMission.label} ${runMissionProgress.current}/${runMissionProgress.target}`);
+  setText("#run-mission", runMission.label);
+  setText("#run-mission-progress", state.story.missionCompleted ? "達成" : runMissionProgress.missed ? "期限切れ" : `${runMissionProgress.current}/${runMissionProgress.target}`);
+  const missionFill = requireElement<HTMLElement>("#mission-fill");
+  missionFill.style.width = `${state.story.missionCompleted ? 100 : Math.min(100, runMissionProgress.current / Math.max(1, runMissionProgress.target) * 100)}%`;
+  missionFill.dataset.tone = state.story.missionCompleted ? "done" : runMissionProgress.missed ? "missed" : "active";
   setText("#run-revelations", `${state.revelationsRemaining}/${config.autonomous.revelationsPerRun}`);
-  setText("#run-floor", `${state.floor}/${config.rules.maxFloor}`);
   const rules = runRules(state.modifiers);
-  setText("#run-turn", `${state.runTurn}/${rules.runTurnLimit}`);
-  setText("#biome-kicker", `地下${state.floor}階 / ${state.status === "playing" ? "観測中" : statusLabel(state.status)}`);
+  setText("#run-turn", `${state.runTurn} / ${rules.runTurnLimit}手`);
+  setText("#biome-kicker", `地下${state.floor}階 / ${config.rules.maxFloor}${state.status === "playing" ? "" : ` · ${statusLabel(state.status)}`}`);
   setText("#biome-title", biomeThemeName(state.biome));
   setText("#live-score", score.total.toLocaleString("ja-JP"));
-  setText("#turn-meter-label", state.runTurn >= rules.runTurnWarning ? "灯路が揺らいでいる" : "灯路は安定");
+  const routeWarning = state.runTurn >= rules.runTurnWarning;
+  setText("#turn-meter-label", routeWarning ? "灯路が揺らいでいる" : "灯路");
+  requireElement<HTMLElement>("#turn-meter").classList.toggle("is-warning", routeWarning);
   const meter = requireElement<HTMLElement>("#turn-meter-fill");
   meter.style.width = `${Math.min(100, state.runTurn / rules.runTurnLimit * 100)}%`;
-  meter.classList.toggle("is-warning", state.runTurn >= rules.runTurnWarning);
 
   setText("#explored-ratio", `${Math.round(observation.exploration.exploredTileRatio * 100)}%`);
   setText("#objective-title", objectiveLabel(observation.exploration.objective));
@@ -724,15 +921,13 @@ function render(): void {
   renderVitals(observation);
   renderLantern(observation);
 
-  requireElement<HTMLOListElement>("#message-list").replaceChildren(...[...state.messages.slice(-8)].reverse().map((entry) => {
+  requireElement<HTMLOListElement>("#message-list").replaceChildren(...[...state.messages.slice(-30)].reverse().map((entry) => {
     const item = document.createElement("li");
     item.className = `tone-${entry.tone}`;
     item.innerHTML = `<span>${entry.turn}</span><p>${escapeHtml(entry.text)}</p>`;
     return item;
   }));
   renderInventory(player.inventory ?? []);
-  renderTruths();
-  renderArchive();
   renderDecision(observation);
   renderEnd();
   syncModalAccessibility();
@@ -813,17 +1008,16 @@ function renderVitals(observation: ReturnType<typeof observeGame>): void {
   requireElement<HTMLElement>("#vitals-hp").dataset.tone = hpTone;
   const conditions = player.conditions ?? [];
   requireElement<HTMLElement>("#vitals-conditions").innerHTML = conditions.length
-    ? conditions.map((condition) => `<span class="condition-tag condition-${conditionTone(condition)}">${conditionLabel(condition)} ${condition.turns}手</span>`).join("")
-    : '<span class="condition-tag condition-normal">異常なし</span>';
+    ? conditions.map((condition) => `<span class="tag tag-${conditionTone(condition)}">${conditionLabel(condition)} ${condition.turns}手</span>`).join("")
+    : "";
   const scarLabels = state.modifiers.scars.map((id) => getGameConfig().scars[id]?.label ?? id);
-  requireElement<HTMLElement>("#vitals-tactics").innerHTML = (state.tactics.length
-    ? tacticLabels(state.tactics).map((label) => `<span>${escapeHtml(label)}</span>`).join("")
-    : '<span class="is-empty">作戦なし</span>') + scarLabels.map((label) => `<span class="is-scar">${escapeHtml(label)}</span>`).join("");
+  requireElement<HTMLElement>("#vitals-tactics").innerHTML = tacticLabels(state.tactics).map((label) => `<span class="tag tag-tactic">${escapeHtml(label)}</span>`).join("")
+    + scarLabels.map((label) => `<span class="tag tag-danger" title="古傷">${escapeHtml(label)}</span>`).join("");
   requireElement<HTMLDivElement>("#hero-stats").innerHTML = [
     ["攻撃", String(player.stats?.attack ?? "-")],
     ["防御", String(player.stats?.defense ?? "-")],
-    ["Gold", String(progress.gold)],
-  ].map(([label, value]) => `<div><span>${label}</span><strong>${value}</strong></div>`).join("");
+    ["所持金", String(progress.gold)],
+  ].map(([label, value]) => `<span>${label}<strong>${value}</strong></span>`).join("");
 }
 
 function lanternRiteDescription(rite: LanternRiteId): string {
@@ -844,6 +1038,7 @@ function renderLantern(observation: ReturnType<typeof observeGame>): void {
   const pips = requireElement<HTMLDivElement>("#lantern-pips");
   pips.setAttribute("aria-label", `灯火 ${lantern.embers} / ${lantern.maxEmbers}`);
   pips.innerHTML = Array.from({ length: lantern.maxEmbers }, (_, index) => `<i class="${index < lantern.embers ? "is-lit" : ""}"></i>`).join("");
+  setText("#lantern-count", `${lantern.embers}/${lantern.maxEmbers}`);
   const suggestion = chooseWatcherAction(observation, "lantern");
   const suggested = suggestion?.type === "invokeLantern" ? suggestion.rite : null;
   setText("#lantern-hint", suggested
@@ -856,7 +1051,7 @@ function renderLantern(observation: ReturnType<typeof observeGame>): void {
       button.type = "button";
       button.dataset.rite = rite;
       button.className = `lantern-rite rite-${rite}`;
-      button.innerHTML = `<span class="rite-icon" aria-hidden="true"></span><kbd>${lanternRiteKeys[rite]}</kbd><strong>${lanternRiteLabel(rite)}</strong><small>${escapeHtml(lanternRiteDescription(rite))}</small><em></em>`;
+      button.innerHTML = `<span class="rite-icon" aria-hidden="true"></span><kbd>${lanternRiteKeys[rite]}</kbd><strong>${lanternRiteLabel(rite)}<em></em></strong><small>${escapeHtml(lanternRiteDescription(rite))}</small>`;
       applySprite(button.querySelector<HTMLElement>(".rite-icon") as HTMLElement, assetForContent(`rite.${rite}`), 40);
       return button;
     }));
@@ -868,7 +1063,8 @@ function renderLantern(observation: ReturnType<typeof observeGame>): void {
     button.classList.toggle("is-suggested", rite === suggested && !button.disabled);
     button.setAttribute("aria-label", `${lanternRiteLabel(rite)}（灯火${cost}）: ${lanternRiteDescription(rite)}`);
     const costLabel = button.querySelector("em");
-    if (costLabel) costLabel.textContent = `灯火 ${cost}`;
+    if (costLabel) costLabel.textContent = `灯${cost}`;
+    button.title = `${lanternRiteLabel(rite)}（${lanternRiteKeys[rite]}）: ${lanternRiteDescription(rite)}`;
   }
 }
 
@@ -947,20 +1143,38 @@ function setPaused(value: boolean): void {
 }
 
 function renderInventory(inventory: NonNullable<GameState["entities"][number]["inventory"]>): void {
-  setText("#inventory-count", `${inventory.length}/${getGameConfig().rules.inventorySlotLimit}`);
+  const config = getGameConfig();
+  setText("#inventory-count", `${inventory.length}/${config.rules.inventorySlotLimit}`);
+  requireElement<HTMLDivElement>("#equipment-list").innerHTML = (["weapon", "armor", "shield"] as const).map((slot) => {
+    const entry = inventory.find((item) => item.equipped && config.equipment[item.contentId]?.slot === slot);
+    return `<div class="equipment-slot${entry ? "" : " is-empty"}"><span>${equipmentSlotLabel(slot)}</span><strong>${entry ? escapeHtml(getContentName(entry.contentId)) : "なし"}</strong></div>`;
+  }).join("");
   const list = requireElement<HTMLUListElement>("#inventory-list");
-  if (inventory.length === 0) {
+  const carried = inventory.filter((entry) => !entry.equipped);
+  const signature = carried.map((entry) => `${entry.contentId}:${entry.quantity}`).join("|");
+  if (list.dataset.signature === signature) return;
+  list.dataset.signature = signature;
+  if (carried.length === 0) {
     list.innerHTML = '<li class="empty-state">携行品なし</li>';
     return;
   }
-  list.replaceChildren(...inventory.map((entry) => {
+  list.replaceChildren(...carried.map((entry) => {
     const item = document.createElement("li");
+    const label = `${getContentName(entry.contentId)} ×${entry.quantity}`;
+    item.className = "inventory-slot";
+    item.dataset.itemLabel = label;
+    item.title = label;
+    item.setAttribute("aria-label", label);
     const icon = document.createElement("span");
     icon.className = "inventory-icon";
-    applySprite(icon, assetForContent(entry.contentId), 32);
-    const text = document.createElement("span");
-    text.innerHTML = `<strong>${escapeHtml(getContentName(entry.contentId))}</strong><small>x${entry.quantity}${entry.equipped ? " / 装備中" : ""}</small>`;
-    item.append(icon, text);
+    icon.setAttribute("aria-hidden", "true");
+    applySprite(icon, assetForContent(entry.contentId), 36);
+    item.append(icon);
+    if (entry.quantity > 1) {
+      const quantity = document.createElement("b");
+      quantity.textContent = String(entry.quantity);
+      item.append(quantity);
+    }
     return item;
   }));
 }
@@ -1021,12 +1235,13 @@ function renderDecision(observation: ReturnType<typeof observeGame>): void {
     return;
   }
   stopAutoplay();
+  setText("#decision-kicker", `黒燭からの問い · 地下${state.floor}階 · ${state.runTurn}手`);
   decisionTitle.textContent = decision.title;
   decisionBody.textContent = decision.body;
   renderDecisionContext(observation);
   decisionHint.textContent = decision.kind === "context"
-    ? `現在の啓示: ${state.revelationsRemaining}。各案はこの場で効果を発揮し、啓示による危機介入は遠征評価へ記録されます。`
-    : `現在の啓示: ${state.revelationsRemaining}。啓示を使わない選択は探索者の気質に沿います。`;
+    ? "各案はこの場で効果を発揮し、啓示による危機介入は遠征評価へ記録されます。番号キーでも選べます。"
+    : "啓示を使わない選択は探索者の気質に沿います。番号キーでも選べます。";
   decisionOptions.replaceChildren(...decision.options.map((option, index) => {
     const button = document.createElement("button");
     button.type = "button";
@@ -1135,7 +1350,8 @@ function renderDecisionContext(observation: ReturnType<typeof observeGame>): voi
   const player = observation.player;
   const stats = player.stats;
   if (!stats) {
-    decisionContext.innerHTML = '<p class="empty-state">探索者の状態を取得できません。</p>';
+    decisionStatus.innerHTML = '<p class="empty-state">探索者の状態を取得できません。</p>';
+    decisionContext.innerHTML = "";
     return;
   }
 
@@ -1146,6 +1362,21 @@ function renderDecisionContext(observation: ReturnType<typeof observeGame>): voi
     : hpPercent <= 70
       ? { label: "消耗", tone: "warning" }
       : { label: "安定", tone: "safe" };
+  const conditions = player.conditions?.length
+    ? player.conditions.map((condition) => `<span class="tag tag-${conditionTone(condition)}">${conditionLabel(condition)} ${condition.turns}手</span>`).join("")
+    : '<span class="tag tag-quiet">異常なし</span>';
+  decisionStatus.innerHTML = `
+    <span class="decision-portrait" aria-hidden="true"></span>
+    <div class="decision-who"><strong>${escapeHtml(state.runIdentity.name)}</strong><small>${escapeHtml(getContentName(player.contentId))} · Lv${observation.playerProgress.level}</small></div>
+    <div class="decision-hp" data-tone="${health.tone}">
+      <span>HP <b>${stats.hp} / ${stats.maxHp}</b><em>${health.label}</em></span>
+      <div role="progressbar" aria-label="HP残量" aria-valuemin="0" aria-valuemax="${stats.maxHp}" aria-valuenow="${Math.max(0, stats.hp)}"><i style="width: ${hpPercent}%"></i></div>
+    </div>
+    <div class="decision-quick"><span>攻撃 <b>${stats.attack}</b></span><span>防御 <b>${stats.defense}</b></span><span>啓示 <b>${state.revelationsRemaining}/${config.autonomous.revelationsPerRun}</b></span></div>
+    <div class="tag-row">${conditions}</div>
+  `;
+  applySprite(decisionStatus.querySelector<HTMLElement>(".decision-portrait") as HTMLElement, assetForContent(player.contentId), 44);
+
   const equipment = (["weapon", "armor", "shield"] as const).map((slot) => {
     const entry = player.inventory?.find((item) => item.equipped && config.equipment[item.contentId]?.slot === slot);
     const itemConfig = entry ? config.equipment[entry.contentId] : undefined;
@@ -1155,37 +1386,16 @@ function renderDecisionContext(observation: ReturnType<typeof observeGame>): voi
       <small>${itemConfig ? equipmentDetail(itemConfig) : "補正なし"}</small>
     </div>`;
   }).join("");
-  const conditions = player.conditions?.length
-    ? player.conditions.map((condition) => `<span class="condition-tag condition-${conditionTone(condition)}">${conditionLabel(condition)} ${condition.turns}T</span>`).join("")
-    : '<span class="condition-tag condition-normal">異常なし</span>';
   const score = calculateScore(state);
-
   decisionContext.innerHTML = `
-    <div class="decision-context-heading">
-      <span>判断材料</span>
-      <strong>${escapeHtml(state.runIdentity.name)} · ${escapeHtml(getContentName(player.contentId))}</strong>
-      <em>地下${state.floor}階 / ${state.runTurn}手</em>
-    </div>
-    <div class="decision-stat-grid">
-      <div class="decision-hp decision-hp-${health.tone}">
-        <span>HP <em>${health.label}・${hpPercent}%</em></span>
-        <strong>${stats.hp} / ${stats.maxHp}</strong>
-        <div role="progressbar" aria-label="HP残量" aria-valuemin="0" aria-valuemax="${stats.maxHp}" aria-valuenow="${Math.max(0, stats.hp)}"><i style="width: ${hpPercent}%"></i></div>
-      </div>
-      <div><span>攻撃</span><strong>${stats.attack}</strong></div>
-      <div><span>防御</span><strong>${stats.defense}</strong></div>
-      <div><span>Lv</span><strong>${observation.playerProgress.level}</strong></div>
-    </div>
     <div class="decision-equipment-grid">${equipment}</div>
-    <div class="decision-context-footer">
-      <div class="decision-conditions"><span>状態</span>${conditions}</div>
-      <div class="decision-meta-grid">
-        <span>気質 <strong>${temperamentLabel(state.runIdentity.temperament)}</strong></span>
-        <span>現在方針 <strong>${directiveLabel(state.directive)}</strong></span>
-        <span>任務 <strong>${missionDefinition(state.story.missionId).label}</strong></span>
-        <span>所持金 <strong>${observation.playerProgress.gold}</strong></span>
-        <span>暫定得点 <strong>${score.total.toLocaleString("ja-JP")}</strong></span>
-      </div>
+    <div class="decision-meta-grid">
+      <span>気質 <strong>${temperamentLabel(state.runIdentity.temperament)}</strong></span>
+      <span>現在方針 <strong>${directiveLabel(state.directive)}</strong></span>
+      <span>任務 <strong>${missionDefinition(state.story.missionId).label}</strong></span>
+      <span>作戦 <strong>${state.tactics.length ? escapeHtml(tacticLabels(state.tactics).join("・")) : "なし"}</strong></span>
+      <span>所持金 <strong>${observation.playerProgress.gold}</strong></span>
+      <span>暫定得点 <strong>${score.total.toLocaleString("ja-JP")}</strong></span>
     </div>
   `;
 }
@@ -1229,6 +1439,15 @@ function renderEnd(): void {
   endSummary.textContent = state.story.endingId
     ? `${endingLabel(state.story.endingId)}の結末を遠征録へ刻みました。`
     : `${review.summaryText} 得点は${review.score.total.toLocaleString("ja-JP")}点です。`;
+  const record = campaign.expeditions[0]?.id === archivedRunId ? campaign.expeditions[0] : null;
+  const endTone = state.status === "won" || state.status === "returned" ? "safe" : "danger";
+  requireElement<HTMLElement>(".result-panel").dataset.tone = endTone;
+  endStats.innerHTML = [
+    ["到達", `地下${state.story.maxFloorReached}階`],
+    ["観測", `${state.runTurn}手`],
+    ["得点", review.score.total.toLocaleString("ja-JP")],
+    ["灯片", record?.shardsEarned ? `+${record.shardsEarned}` : "±0"],
+  ].map(([label, value]) => `<div><span>${label}</span><strong>${value}</strong></div>`).join("");
   renderRunComparison();
   renderRunInsights(buildRunInsights(runLog, state, review.deathCause, campaign));
   const rows: Array<[string, number]> = [
@@ -1236,7 +1455,8 @@ function renderEnd(): void {
     ["発見", review.score.discoveries], ["生還", review.score.survival], ["持帰り", review.score.recoveredValue],
     ["迅速", review.score.tempo], ["任務・介入", review.score.autonomy],
   ];
-  scoreBreakdown.innerHTML = `${rows.map(([label, value]) => `<div><span>${label}</span><strong>${value.toLocaleString("ja-JP")}</strong></div>`).join("")}<div class="score-total"><span>総合</span><strong>${review.score.total.toLocaleString("ja-JP")}</strong></div>`;
+  const maxRow = Math.max(1, ...rows.map(([, value]) => value));
+  scoreBreakdown.innerHTML = rows.map(([label, value]) => `<div><span>${label}</span><strong>${value.toLocaleString("ja-JP")}</strong><i style="width:${Math.round(value / maxRow * 100)}%"></i></div>`).join("");
   decisionHistory.innerHTML = `<h3>灯守の判断</h3>${review.decisions.length === 0 ? "<p>介入記録なし</p>" : `<ol>${review.decisions.map((entry) => `<li><span>F${entry.floor}</span><strong>${escapeHtml(entry.optionLabel)}${entry.effectSummary ? `<small>${escapeHtml(entry.effectSummary)}</small>` : ""}</strong>${entry.usedRevelation ? "<em>啓示</em>" : ""}</li>`).join("")}</ol>`}`;
   endDialog.hidden = false;
 }
@@ -1385,7 +1605,12 @@ function syncModalAccessibility(): void {
     observerShell.focus({ preventScroll: true });
     return;
   }
-  const preferred = nextModal.querySelector<HTMLButtonElement>(".is-default:not(:disabled), button:not(:disabled)");
+  // 観戦途中に開いた灰灯院では、Enter で遠征を捨てないよう「観戦に戻る」を既定にする。
+  const preferred = nextModal === candidateDialog
+    ? (resumeButton.hidden ? departButton : resumeButton)
+    : nextModal.querySelector<HTMLButtonElement>(".is-default:not(:disabled)")
+      ?? nextModal.querySelector<HTMLButtonElement>(".primary-button:not(:disabled)")
+      ?? nextModal.querySelector<HTMLButtonElement>("button:not(:disabled)");
   requestAnimationFrame(() => preferred?.focus({ preventScroll: true }));
 }
 
