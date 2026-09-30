@@ -9,8 +9,8 @@ export default defineConfig({
   },
   clearScreen: false,
   server: {
+    // port は LocalWeb が `localweb dev` の --port で渡す。
     strictPort: true,
-    port: 1420,
   },
   plugins: [
     {
