@@ -317,6 +317,11 @@ export function applyAction(state: GameState, action: GameAction): GameState {
   if (action.type === "invokeLantern" && !canInvokeLantern(state, action.rite)) {
     return state;
   }
+  // 対象指定の投擲は人間・AIとも視界内の敵に限る。不正な指定で道具や手番を失わせない。
+  if (action.type === "useItem" && action.targetId !== undefined && getGameConfig().consumables[action.contentId]?.rangedDamage
+    && !state.entities.some((entity) => entity.id === action.targetId && entity.kind === "monster" && entity.hostile && tileAt(state, entity.pos).visible)) {
+    return state;
+  }
 
   let next = cloneState(state);
   if (action.type === "resolveDecision") {
@@ -341,7 +346,7 @@ export function applyAction(state: GameState, action: GameAction): GameState {
       next = pickupAtPlayer(next);
       break;
     case "useItem":
-      next = useItem(next, action.contentId);
+      next = useItem(next, action.contentId, action.targetId);
       break;
     case "merchantService":
       next = buyMerchantService(next, action.serviceId);
@@ -1810,7 +1815,7 @@ function dropItemAtPlayer(state: GameState, contentId: string): GameState {
   return reevaluateEquipment(state);
 }
 
-function useItem(state: GameState, contentId: string): GameState {
+function useItem(state: GameState, contentId: string, targetId?: string): GameState {
   const player = getPlayer(state);
   const entry = player.inventory?.find((itemEntry) => itemEntry.contentId === contentId);
   if (!entry || entry.quantity <= 0 || !player.stats) {
@@ -1930,7 +1935,7 @@ function useItem(state: GameState, contentId: string): GameState {
   }
 
   if (consumable?.rangedDamage) {
-    const target = nearestVisibleMonster(state);
+    const target = targetId === undefined ? nearestVisibleMonster(state) : state.entities.find((entity) => entity.id === targetId);
     if (!target?.stats) {
       state.messages = pushMessage(state, "投げ針を投げる相手が見えない。", "explore");
       return state;

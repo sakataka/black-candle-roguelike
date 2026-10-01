@@ -171,7 +171,7 @@ export function chooseAutoplayAction(observation: GameObservation): GameAction {
     ? nearest(dartCandidates.filter((entity) => isRangedThreat(entity.contentId)), observation.player.pos)
     : nearest(dartCandidates, observation.player.pos);
   if (dart && rangedTarget && hpRatio > policy.dartMinHp) {
-    return { type: "useItem", contentId: "item.ember-dart" };
+    return { type: "useItem", contentId: "item.ember-dart", ...(policy.rangedPriority ? { targetId: rangedTarget.id } : {}) };
   }
 
   if (visibleRangedThreat && policy.rangedPriority && hpRatio > 0.25) {

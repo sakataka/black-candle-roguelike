@@ -478,7 +478,8 @@ function installEvents(): void {
   });
   window.addEventListener("keydown", (event) => {
     if (event.key === "Tab" && focusedModal) {
-      const focusable = [...focusedModal.querySelectorAll<HTMLButtonElement>("button:not(:disabled)")];
+      const focusable = [...focusedModal.querySelectorAll<HTMLElement>("button:not(:disabled), summary")]
+        .filter((element) => element.getClientRects().length > 0);
       if (focusable.length === 0) return;
       const first = focusable[0];
       const last = focusable[focusable.length - 1];
@@ -724,10 +725,10 @@ function renderDepartSummary(delver: ReturnType<typeof resolveSelectedDelver>): 
   resumeButton.hidden = !abandoning;
 }
 
-function focusedDataKey(): string | null {
+function focusedDataKey(container: HTMLElement = candidateDialog): string | null {
   const active = document.activeElement;
-  if (!(active instanceof HTMLElement) || !candidateDialog.contains(active)) return null;
-  for (const key of ["missionId", "tacticId", "heat", "roleId", "veteranId", "facilityId", "treatScar"]) {
+  if (!(active instanceof HTMLElement) || !container.contains(active)) return null;
+  for (const key of ["missionId", "tacticId", "heat", "roleId", "veteranId", "facilityId", "treatScar", "optionId"]) {
     const value = active.dataset[key];
     if (value !== undefined) return `[data-${key.replace(/[A-Z]/g, (char) => `-${char.toLowerCase()}`)}="${CSS.escape(value)}"]`;
   }
@@ -1229,11 +1230,12 @@ function renderArchive(): void {
 
 function renderDecision(observation: ReturnType<typeof observeGame>): void {
   const decision = state.pendingDecision;
-  if (!decision || state.status !== "playing") {
+  if (!candidateDialog.hidden || !decision || state.status !== "playing") {
     decisionDialog.hidden = true;
     stopLookahead();
     return;
   }
+  const focusKey = focusedDataKey(decisionDialog);
   stopAutoplay();
   setText("#decision-kicker", `黒燭からの問い · 地下${state.floor}階 · ${state.runTurn}手`);
   decisionTitle.textContent = decision.title;
@@ -1278,6 +1280,7 @@ function renderDecision(observation: ReturnType<typeof observeGame>): void {
   if (lookahead?.decisionKey !== decisionKey) startLookahead(decisionKey, lookaheadTactics);
   renderForecasts();
   decisionDialog.hidden = false;
+  restoreFocus(decisionDialog, focusKey);
 }
 
 function startLookahead(decisionKey: string, tactics: string[]): void {
@@ -1427,7 +1430,7 @@ function conditionTone(condition: StatusCondition): "safe" | "danger" {
 }
 
 function renderEnd(): void {
-  if (state.status === "playing") {
+  if (!candidateDialog.hidden || state.status === "playing") {
     endDialog.hidden = true;
     return;
   }

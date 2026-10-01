@@ -1,14 +1,40 @@
 import { beforeAll, describe, expect, test } from "bun:test";
 import { loadBunGameConfig } from "../content/config";
-import { applyAction, createInitialGame, normalizeTactics } from "../core/game";
+import { applyAction, createInitialGame, normalizeTactics, observeGame } from "../core/game";
 import { createCheckpointDecision } from "../core/autonomous";
-import { resolveAutoplayPolicy } from "./autoplay";
+import { chooseAutoplayAction, resetAutoplayState, resolveAutoplayPolicy } from "./autoplay";
 
 beforeAll(async () => {
   await loadBunGameConfig("public/config/game-balance.json");
 });
 
 describe("作戦と方針", () => {
+  test("射手狩りの投げ針は近い近接敵を越えて射手へ命中する", () => {
+    resetAutoplayState();
+    const state = createInitialGame(20260504, "role.ash-scout", { tactics: ["tactic.archer-hunt"] });
+    const player = state.entities.find((entity) => entity.id === state.playerId)!;
+    player.pos = { x: 5, y: 5 };
+    player.inventory = [{ contentId: "item.ember-dart", quantity: 2 }];
+    state.tiles = state.tiles.map(() => ({ kind: "floor", visible: true, explored: true }));
+    state.entities = [player, ...[
+      { id: "near-rat", contentId: "monster.ash-rat", pos: { x: 7, y: 5 } },
+      { id: "far-archer", contentId: "monster.hollow-archer", pos: { x: 9, y: 5 } },
+    ].map((enemy) => ({ ...enemy, kind: "monster" as const, hostile: true, blocksMovement: true, stats: { hp: 30, maxHp: 30, attack: 1, defense: 0 } }))];
+    const action = chooseAutoplayAction(observeGame(state));
+    expect(action.type).toBe("useItem");
+    const hidden = structuredClone(state);
+    hidden.tiles[5 * hidden.width + 9].visible = false;
+    expect(applyAction(hidden, action)).toBe(hidden);
+    expect(applyAction(state, { type: "useItem", contentId: "item.ember-dart", targetId: "missing" })).toBe(state);
+    expect(applyAction(state, { type: "useItem", contentId: "item.ember-dart", targetId: state.playerId })).toBe(state);
+    const next = applyAction(state, action);
+    expect(next.entities.find((entity) => entity.id === "far-archer")?.stats?.hp).toBeLessThan(30);
+    expect(next.entities.find((entity) => entity.id === "near-rat")?.stats?.hp).toBe(30);
+    const legacy = applyAction(state, { type: "useItem", contentId: "item.ember-dart" });
+    expect(legacy.entities.find((entity) => entity.id === "near-rat")?.stats?.hp).toBeLessThan(30);
+    expect(legacy.entities.find((entity) => entity.id === "far-archer")?.stats?.hp).toBe(30);
+  });
+
   test("方針は気質の傾向を上書きし、作戦はさらにその上から効く", () => {
     const identity = { name: "テスト", roleId: "role.oathbound", temperament: "bold" as const };
     const bold = resolveAutoplayPolicy({ runIdentity: identity, directive: "conquest", tactics: [] });

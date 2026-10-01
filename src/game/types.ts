@@ -624,7 +624,7 @@ export type GameAction =
   | { type: "pickup" }
   | { type: "equip"; contentId: string }
   | { type: "dropItem"; contentId: string }
-  | { type: "useItem"; contentId: string }
+  | { type: "useItem"; contentId: string; targetId?: string }
   | { type: "merchantService"; serviceId: MerchantServiceId }
   | { type: "descend" }
   | { type: "resolveDecision"; optionId: string; tactics?: string[] }
