@@ -30,7 +30,9 @@
   --safe: #8cbf96;
   --focus-ring: #f3d48e;
 
-  --serif: "Hiragino Mincho ProN", "Yu Mincho", "YuMincho", serif;
+  --serif: "Shippori Mincho B1", "Hiragino Mincho ProN", "Yu Mincho", "YuMincho", serif;
+  --display: "Shippori Mincho B1", "Hiragino Mincho ProN", "Yu Mincho", serif;
+  --latin: "Cormorant Garamond", "Shippori Mincho B1", Georgia, serif;
   --mono: ui-monospace, SFMono-Regular, Menlo, monospace;
   --fs-2xs: 0.6875rem;
   --fs-xs: 0.75rem;

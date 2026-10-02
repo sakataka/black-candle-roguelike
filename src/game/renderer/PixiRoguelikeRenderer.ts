@@ -28,6 +28,9 @@ type EntityView = {
   kind: Entity["kind"];
   root: Container;
   sprite: Sprite;
+  baseScale: { x: number; y: number };
+  /** 呼吸や揺れの位相。個体ごとにずらして群れが同期しないようにする。 */
+  phase: number;
   hpBar: Graphics | null;
   from: Point;
   to: Point;
@@ -37,6 +40,27 @@ type EntityView = {
   lunge: { dx: number; dy: number; start: number } | null;
   dazed: boolean;
 };
+
+type Mote = {
+  sprite: Sprite;
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  phase: number;
+  age: number;
+  life: number;
+};
+
+/** 階層ごとの空気。灯の色は共通の蝋燭色、漂う粒の色と動きで領域の違いを出す。 */
+const BIOME_ATMOSPHERE: Record<BiomeTheme, { mote: number; rise: number; drift: number; glow: number }> = {
+  blackstone: { mote: 0xd9b27a, rise: 6, drift: 5, glow: 0xffb871 },
+  crypt: { mote: 0x9fd2c4, rise: 3, drift: 7, glow: 0xffc98a },
+  furnace: { mote: 0xff8a3d, rise: 18, drift: 6, glow: 0xffa45c },
+  "black-candle": { mote: 0xb79bff, rise: 5, drift: 9, glow: 0xffc27e },
+};
+
+const MOTE_COUNT = 54;
 
 type Effect = {
   node: Container;
@@ -59,7 +83,16 @@ export class PixiRoguelikeRenderer {
   private readonly characterLastContentId = new Map<string, string>();
   private readonly views = new Map<string, EntityView>();
   private readonly effects: Effect[] = [];
+  private readonly moteLayer = new Container();
+  private readonly motes: Mote[] = [];
   private lightSprite: Sprite | null = null;
+  private glowSprite: Sprite | null = null;
+  private dotTexture: Texture = Texture.EMPTY;
+  private shadeTexture: Texture = Texture.EMPTY;
+  private fogTexture: Texture = Texture.EMPTY;
+  private fogCornerTexture: Texture = Texture.EMPTY;
+  private biome: BiomeTheme = "blackstone";
+  private readonly reducedMotion = typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches === true;
   private flashOverlay = new Graphics();
   private fadeOverlay = new Graphics();
   private bubble: Container | null = null;
@@ -88,13 +121,50 @@ export class PixiRoguelikeRenderer {
       resolution: Math.min(window.devicePixelRatio || 1, 2),
       autoDensity: true,
     });
-    this.world.addChild(this.terrainLayer, this.groundLayer, this.actorLayer, this.effectLayer);
+    this.world.addChild(this.terrainLayer, this.groundLayer, this.actorLayer, this.moteLayer, this.effectLayer);
     this.app.stage.addChild(this.world, this.overlayLayer);
     container.replaceChildren(this.app.canvas);
     await this.buildTextures();
+    this.dotTexture = makeCanvasTexture(32, (context, size) => {
+      const gradient = context.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
+      gradient.addColorStop(0, "rgba(255,255,255,1)");
+      gradient.addColorStop(0.35, "rgba(255,255,255,0.45)");
+      gradient.addColorStop(1, "rgba(255,255,255,0)");
+      context.fillStyle = gradient;
+      context.fillRect(0, 0, size, size);
+    });
+    // 壁際の床に落ちる影。上辺から下へ薄れる帯を、向きに合わせて回して使う。
+    this.shadeTexture = makeCanvasTexture(TILE_SIZE, (context, size) => {
+      const gradient = context.createLinearGradient(0, 0, 0, size);
+      gradient.addColorStop(0, "rgba(0,0,0,0.7)");
+      gradient.addColorStop(0.18, "rgba(0,0,0,0.38)");
+      gradient.addColorStop(0.5, "rgba(0,0,0,0)");
+      context.fillStyle = gradient;
+      context.fillRect(0, 0, size, size);
+    });
+    // 未探索との境目。黒い霧が既知の側へ滲むように薄れる。
+    this.fogTexture = makeCanvasTexture(TILE_SIZE, (context, size) => {
+      const gradient = context.createLinearGradient(0, 0, 0, size);
+      gradient.addColorStop(0, "rgba(1,1,1,0.96)");
+      gradient.addColorStop(0.32, "rgba(1,1,1,0.55)");
+      gradient.addColorStop(0.72, "rgba(1,1,1,0)");
+      context.fillStyle = gradient;
+      context.fillRect(0, 0, size, size);
+    });
+    this.fogCornerTexture = makeCanvasTexture(TILE_SIZE, (context, size) => {
+      const gradient = context.createRadialGradient(0, 0, 0, 0, 0, size * 0.72);
+      gradient.addColorStop(0, "rgba(1,1,1,0.9)");
+      gradient.addColorStop(0.45, "rgba(1,1,1,0.45)");
+      gradient.addColorStop(1, "rgba(1,1,1,0)");
+      context.fillStyle = gradient;
+      context.fillRect(0, 0, size, size);
+    });
     this.lightSprite = new Sprite(this.makeLightTexture());
     this.lightSprite.anchor.set(0.5);
-    this.overlayLayer.addChild(this.lightSprite, this.flashOverlay, this.fadeOverlay);
+    this.glowSprite = new Sprite(this.makeGlowTexture());
+    this.glowSprite.anchor.set(0.5);
+    this.glowSprite.blendMode = "add";
+    this.overlayLayer.addChild(this.lightSprite, this.glowSprite, this.flashOverlay, this.fadeOverlay);
     this.app.ticker.add((ticker) => this.update(ticker.deltaMS));
     this.ready = true;
   }
@@ -114,6 +184,7 @@ export class PixiRoguelikeRenderer {
     }
     this.lastScene = { seed: state.seed, floor: state.floor, runTurn: state.runTurn };
     this.playerId = state.playerId;
+    this.biome = state.biome;
     this.lightStrength = clamp(options.lightStrength ?? 1, 0, 1);
 
     const player = state.entities.find((entity) => entity.id === state.playerId);
@@ -156,6 +227,7 @@ export class PixiRoguelikeRenderer {
     for (const view of this.views.values()) view.root.destroy({ children: true });
     this.views.clear();
     for (const effect of this.effects.splice(0)) effect.node.destroy({ children: true });
+    for (const mote of this.motes.splice(0)) mote.sprite.destroy();
     if (this.bubble) {
       this.bubble.destroy({ children: true });
       this.bubble = null;
@@ -169,9 +241,17 @@ export class PixiRoguelikeRenderer {
     const minY = Math.max(0, Math.floor(Math.min(this.camera.y, this.cameraTarget.y) / TILE_SIZE) - 1);
     const maxX = Math.min(state.width - 1, Math.ceil((Math.max(this.camera.x, this.cameraTarget.x) + this.viewWidth) / TILE_SIZE) + 1);
     const maxY = Math.min(state.height - 1, Math.ceil((Math.max(this.camera.y, this.cameraTarget.y) + this.viewHeight) / TILE_SIZE) + 1);
+    const known = (x: number, y: number): boolean => {
+      if (x < 0 || y < 0 || x >= state.width || y >= state.height) return false;
+      const tile = state.tiles[y * state.width + x];
+      return tile.explored || tile.visible;
+    };
+    const knownWall = (x: number, y: number): boolean => known(x, y) && state.tiles[y * state.width + x].kind === "wall";
     const shade = new Graphics();
     const edges = new Graphics();
     const voids = new Graphics();
+    const depth = new Container();
+    const fog = new Container();
     for (let y = minY; y <= maxY; y += 1) {
       for (let x = minX; x <= maxX; x += 1) {
         const tile = state.tiles[y * state.width + x];
@@ -183,7 +263,28 @@ export class PixiRoguelikeRenderer {
           this.addTileSprite(`floor:${state.biome}`, x, y);
         }
         this.addTileSprite(tileTextureKey(tile.kind, state.biome), x, y);
-        if (tile.kind === "wall") this.drawWallEdges(edges, state, x, y);
+        if (tile.kind === "wall") {
+          this.drawWallEdges(edges, state, x, y);
+        } else {
+          // 壁の高さを感じさせるため、既知の壁に接する床へ影を落とす。北の壁ほど影が深い。
+          if (knownWall(x, y - 1)) depth.addChild(this.edgeSprite(this.shadeTexture, x, y, 0, 0.95));
+          if (knownWall(x - 1, y)) depth.addChild(this.edgeSprite(this.shadeTexture, x, y, -Math.PI / 2, 0.6));
+          if (knownWall(x + 1, y)) depth.addChild(this.edgeSprite(this.shadeTexture, x, y, Math.PI / 2, 0.6));
+          if (knownWall(x, y + 1)) depth.addChild(this.edgeSprite(this.shadeTexture, x, y, Math.PI, 0.35));
+        }
+        // 未探索との境は黒い霧で滲ませる。既知かどうかだけで決めるので、地形の情報は漏れない。
+        const up = known(x, y - 1);
+        const down = known(x, y + 1);
+        const left = known(x - 1, y);
+        const right = known(x + 1, y);
+        if (!up) fog.addChild(this.edgeSprite(this.fogTexture, x, y, 0, 1));
+        if (!down) fog.addChild(this.edgeSprite(this.fogTexture, x, y, Math.PI, 1));
+        if (!left) fog.addChild(this.edgeSprite(this.fogTexture, x, y, -Math.PI / 2, 1));
+        if (!right) fog.addChild(this.edgeSprite(this.fogTexture, x, y, Math.PI / 2, 1));
+        if (up && left && !known(x - 1, y - 1)) fog.addChild(this.edgeSprite(this.fogCornerTexture, x, y, 0, 1));
+        if (up && right && !known(x + 1, y - 1)) fog.addChild(this.edgeSprite(this.fogCornerTexture, x, y, Math.PI / 2, 1));
+        if (down && right && !known(x + 1, y + 1)) fog.addChild(this.edgeSprite(this.fogCornerTexture, x, y, Math.PI, 1));
+        if (down && left && !known(x - 1, y + 1)) fog.addChild(this.edgeSprite(this.fogCornerTexture, x, y, -Math.PI / 2, 1));
         if (!tile.visible) {
           // 探索済みの記憶は地形を残したまま沈め、現在視界と見分けられるようにする。
           shade.rect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
@@ -192,7 +293,20 @@ export class PixiRoguelikeRenderer {
     }
     voids.fill("#010101");
     shade.fill({ color: "#07060a", alpha: MEMORY_SHADE_ALPHA });
-    this.terrainLayer.addChild(voids, edges, shade);
+    this.terrainLayer.addChild(depth, voids, edges, shade, fog);
+  }
+
+  /** 1マス分の帯を回転させて置く。回転0で上辺、π/2で右辺、πで下辺、-π/2で左辺に効く。 */
+  private edgeSprite(texture: Texture, x: number, y: number, rotation: number, alpha: number): Sprite {
+    const sprite = new Sprite(texture);
+    sprite.anchor.set(0.5);
+    sprite.x = x * TILE_SIZE + TILE_SIZE / 2;
+    sprite.y = y * TILE_SIZE + TILE_SIZE / 2;
+    sprite.width = TILE_SIZE;
+    sprite.height = TILE_SIZE;
+    sprite.rotation = rotation;
+    sprite.alpha = alpha;
+    return sprite;
   }
 
   private syncEntities(state: GameState, stepMs: number, snap: boolean, events: VisualEvent[]): void {
@@ -242,8 +356,18 @@ export class PixiRoguelikeRenderer {
   private createView(entity: Entity, key: TextureKey): EntityView {
     const root = new Container();
     const sprite = new Sprite(this.textures.get(key) ?? Texture.EMPTY);
+    sprite.anchor.set(0.5, 1);
+    sprite.x = TILE_SIZE / 2;
+    sprite.y = TILE_SIZE;
     sprite.width = TILE_SIZE;
     sprite.height = TILE_SIZE;
+    if (entity.kind === "player" || entity.kind === "monster" || entity.kind === "item") {
+      // 足元の影で、床から浮かずに立っている感じを出す。
+      const shadow = new Graphics();
+      const width = entity.kind === "item" ? 15 : 21;
+      shadow.ellipse(TILE_SIZE / 2, TILE_SIZE - 7, width, width * 0.3).fill({ color: "#000000", alpha: entity.kind === "item" ? 0.32 : 0.5 });
+      root.addChild(shadow);
+    }
     root.addChild(sprite);
     let hpBar: Graphics | null = null;
     if (entity.kind === "monster") {
@@ -257,6 +381,8 @@ export class PixiRoguelikeRenderer {
       kind: entity.kind,
       root,
       sprite,
+      baseScale: { x: sprite.scale.x, y: sprite.scale.y },
+      phase: hashPhase(entity.id),
       hpBar,
       from: { ...entity.pos },
       to: { ...entity.pos },
@@ -282,10 +408,12 @@ export class PixiRoguelikeRenderer {
           this.spawnProjectile(event.from, event.to, event.attackerId === state.playerId);
         } else if (attacker) {
           attacker.lunge = { dx, dy, start: this.clock };
+          this.spawnSlash(event.from, event.to, event.attackerId === state.playerId);
         }
       } else if (event.kind === "damage") {
         const view = this.views.get(event.entityId);
         if (view) view.flashUntil = this.clock + 170;
+        this.spawnSparks(event.pos, event.isPlayer ? 0xff6a50 : 0xffd08a, event.isPlayer ? 10 : 8);
         this.spawnFloatingText(`-${event.amount}`, event.pos, event.isPlayer ? "#ff7b6b" : "#f4d9a6", event.isPlayer ? 30 : 24);
         if (event.isPlayer) {
           this.flashUntil = this.clock + 200;
@@ -293,11 +421,15 @@ export class PixiRoguelikeRenderer {
         }
       } else if (event.kind === "heal") {
         this.spawnFloatingText(`+${event.amount}`, event.pos, "#8fd6a0", event.isPlayer ? 26 : 20);
+        this.spawnRisingLight(event.pos, 0x8fe0a8);
       } else if (event.kind === "levelUp") {
         this.spawnFloatingText(`Lv ${event.level}`, event.pos, "#f0cc7b", 30, 1200);
         this.spawnRing(event.pos, "#f0cc7b");
       } else if (event.kind === "pickup") {
         this.spawnRing(event.pos, "#d4ad62");
+        this.spawnSparks(event.pos, 0xf0cc7b, 6, 0.45);
+      } else if (event.kind === "death") {
+        this.spawnAsh(event.pos);
       }
     }
   }
@@ -355,6 +487,17 @@ export class PixiRoguelikeRenderer {
       }
       view.root.x = x * TILE_SIZE;
       view.root.y = y * TILE_SIZE;
+      if (!this.reducedMotion) {
+        // 歩く時は小さく弾み、止まっている時はわずかに呼吸する。品物は床の上でゆっくり浮き沈みする。
+        const hop = progress < 1 ? Math.sin(Math.PI * progress) * 4 : 0;
+        if (view.kind === "item") {
+          view.sprite.y = TILE_SIZE - 2 - (Math.sin(this.clock / 640 + view.phase) + 1) * 1.6;
+        } else if (view.kind === "player" || view.kind === "monster") {
+          const breath = Math.sin(this.clock / 520 + view.phase) * 0.018;
+          view.sprite.y = TILE_SIZE - hop;
+          view.sprite.scale.set(view.baseScale.x * (1 - breath * 0.5), view.baseScale.y * (1 + breath));
+        }
+      }
       if (view.sprite.tint !== 0x6f6660) {
         view.sprite.tint = this.clock < view.flashUntil ? 0xff8a78 : view.dazed ? 0x9fb4ff : 0xffffff;
         view.sprite.alpha = view.dazed ? 0.72 + Math.sin(this.clock / 120) * 0.12 : 1;
@@ -402,12 +545,22 @@ export class PixiRoguelikeRenderer {
     }
 
     this.currentLight += (this.lightStrength - this.currentLight) * (1 - Math.exp(-deltaMs / 400));
+    // 炎の揺らぎ。周期の違う揺れを重ねて、規則的に見えないようにする。
+    const flame = this.reducedMotion ? 0 : Math.sin(this.clock / 170) * 0.5 + Math.sin(this.clock / 53 + 1.3) * 0.25 + Math.sin(this.clock / 311 + 0.4) * 0.25;
     if (this.lightSprite && playerView) {
       this.lightSprite.x = playerView.root.x + TILE_SIZE / 2 + this.world.x;
       this.lightSprite.y = playerView.root.y + TILE_SIZE / 2 + this.world.y;
-      const flicker = 1 + Math.sin(this.clock / 170) * 0.012 + Math.sin(this.clock / 53) * 0.006;
-      this.lightSprite.scale.set((0.72 + this.currentLight * 0.4) * flicker);
+      this.lightSprite.scale.set((0.72 + this.currentLight * 0.4) * (1 + flame * 0.016));
     }
+    if (this.glowSprite && playerView) {
+      const atmosphere = BIOME_ATMOSPHERE[this.biome];
+      this.glowSprite.tint = atmosphere.glow;
+      this.glowSprite.x = playerView.root.x + TILE_SIZE / 2 + this.world.x;
+      this.glowSprite.y = playerView.root.y + TILE_SIZE * 0.42 + this.world.y;
+      this.glowSprite.scale.set((0.95 + this.currentLight * 0.55) * (1 + flame * 0.03));
+      this.glowSprite.alpha = (0.2 + this.currentLight * 0.2) * (1 + flame * 0.12);
+    }
+    this.updateMotes(deltaMs, playerView);
 
     this.flashOverlay.clear();
     if (this.clock < this.flashUntil) {
@@ -417,6 +570,170 @@ export class PixiRoguelikeRenderer {
     if (this.clock < this.fadeUntil) {
       this.fadeOverlay.rect(0, 0, this.viewWidth, this.viewHeight).fill({ color: "#000000", alpha: (this.fadeUntil - this.clock) / 520 });
     }
+  }
+
+  /** 灯の届く範囲を漂う灰や火の粉。灯から遠い粒ほど闇に沈む。 */
+  private updateMotes(deltaMs: number, playerView: EntityView | undefined): void {
+    if (this.reducedMotion || !playerView) return;
+    const atmosphere = BIOME_ATMOSPHERE[this.biome];
+    const cx = playerView.root.x + TILE_SIZE / 2;
+    const cy = playerView.root.y + TILE_SIZE / 2;
+    const radius = TILE_SIZE * 6;
+    while (this.motes.length < MOTE_COUNT) {
+      const sprite = new Sprite(this.dotTexture);
+      sprite.anchor.set(0.5);
+      sprite.blendMode = "add";
+      this.moteLayer.addChild(sprite);
+      const mote: Mote = { sprite, x: 0, y: 0, vx: 0, vy: 0, phase: 0, age: 0, life: 0 };
+      this.respawnMote(mote, cx, cy, radius, true);
+      this.motes.push(mote);
+    }
+    const seconds = deltaMs / 1000;
+    for (const mote of this.motes) {
+      mote.age += deltaMs;
+      if (mote.age >= mote.life) this.respawnMote(mote, cx, cy, radius, false);
+      mote.x += (mote.vx + Math.sin(this.clock / 900 + mote.phase) * atmosphere.drift) * seconds;
+      mote.y += mote.vy * seconds;
+      const distance = Math.hypot(mote.x - cx, mote.y - cy) / radius;
+      const lit = clamp(1 - distance, 0, 1) ** 1.6;
+      const lifeFade = Math.min(1, mote.age / 600, (mote.life - mote.age) / 900);
+      const twinkle = 0.65 + Math.sin(this.clock / 260 + mote.phase * 7) * 0.35;
+      mote.sprite.tint = atmosphere.mote;
+      mote.sprite.x = mote.x;
+      mote.sprite.y = mote.y;
+      mote.sprite.alpha = clamp(lit * lifeFade * twinkle * (0.45 + this.currentLight * 0.5), 0, 1);
+    }
+  }
+
+  private respawnMote(mote: Mote, cx: number, cy: number, radius: number, anywhere: boolean): void {
+    const atmosphere = BIOME_ATMOSPHERE[this.biome];
+    const angle = Math.random() * Math.PI * 2;
+    const distance = Math.sqrt(Math.random()) * radius;
+    mote.x = cx + Math.cos(angle) * distance;
+    mote.y = cy + Math.sin(angle) * distance + (anywhere ? 0 : radius * 0.25);
+    mote.vx = (Math.random() - 0.5) * 6;
+    mote.vy = -(atmosphere.rise * (0.5 + Math.random()));
+    mote.phase = Math.random() * Math.PI * 2;
+    mote.age = anywhere ? Math.random() * 3000 : 0;
+    mote.life = 4200 + Math.random() * 5200;
+    const size = 0.09 + Math.random() * 0.16;
+    mote.sprite.scale.set(size);
+  }
+
+  /** 打撃の火花。重力で落ちながら消える小さな光の粒。 */
+  private spawnSparks(pos: Point, color: number, count: number, spread = 1): void {
+    const cx = pos.x * TILE_SIZE + TILE_SIZE / 2;
+    const cy = pos.y * TILE_SIZE + TILE_SIZE * 0.45;
+    const amount = this.reducedMotion ? Math.ceil(count / 3) : count;
+    for (let index = 0; index < amount; index += 1) {
+      const sprite = new Sprite(this.dotTexture);
+      sprite.anchor.set(0.5);
+      sprite.blendMode = "add";
+      sprite.tint = color;
+      const angle = Math.random() * Math.PI * 2;
+      const speed = (90 + Math.random() * 170) * spread;
+      const vx = Math.cos(angle) * speed;
+      const vy = Math.sin(angle) * speed - 60;
+      const size = 0.12 + Math.random() * 0.18;
+      this.effectLayer.addChild(sprite);
+      this.effects.push({
+        node: sprite,
+        age: 0,
+        life: 320 + Math.random() * 260,
+        update: (effect, progress) => {
+          const t = effect.age / 1000;
+          effect.node.x = cx + vx * t;
+          effect.node.y = cy + vy * t + 420 * t * t;
+          effect.node.alpha = 1 - progress;
+          effect.node.scale.set(size * (1 - progress * 0.6));
+        },
+      });
+    }
+  }
+
+  /** 倒れた敵が灰になって昇っていく。 */
+  private spawnAsh(pos: Point): void {
+    const cx = pos.x * TILE_SIZE + TILE_SIZE / 2;
+    const cy = pos.y * TILE_SIZE + TILE_SIZE * 0.6;
+    const amount = this.reducedMotion ? 4 : 18;
+    for (let index = 0; index < amount; index += 1) {
+      const sprite = new Sprite(this.dotTexture);
+      sprite.anchor.set(0.5);
+      const ember = index % 4 === 0;
+      sprite.blendMode = ember ? "add" : "normal";
+      sprite.tint = ember ? 0xff9a4a : 0x3a332d;
+      const ox = (Math.random() - 0.5) * TILE_SIZE * 0.6;
+      const oy = (Math.random() - 0.5) * TILE_SIZE * 0.5;
+      const rise = 26 + Math.random() * 46;
+      const sway = (Math.random() - 0.5) * 30;
+      const size = 0.16 + Math.random() * 0.22;
+      this.effectLayer.addChild(sprite);
+      this.effects.push({
+        node: sprite,
+        age: 0,
+        life: 700 + Math.random() * 600,
+        update: (effect, progress) => {
+          effect.node.x = cx + ox + sway * progress;
+          effect.node.y = cy + oy - rise * (1 - (1 - progress) ** 2);
+          effect.node.alpha = (1 - progress) * (ember ? 1 : 0.85);
+          effect.node.scale.set(size * (1 + progress * 0.5));
+        },
+      });
+    }
+  }
+
+  /** 回復の光。足元から細かな光が立ち昇る。 */
+  private spawnRisingLight(pos: Point, color: number): void {
+    const amount = this.reducedMotion ? 3 : 12;
+    for (let index = 0; index < amount; index += 1) {
+      const sprite = new Sprite(this.dotTexture);
+      sprite.anchor.set(0.5);
+      sprite.blendMode = "add";
+      sprite.tint = color;
+      const x = pos.x * TILE_SIZE + TILE_SIZE / 2 + (Math.random() - 0.5) * TILE_SIZE * 0.7;
+      const y = pos.y * TILE_SIZE + TILE_SIZE * 0.85;
+      const rise = 34 + Math.random() * 30;
+      const delay = Math.random() * 0.35;
+      const size = 0.12 + Math.random() * 0.14;
+      sprite.alpha = 0;
+      this.effectLayer.addChild(sprite);
+      this.effects.push({
+        node: sprite,
+        age: 0,
+        life: 900,
+        update: (effect, progress) => {
+          const local = clamp((progress - delay) / (1 - delay), 0, 1);
+          effect.node.x = x;
+          effect.node.y = y - rise * local;
+          effect.node.alpha = local <= 0 ? 0 : Math.sin(Math.PI * local);
+          effect.node.scale.set(size);
+        },
+      });
+    }
+  }
+
+  /** 近接攻撃の斬撃の弧。攻撃の向きに合わせて一瞬だけ描く。 */
+  private spawnSlash(from: Point, to: Point, byPlayer: boolean): void {
+    const node = new Graphics();
+    const cx = to.x * TILE_SIZE + TILE_SIZE / 2;
+    const cy = to.y * TILE_SIZE + TILE_SIZE / 2;
+    const angle = Math.atan2(to.y - from.y, to.x - from.x);
+    const color = byPlayer ? 0xfff0c8 : 0xff7a5c;
+    node.blendMode = "add";
+    this.effectLayer.addChild(node);
+    this.effects.push({
+      node,
+      age: 0,
+      life: 200,
+      update: (effect, progress) => {
+        const graphic = effect.node as Graphics;
+        const sweep = Math.min(1, progress * 1.8);
+        const start = angle - Math.PI * 0.75 + Math.PI * 0.2 * sweep;
+        const end = start + Math.PI * 0.9 * sweep;
+        graphic.clear();
+        graphic.arc(cx - Math.cos(angle) * 14, cy - Math.sin(angle) * 14, 26, start, end).stroke({ color, width: 4 * (1 - progress) + 1, alpha: 0.9 * (1 - progress) });
+      },
+    });
   }
 
   private spawnFloatingText(value: string, pos: Point, color: string, size: number, life = 850): void {
@@ -587,6 +904,21 @@ export class PixiRoguelikeRenderer {
     edge.fill({ color: "#8b8271", alpha: 0.48 });
   }
 
+  /** 蝋燭の暖かい照り返し。加算合成で、探索者の周りの石だけをわずかに温める。 */
+  private makeGlowTexture(): Texture {
+    return makeCanvasTexture(512, (context, size) => {
+      const center = size / 2;
+      const gradient = context.createRadialGradient(center, center, 0, center, center, center);
+      gradient.addColorStop(0, "rgba(255,255,255,0.62)");
+      gradient.addColorStop(0.18, "rgba(255,255,255,0.32)");
+      gradient.addColorStop(0.45, "rgba(255,255,255,0.1)");
+      gradient.addColorStop(0.75, "rgba(255,255,255,0.025)");
+      gradient.addColorStop(1, "rgba(255,255,255,0)");
+      context.fillStyle = gradient;
+      context.fillRect(0, 0, size, size);
+    });
+  }
+
   private makeTile(fill: string): Texture {
     const graphic = new Graphics();
     graphic.rect(0, 0, TILE_SIZE, TILE_SIZE).fill(fill);
@@ -616,6 +948,17 @@ export class PixiRoguelikeRenderer {
   }
 }
 
+/** 小さなcanvasに描いた質感をテクスチャにする。光・影・霧などの柔らかい階調に使う。 */
+function makeCanvasTexture(size: number, paint: (context: CanvasRenderingContext2D, size: number) => void): Texture {
+  const canvas = document.createElement("canvas");
+  canvas.width = size;
+  canvas.height = size;
+  const context = canvas.getContext("2d");
+  if (!context) return Texture.EMPTY;
+  paint(context, size);
+  return Texture.from(canvas);
+}
+
 function drawHpBar(bar: Graphics, ratio: number, color: string): void {
   const width = Math.max(4, Math.floor(clamp(ratio, 0, 1) * 46));
   bar.clear();
@@ -628,6 +971,12 @@ function cameraTargetFor(state: GameState, center: Point, viewWidth: number, vie
     x: clamp((center.x + 0.5) * TILE_SIZE - viewWidth / 2, 0, Math.max(0, state.width * TILE_SIZE - viewWidth)),
     y: clamp((center.y + 0.5) * TILE_SIZE - viewHeight / 2, 0, Math.max(0, state.height * TILE_SIZE - viewHeight)),
   };
+}
+
+function hashPhase(id: string): number {
+  let hash = 0;
+  for (let index = 0; index < id.length; index += 1) hash = (hash * 31 + id.charCodeAt(index)) | 0;
+  return (Math.abs(hash) % 1000) / 1000 * Math.PI * 2;
 }
 
 function samePoint(a: Point, b: Point): boolean {

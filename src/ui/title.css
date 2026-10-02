@@ -1,0 +1,432 @@
+/* タイトル: キーアートの蝋燭を主役に、文字は闇の余白へ静かに置く。 */
+
+.title-screen {
+  --px: 50%;
+  --py: 50%;
+  --tilt-x: 0;
+  --tilt-y: 0;
+  /* 16:9 のキーアートで画面を覆う枠。炎を画面の中に残すよう横位置を寄せる。 */
+  --art-w: max(100vw, 177.78dvh);
+  --art-h: max(100dvh, 56.25vw);
+  position: fixed;
+  z-index: 100;
+  inset: 0;
+  overflow: hidden;
+  background: #030202;
+  color: var(--ink);
+  cursor: default;
+  isolation: isolate;
+}
+
+.title-art {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+.title-art-frame {
+  position: absolute;
+  top: 50%;
+  /* 横長では炎を画面の右寄り(62%)に置き、左の闇を文字の余白にする。 */
+  left: calc(62vw - var(--art-w) * 0.544);
+  width: var(--art-w);
+  -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 14%);
+  mask-image: linear-gradient(90deg, transparent 0%, #000 14%);
+  height: var(--art-h);
+  opacity: 0;
+  transform: translate3d(calc(var(--tilt-x) * -18px), calc(-50% + var(--tilt-y) * -12px), 0) scale(1.08);
+  transform-origin: 54% 40%;
+  transition: opacity 2.4s var(--ease-out), transform 9s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.title-screen.is-ready .title-art-frame {
+  opacity: 1;
+  transform: translate3d(calc(var(--tilt-x) * -18px), calc(-50% + var(--tilt-y) * -12px), 0) scale(1.02);
+}
+
+.title-art-frame img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: saturate(0.92) contrast(1.04);
+}
+
+/* 炎の揺らぎ。絵の炎に重ねて、明るさと大きさだけを不規則に揺らす。 */
+.title-flame-glow, .title-flame-halo {
+  position: absolute;
+  left: 54.4%;
+  top: 38.5%;
+  border-radius: 50%;
+  pointer-events: none;
+  mix-blend-mode: screen;
+  transform: translate(-50%, -50%);
+}
+
+.title-flame-glow {
+  width: 9%;
+  aspect-ratio: 0.8;
+  background: radial-gradient(closest-side, rgba(255, 214, 140, 0.55), rgba(255, 160, 70, 0.18) 55%, transparent);
+  animation: title-flicker 3.1s steps(1, end) infinite, title-breathe 5.3s ease-in-out infinite;
+}
+
+.title-flame-halo {
+  width: 46%;
+  aspect-ratio: 1.15;
+  background: radial-gradient(closest-side, rgba(255, 170, 90, 0.16), rgba(200, 110, 40, 0.06) 45%, transparent 75%);
+  animation: title-breathe 6.7s ease-in-out infinite reverse;
+}
+
+@keyframes title-flicker {
+  0% { opacity: 0.92; }
+  9% { opacity: 0.78; }
+  13% { opacity: 1; }
+  31% { opacity: 0.86; }
+  42% { opacity: 0.96; }
+  58% { opacity: 0.74; }
+  61% { opacity: 0.95; }
+  77% { opacity: 0.84; }
+  88% { opacity: 1; }
+}
+
+@keyframes title-breathe {
+  0%, 100% { transform: translate(-50%, -50%) scale(1); }
+  50% { transform: translate(-50%, -52%) scale(1.07); }
+}
+
+.title-embers {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.title-veil {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, rgba(3, 2, 2, 0.94) 0%, rgba(3, 2, 2, 0.72) 26%, rgba(3, 2, 2, 0.12) 52%, transparent 70%),
+    linear-gradient(0deg, rgba(3, 2, 2, 0.85) 0%, transparent 28%),
+    radial-gradient(ellipse 120% 90% at 55% 45%, transparent 55%, rgba(0, 0, 0, 0.6) 100%);
+}
+
+.title-pointer-light {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+  background: radial-gradient(circle 22rem at var(--px) var(--py), rgba(255, 196, 128, 0.075), transparent 70%);
+  mix-blend-mode: screen;
+  transition: opacity 1.2s ease;
+}
+
+.title-screen.has-pointer .title-pointer-light { opacity: 1; }
+
+/* ---------- 文字 ---------- */
+
+.title-content {
+  position: absolute;
+  top: 50%;
+  left: clamp(24px, 7.5vw, 140px);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  width: min(36rem, 44vw);
+  transform: translateY(-50%);
+}
+
+.title-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 0 0 clamp(18px, 3vh, 30px);
+  color: var(--gold);
+  font-family: var(--display);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  letter-spacing: 0.42em;
+  opacity: 0;
+  transition: opacity 1.4s ease 0.3s;
+}
+.title-eyebrow i {
+  width: 40px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--gold), transparent);
+}
+
+.title-logo {
+  display: flex;
+  align-items: baseline;
+  margin: 0;
+  color: #f3e7cf;
+  font-family: var(--display);
+  font-size: clamp(3.6rem, 8.2vw, 8.75rem);
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  text-shadow: 0 0 42px rgba(255, 170, 90, 0.18), 0 2px 0 rgba(0, 0, 0, 0.6);
+}
+
+.title-logo span {
+  display: inline-block;
+  opacity: 0;
+  filter: blur(14px);
+  transform: translateY(0.12em) scale(1.04);
+  transition:
+    opacity 1.6s var(--ease-out),
+    filter 1.8s var(--ease-out),
+    transform 2s var(--ease-out);
+  transition-delay: calc(0.55s + var(--i) * 0.16s);
+}
+
+.title-logo .is-particle {
+  margin: 0 0.04em;
+  color: var(--gold);
+  font-size: 0.5em;
+  font-weight: 500;
+  transform: translateY(-0.1em);
+}
+
+.title-latin {
+  margin: clamp(10px, 1.6vh, 16px) 0 0 0.3em;
+  color: rgba(226, 205, 165, 0.7);
+  font-family: var(--latin);
+  font-size: clamp(1rem, 1.45vw, 1.375rem);
+  font-style: italic;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  opacity: 0;
+  transition: opacity 1.6s ease 1.5s;
+}
+
+.title-rule {
+  width: min(320px, 70%);
+  height: 1px;
+  margin: clamp(22px, 3.4vh, 36px) 0 clamp(18px, 2.8vh, 28px) 0.3em;
+  background: linear-gradient(90deg, var(--gold), rgba(212, 173, 98, 0.15) 70%, transparent);
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform 1.6s var(--ease-out) 1.6s;
+}
+
+.title-lead {
+  margin: 0 0 clamp(28px, 4.4vh, 44px) 0.3em;
+  color: var(--ink-soft);
+  font-family: var(--display);
+  font-size: clamp(0.95rem, 1.15vw, 1.0625rem);
+  font-weight: 500;
+  line-height: 2;
+  letter-spacing: 0.12em;
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 1.4s ease 1.9s, transform 1.4s var(--ease-out) 1.9s;
+}
+
+.title-cta {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 16px;
+  margin-left: 0.3em;
+  padding: 16px 22px 16px 18px;
+  border: 1px solid rgba(240, 204, 123, 0.38);
+  border-radius: 2px;
+  background: linear-gradient(180deg, rgba(40, 30, 18, 0.72), rgba(16, 12, 8, 0.72));
+  color: #f6e6c2;
+  font-family: var(--display);
+  font-size: 1.125rem;
+  font-weight: 600;
+  letter-spacing: 0.32em;
+  cursor: pointer;
+  opacity: 0;
+  transform: translateY(10px);
+  backdrop-filter: blur(6px);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.6), 0 18px 48px rgba(0, 0, 0, 0.5);
+  transition:
+    opacity 1.2s ease 2.25s,
+    transform 1.2s var(--ease-out) 2.25s,
+    border-color 300ms ease,
+    background-color 300ms ease,
+    box-shadow 400ms ease;
+}
+
+.title-cta::before, .title-cta::after {
+  content: "";
+  position: absolute;
+  width: 7px;
+  height: 7px;
+  border-color: var(--gold-bright);
+  border-style: solid;
+  opacity: 0.8;
+  transition: inset 400ms var(--ease-out), opacity 300ms ease;
+}
+.title-cta::before { top: -4px; left: -4px; border-width: 1px 0 0 1px; }
+.title-cta::after { right: -4px; bottom: -4px; border-width: 0 1px 1px 0; }
+
+.title-cta kbd {
+  margin-left: 6px;
+  border-color: rgba(240, 204, 123, 0.28);
+  color: rgba(240, 204, 123, 0.75);
+  letter-spacing: 0.04em;
+}
+
+.title-cta-wick {
+  position: relative;
+  width: 14px;
+  height: 22px;
+}
+.title-cta-wick::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  width: 2px;
+  height: 7px;
+  background: #1a120a;
+  box-shadow: 0 0 0 1px rgba(240, 204, 123, 0.25);
+  transform: translateX(-50%);
+}
+.title-cta-wick i {
+  position: absolute;
+  bottom: 6px;
+  left: 50%;
+  width: 9px;
+  height: 15px;
+  border-radius: 50% 50% 50% 50% / 62% 62% 38% 38%;
+  background: radial-gradient(ellipse at 50% 72%, #fff6d6 0%, #ffd27a 32%, #f08a2c 68%, rgba(240, 120, 40, 0) 100%);
+  filter: drop-shadow(0 0 6px rgba(255, 170, 80, 0.85));
+  transform: translateX(-50%) scale(0.86);
+  transform-origin: 50% 100%;
+  animation: title-wick 1.9s ease-in-out infinite;
+}
+
+@keyframes title-wick {
+  0%, 100% { transform: translateX(-50%) scale(0.86) skewX(0deg); }
+  25% { transform: translateX(-50%) scale(0.92, 0.98) skewX(-4deg); }
+  55% { transform: translateX(-50%) scale(0.82, 1.06) skewX(3deg); }
+  80% { transform: translateX(-50%) scale(0.9, 0.95) skewX(-2deg); }
+}
+
+.title-ledger {
+  display: flex;
+  gap: 28px;
+  margin: clamp(26px, 4vh, 40px) 0 0 0.3em;
+  opacity: 0;
+  transition: opacity 1.4s ease 2.6s;
+}
+.title-ledger div { display: grid; gap: 2px; }
+.title-ledger dt { color: var(--faint); font-size: 0.6875rem; letter-spacing: 0.3em; }
+.title-ledger dd { margin: 0; color: var(--ink-soft); font-family: var(--latin); font-size: 1.5rem; font-weight: 600; line-height: 1.1; font-variant-numeric: lining-nums; }
+.title-ledger.is-first { color: var(--faint); font-family: var(--display); font-size: 0.8125rem; letter-spacing: 0.18em; }
+
+.title-foot {
+  position: absolute;
+  right: clamp(20px, 4vw, 56px);
+  bottom: max(20px, env(safe-area-inset-bottom));
+  left: clamp(20px, 4vw, 56px);
+  display: flex;
+  justify-content: space-between;
+  margin: 0;
+  color: rgba(165, 156, 138, 0.55);
+  font-family: var(--latin);
+  font-size: 0.875rem;
+  font-style: italic;
+  letter-spacing: 0.22em;
+  opacity: 0;
+  transition: opacity 1.6s ease 3s;
+}
+.title-foot span:first-child { animation: title-pulse 3.2s ease-in-out infinite 3.6s; }
+
+@keyframes title-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+/* 準備ができたら順に現れる。 */
+.title-screen.is-ready .title-eyebrow,
+.title-screen.is-ready .title-latin,
+.title-screen.is-ready .title-ledger,
+.title-screen.is-ready .title-foot { opacity: 1; }
+.title-screen.is-ready .title-logo span { opacity: 1; filter: blur(0); transform: none; }
+.title-screen.is-ready .title-logo .is-particle { transform: translateY(-0.1em); }
+.title-screen.is-ready .title-rule { transform: scaleX(1); }
+.title-screen.is-ready .title-lead,
+.title-screen.is-ready .title-cta { opacity: 1; transform: none; }
+
+@media (hover: hover) and (pointer: fine) {
+  .title-cta:hover {
+    border-color: rgba(240, 204, 123, 0.75);
+    background-color: rgba(60, 42, 20, 0.5);
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.6), 0 0 42px rgba(240, 160, 70, 0.22), 0 18px 48px rgba(0, 0, 0, 0.5);
+  }
+  .title-cta:hover::before { top: -7px; left: -7px; }
+  .title-cta:hover::after { right: -7px; bottom: -7px; }
+}
+.title-cta:focus-visible { outline: 1px solid var(--focus-ring); outline-offset: 6px; box-shadow: none; }
+
+/* ---------- 退場: 灯が膨らみ、画面を白金に満たしてから支度の部屋へ溶ける ---------- */
+
+.title-screen.is-leaving { pointer-events: none; }
+.title-screen.is-leaving .title-content,
+.title-screen.is-leaving .title-foot {
+  opacity: 0;
+  filter: blur(8px);
+  transform: translateY(calc(-50% - 12px));
+  transition: opacity 600ms ease, filter 700ms ease, transform 900ms var(--ease-out);
+}
+.title-screen.is-leaving .title-foot { transform: none; }
+.title-screen.is-leaving .title-flame-halo {
+  animation: none;
+  transform: translate(-50%, -50%) scale(5.5);
+  opacity: 1;
+  background: radial-gradient(closest-side, rgba(255, 214, 150, 0.9), rgba(255, 160, 80, 0.35) 45%, transparent 75%);
+  transition: transform 1.1s cubic-bezier(0.7, 0, 0.84, 0), opacity 600ms ease;
+}
+.title-screen.is-leaving .title-art-frame {
+  transform: translate3d(0, -50%, 0) scale(1.22);
+  transition: transform 1.3s cubic-bezier(0.7, 0, 0.84, 0);
+}
+.title-screen.is-leaving {
+  animation: title-out 1.5s ease forwards;
+}
+
+@keyframes title-out {
+  0%, 55% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+/* ---------- 縦長の画面: 炎を上に、文字を下に置く ---------- */
+
+@media (max-aspect-ratio: 1/1) {
+  .title-art-frame {
+    top: 34%;
+    left: clamp(calc(100vw - var(--art-w)), calc(50vw - var(--art-w) * 0.544), 0px);
+    -webkit-mask-image: none;
+    mask-image: none;
+  }
+  .title-content {
+    top: auto;
+    right: 24px;
+    bottom: max(72px, calc(env(safe-area-inset-bottom) + 60px));
+    left: 24px;
+    width: auto;
+    transform: none;
+  }
+  .title-screen.is-leaving .title-content { transform: translateY(-12px); }
+  .title-veil {
+    background:
+      linear-gradient(0deg, rgba(3, 2, 2, 0.98) 0%, rgba(3, 2, 2, 0.86) 38%, rgba(3, 2, 2, 0.2) 62%, transparent 78%),
+      radial-gradient(ellipse 140% 80% at 50% 30%, transparent 50%, rgba(0, 0, 0, 0.55) 100%);
+  }
+  .title-logo { font-size: clamp(3.2rem, 16vw, 5.5rem); }
+  .title-eyebrow { letter-spacing: 0.32em; }
+  .title-lead { font-size: 0.9375rem; }
+  .title-foot span:last-child { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .title-screen *, .title-screen { animation: none !important; transition-duration: 1ms !important; transition-delay: 0s !important; }
+}

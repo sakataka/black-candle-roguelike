@@ -4,6 +4,8 @@
   "workspaces": {
     "": {
       "dependencies": {
+        "@fontsource/cormorant-garamond": "^5.3.0",
+        "@fontsource/shippori-mincho-b1": "^5.3.0",
         "pixi.js": "^8.21.0",
         "rot-js": "^2.2.1",
       },
@@ -14,6 +16,10 @@
     },
   },
   "packages": {
+    "@fontsource/cormorant-garamond": ["@fontsource/cormorant-garamond@5.3.0", "", {}, "sha512-weuGsCirGVWBWqpt6YUp0yLThTe4G8YO45noq8wxeJCRvEpq5lFrxNMFSTxcyOyV5k5otzJ8guDzYegdYlcLMQ=="],
+
+    "@fontsource/shippori-mincho-b1": ["@fontsource/shippori-mincho-b1@5.3.0", "", {}, "sha512-H4NvSJntaViHN8LjwmPTzZgJ8pyWcNetaJMHT4kfg6n1VR60QO2cYl/KDEIP4z2SR83//nlZb5gfQyZUpeNVNA=="],
+
     "@oxc-project/types": ["@oxc-project/types@0.150.0", "", {}, "sha512-rDS5/31E9HfPl/CIzGrn0DOlvBbXFseQ5URJ9sYMfstbKLD/c6Gm9vmRzRGDdAXyOIL4zmO37lc9RIwYqVruZw=="],
 
     "@pixi/colord": ["@pixi/colord@2.9.6", "", {}, "sha512-nezytU2pw587fQstUu1AsJZDVEynjskwOL+kibwcdxsMBFqPsFFNA7xl0ii/gXuDi6M0xj3mfRJj8pBSc2jCfA=="],

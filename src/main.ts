@@ -1,4 +1,10 @@
+import "@fontsource/shippori-mincho-b1/500.css";
+import "@fontsource/shippori-mincho-b1/600.css";
+import "@fontsource/shippori-mincho-b1/800.css";
+import "@fontsource/cormorant-garamond/500-italic.css";
+import "@fontsource/cormorant-garamond/600.css";
 import "./styles.css";
+import { showTitle } from "./ui/title";
 import { chooseAutoplayAction, describeAutoplayIntent, getAutoplayDebugState, type AutoplayIntent } from "./game/ai/autoplay";
 import { getGameConfig, loadBrowserGameConfig, runRules } from "./game/content/config";
 import { assetForContent } from "./game/content/assets";
@@ -331,6 +337,17 @@ new ResizeObserver(syncViewport).observe(mapStage);
 requireElement<HTMLButtonElement>("#pause-toggle").innerHTML = PAUSE_ICON;
 applySprite(requireElement<HTMLElement>("#brand-mark"), assetForContent("ui.heat"), 30);
 render();
+void showTitle({
+  cycle: campaign.cycle.number,
+  expeditions: campaign.expeditions.length,
+  highestFloor: campaignProgress(campaign).highestFloor,
+  shards: campaign.shards,
+}).then(() => {
+  // 灯が画面を満たしている間に、支度の部屋を奥から立ち上げる。
+  candidateDialog.classList.add("is-entering");
+  window.setTimeout(() => candidateDialog.classList.remove("is-entering"), 2600);
+  departButton.focus({ preventScroll: true });
+});
 
 /** マップ枠の大きさに合わせて表示タイル数を決め、枠いっぱいに1タイルを大きく見せる。 */
 function syncViewport(): void {
