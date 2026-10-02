@@ -59,6 +59,20 @@ import type {
   Veteran,
 } from "./game/types";
 
+const ROLE_TRUTHS: Array<{ id: RoleTruthId; name: string; hint: string }> = [
+  { id: "shared-oath", name: "分誓の碑文", hint: "誓約の探索者で6階から生還" },
+  { id: "furnace-map", name: "炉脈全図", hint: "灰弓の斥候で6階から生還" },
+  { id: "purified-flame", name: "浄火の祈り", hint: "灯火の祈祷者で6階から生還" },
+];
+/** 墓標に刻む最期の一文。死因の分類から物語の言葉へ置き換える。 */
+const FALL_EPITAPHS: Record<string, string> = {
+  combat: "刃の下に倒れた。",
+  rangedCombat: "闇から放たれた一矢に倒れた。",
+  trap: "古い罠に命を奪われた。",
+  bleeding: "流れる血を止められなかった。",
+  venom: "毒が回りきった。",
+  signalLoss: "灯路が途絶え、闇に呑まれた。",
+};
 const CAMPAIGN_STORAGE_KEY = "black-candle-campaign-v1";
 const TACTICS_STORAGE_KEY = "black-candle-tactics";
 const PAUSE_ICON = '<svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true"><rect x="3" y="2" width="3.5" height="12" rx="1" fill="currentColor"/><rect x="9.5" y="2" width="3.5" height="12" rx="1" fill="currentColor"/></svg>';
@@ -256,6 +270,7 @@ app.innerHTML = `
       <p id="end-kicker" class="eyebrow">遠征終了</p>
       <h2 id="end-title">遠征記録</h2>
       <p id="end-summary" class="modal-lead"></p>
+      <div id="end-milestone" class="end-milestone" hidden></div>
       <div id="end-stats" class="end-stats"></div>
       <div id="run-comparison" class="run-comparison"></div>
       <section id="run-insights" class="run-insights" aria-label="遠征の軌跡"></section>
@@ -303,6 +318,7 @@ const resumeButton = requireElement<HTMLButtonElement>("#resume-run");
 const scoreBreakdown = requireElement<HTMLDivElement>("#score-breakdown");
 const decisionHistory = requireElement<HTMLDivElement>("#decision-history");
 const runInsightsPanel = requireElement<HTMLElement>("#run-insights");
+const endMilestone = requireElement<HTMLElement>("#end-milestone");
 
 let campaign = loadCampaign();
 let candidateSeed = nextSeed();
@@ -994,7 +1010,7 @@ function renderVitals(observation: ReturnType<typeof observeGame>): void {
   const portrait = requireElement<HTMLElement>("#vitals-portrait");
   if (portrait.dataset.roleId !== player.contentId) {
     portrait.dataset.roleId = player.contentId;
-    applySprite(portrait, assetForContent(player.contentId), 44);
+    applySprite(portrait, assetForContent(player.contentId), 56);
   }
   const hp = player.stats?.hp ?? 0;
   const maxHp = player.stats?.maxHp ?? 1;
@@ -1183,11 +1199,7 @@ function renderTruths(): void {
     item.textContent = `${milestone.unlocked ? "◆" : "◇"} ${milestone.label}`;
     return item;
   }));
-  const truths: Array<{ id: RoleTruthId; name: string; hint: string }> = [
-    { id: "shared-oath", name: "分誓の碑文", hint: "誓約の探索者で6階から生還" },
-    { id: "furnace-map", name: "炉脈全図", hint: "灰弓の斥候で6階から生還" },
-    { id: "purified-flame", name: "浄火の祈り", hint: "灯火の祈祷者で6階から生還" },
-  ];
+  const truths = ROLE_TRUTHS;
   setText("#truth-count", `${campaign.roleTruths.length}/3`);
   requireElement<HTMLDivElement>("#truth-list").replaceChildren(...truths.map((truth) => {
     const unlocked = campaign.roleTruths.includes(truth.id);
@@ -1448,6 +1460,7 @@ function renderEnd(): void {
   const maxRow = Math.max(1, ...rows.map(([, value]) => value));
   scoreBreakdown.innerHTML = rows.map(([label, value]) => `<div><span>${label}</span><strong>${value.toLocaleString("ja-JP")}</strong><i style="width:${Math.round(value / maxRow * 100)}%"></i></div>`).join("");
   renderRunComparison();
+  renderMilestone(record);
   decisionHistory.innerHTML = `<h3>灯守の判断</h3>${review.decisions.length === 0 ? "<p>介入記録なし</p>" : `<ol>${review.decisions.map((entry) => `<li><span>F${entry.floor}</span><strong>${escapeHtml(entry.optionLabel)}${entry.effectSummary ? `<small>${escapeHtml(entry.effectSummary)}</small>` : ""}</strong>${entry.usedRevelation ? "<em>啓示</em>" : ""}</li>`).join("")}</ol>`}`;
   endDialog.hidden = false;
   if (firstReveal) revealResult();
@@ -1583,17 +1596,74 @@ function renderRunComparison(): void {
     newScoreRecord ? "自己ベスト更新" : "",
     current.missionCompleted ? `任務「${missionDefinition(current.missionId).label}」達成` : "",
     current.truthRecovered ? "新たな真相を持帰り" : "",
-    current.endingId ? `結末「${endingLabel(current.endingId)}」を記録` : "",
     current.shardsEarned ? `灯片 +${current.shardsEarned}` : "",
     current.gravesRecovered ? `墓標${current.gravesRecovered}つを弔った` : "",
-    current.endingId ? `第${campaign.cycle.number}周期へ` : "",
     current.status === "won" && (current.heat ?? 0) + 1 === campaign.heat.unlocked ? `燭階${campaign.heat.unlocked}が開いた` : "",
-    veteranOutcomeLabel(current),
+    // 墓標・昇格・結末などは上の碑に刻むので、ここでは碑にならない結果だけを添える。
+    current.veteranOutcome === "roster-full" ? veteranOutcomeLabel(current) : "",
   ].filter(Boolean);
   const comparison = previous
     ? `前回比: 深度 ${signed(current.floor - previous.floor)}階 / 得点 ${signed(current.score.total - previous.score.total)}点`
     : "最初の遠征記録です。ここから灯守の記録が始まります。";
   runComparison.innerHTML = `<strong>${escapeHtml(missionDefinition(current.missionId).label)} ${current.missionCompleted ? "達成" : "未達"}</strong><p>${escapeHtml(comparison)}</p>${badges.length ? `<div>${badges.map((badge) => `<span>${escapeHtml(badge)}</span>`).join("")}</div>` : ""}`;
+}
+
+/**
+ * 物語の節目（墓標・継燭・結末・昇格・古傷・加入）を、結果の見出しの下に一枚の碑として刻む。
+ * 節目のない遠征では出さない。
+ */
+function renderMilestone(record: CampaignState["expeditions"][number] | null): void {
+  const milestone = record ? milestoneFor(record) : null;
+  endMilestone.hidden = !milestone;
+  if (!milestone) {
+    endMilestone.innerHTML = "";
+    return;
+  }
+  endMilestone.dataset.kind = milestone.kind;
+  const truth = record?.truthRecovered ? ROLE_TRUTHS.find((entry) => entry.id === record.truthRecovered) : null;
+  endMilestone.innerHTML = `
+    <span class="milestone-seal" aria-hidden="true"><i class="milestone-wick"></i><i class="milestone-flame"></i><i class="milestone-smoke"></i></span>
+    <p class="milestone-kicker">${escapeHtml(milestone.kicker)}</p>
+    <strong class="milestone-title">${milestone.title}</strong>
+    ${milestone.detail ? `<p class="milestone-detail">${milestone.detail}</p>` : ""}
+    ${truth ? `<p class="milestone-truth"><i aria-hidden="true">◆</i>真相「${escapeHtml(truth.name)}」を持ち帰った</p>` : ""}
+  `;
+}
+
+function milestoneFor(record: CampaignState["expeditions"][number]): { kind: string; kicker: string; title: string; detail: string } | null {
+  const name = escapeHtml(record.identity.name);
+  const floor = `地下${toKanjiNumber(record.floor)}階`;
+  const veteran = campaign.roster.find((entry) => entry.id === (record.identity.veteranId ?? `veteran-${record.seed}-${record.identity.roleId}`));
+  const maxRank = getGameConfig().campaign.veteranMaxRank;
+  const stars = (rank: number) => `<span class="milestone-ranks" aria-label="位階${rank}">${Array.from({ length: maxRank }, (_, index) => `<i class="${index < rank ? "is-lit" : ""}" style="--n:${index}">★</i>`).join("")}</span>`;
+  if (record.veteranOutcome === "keeper") {
+    return { kind: "keeper", kicker: "継燭", title: `${name}、黒燭を継ぐ`, detail: `灰灯院へは帰らない。第${toKanjiNumber(campaign.cycle.number)}周期の第十層で、堕ちた灯守として待っている。` };
+  }
+  if (record.endingId) {
+    const previousCycle = Math.max(1, campaign.cycle.number - 1);
+    return {
+      kind: "ending",
+      kicker: `結末 · ${endingLabel(record.endingId)}`,
+      title: `<span class="milestone-cycle"><s>第${toKanjiNumber(previousCycle)}周期</s><b>第${toKanjiNumber(campaign.cycle.number)}周期</b></span>`,
+      detail: "選んだ結末の余波が、次の迷宮を変える。",
+    };
+  }
+  if (record.veteranOutcome === "fallen") {
+    const cause = record.deathCause ? FALL_EPITAPHS[record.deathCause] ?? "" : "";
+    return { kind: "fallen", kicker: "墓標", title: `${name}、${floor}に眠る`, detail: `${cause}後の遠征でこの墓標を弔えば、遺品と灯火を受け継げる。` };
+  }
+  if (record.veteranOutcome === "scarred") {
+    const scar = veteran?.scars.at(-1);
+    const label = scar ? getGameConfig().scars[scar]?.label ?? scar : "古傷";
+    return { kind: "scarred", kicker: "古傷", title: `${name}、「${escapeHtml(label)}」を負って帰る`, detail: `${veteran ? stars(veteran.rank) : ""}灰灯院の療房で癒やせる。` };
+  }
+  if (record.veteranOutcome === "promoted" && veteran) {
+    return { kind: "promoted", kicker: "昇格", title: `${name}、位階${toKanjiNumber(veteran.rank)}へ`, detail: stars(veteran.rank) };
+  }
+  if (record.veteranOutcome === "recruited") {
+    return { kind: "recruited", kicker: "遠征団", title: `${name}、遠征団に名を連ねる`, detail: "次の遠征から古参として送り出せる。" };
+  }
+  return null;
 }
 
 function veteranOutcomeLabel(record: CampaignState["expeditions"][number]): string {

@@ -6,6 +6,7 @@ import type { BiomeTheme, Direction, Entity, GameState, Point, TileKind } from "
 
 const TILE_SIZE = 64;
 const MEMORY_SHADE_ALPHA = 0.46;
+const MEMORY_SHADE_SCALE = 8;
 
 type TextureKey = TileKind | string;
 
@@ -89,6 +90,11 @@ export class PixiRoguelikeRenderer {
   private glowSprite: Sprite | null = null;
   private dotTexture: Texture = Texture.EMPTY;
   private shadeTexture: Texture = Texture.EMPTY;
+  /** 探索済み記憶の暗がり。1マス1画素の濃さを拡大してぼかし、視界の縁をなめらかに沈める。 */
+  private readonly memoryCells = document.createElement("canvas");
+  private readonly memoryCanvas = document.createElement("canvas");
+  private memoryTexture: Texture | null = null;
+  private memorySprite: Sprite | null = null;
   private fogTexture: Texture = Texture.EMPTY;
   private fogCornerTexture: Texture = Texture.EMPTY;
   private biome: BiomeTheme = "blackstone";
@@ -236,7 +242,10 @@ export class PixiRoguelikeRenderer {
   }
 
   private drawTerrain(state: GameState): void {
-    for (const child of this.terrainLayer.removeChildren()) child.destroy();
+    for (const child of this.terrainLayer.removeChildren()) {
+      // 記憶の暗がりは同じスプライトを使い回す。
+      if (child !== this.memorySprite) child.destroy();
+    }
     const minX = Math.max(0, Math.floor(Math.min(this.camera.x, this.cameraTarget.x) / TILE_SIZE) - 1);
     const minY = Math.max(0, Math.floor(Math.min(this.camera.y, this.cameraTarget.y) / TILE_SIZE) - 1);
     const maxX = Math.min(state.width - 1, Math.ceil((Math.max(this.camera.x, this.cameraTarget.x) + this.viewWidth) / TILE_SIZE) + 1);
@@ -247,7 +256,6 @@ export class PixiRoguelikeRenderer {
       return tile.explored || tile.visible;
     };
     const knownWall = (x: number, y: number): boolean => known(x, y) && state.tiles[y * state.width + x].kind === "wall";
-    const shade = new Graphics();
     const edges = new Graphics();
     const voids = new Graphics();
     const depth = new Container();
@@ -285,15 +293,57 @@ export class PixiRoguelikeRenderer {
         if (up && right && !known(x + 1, y - 1)) fog.addChild(this.edgeSprite(this.fogCornerTexture, x, y, Math.PI / 2, 1));
         if (down && right && !known(x + 1, y + 1)) fog.addChild(this.edgeSprite(this.fogCornerTexture, x, y, Math.PI, 1));
         if (down && left && !known(x - 1, y + 1)) fog.addChild(this.edgeSprite(this.fogCornerTexture, x, y, -Math.PI / 2, 1));
-        if (!tile.visible) {
-          // 探索済みの記憶は地形を残したまま沈め、現在視界と見分けられるようにする。
-          shade.rect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
-        }
       }
     }
     voids.fill("#010101");
-    shade.fill({ color: "#07060a", alpha: MEMORY_SHADE_ALPHA });
-    this.terrainLayer.addChild(depth, voids, edges, shade, fog);
+    this.terrainLayer.addChild(depth, voids, edges, this.updateMemoryShade(state), fog);
+  }
+
+  /**
+   * 探索済みの記憶は地形を残したまま沈め、現在視界と見分けられるようにする。
+   * マス単位の矩形だと視界の縁が階段状になるので、濃さの地図を拡大・ぼかしして境目を約1マスの階調にする。
+   */
+  private updateMemoryShade(state: GameState): Sprite {
+    const scale = MEMORY_SHADE_SCALE;
+    if (this.memoryCells.width !== state.width || this.memoryCells.height !== state.height) {
+      this.memoryCells.width = state.width;
+      this.memoryCells.height = state.height;
+      this.memoryCanvas.width = state.width * scale;
+      this.memoryCanvas.height = state.height * scale;
+      this.memoryTexture?.destroy(true);
+      this.memoryTexture = null;
+    }
+    const cells = this.memoryCells.getContext("2d");
+    const canvas = this.memoryCanvas.getContext("2d");
+    if (cells && canvas) {
+      const image = cells.createImageData(state.width, state.height);
+      const alpha = Math.round(MEMORY_SHADE_ALPHA * 255);
+      for (let index = 0; index < state.tiles.length; index += 1) {
+        const offset = index * 4;
+        image.data[offset] = 7;
+        image.data[offset + 1] = 6;
+        image.data[offset + 2] = 10;
+        // 未探索も同じ濃さにしておき、視界の縁だけが明るく抜けるようにする。
+        image.data[offset + 3] = state.tiles[index].visible ? 0 : alpha;
+      }
+      cells.putImageData(image, 0, 0);
+      canvas.clearRect(0, 0, this.memoryCanvas.width, this.memoryCanvas.height);
+      canvas.imageSmoothingEnabled = true;
+      canvas.imageSmoothingQuality = "high";
+      canvas.filter = `blur(${scale * 0.45}px)`;
+      canvas.drawImage(this.memoryCells, 0, 0, this.memoryCanvas.width, this.memoryCanvas.height);
+      canvas.filter = "none";
+    }
+    if (!this.memoryTexture) {
+      this.memoryTexture = Texture.from(this.memoryCanvas);
+      this.memoryTexture.source.scaleMode = "linear";
+      this.memorySprite = new Sprite(this.memoryTexture);
+    } else {
+      this.memoryTexture.source.update();
+    }
+    const sprite = this.memorySprite as Sprite;
+    sprite.scale.set(TILE_SIZE / scale);
+    return sprite;
   }
 
   /** 1マス分の帯を回転させて置く。回転0で上辺、π/2で右辺、πで下辺、-π/2で左辺に効く。 */
