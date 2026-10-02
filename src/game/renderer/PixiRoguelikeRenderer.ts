@@ -54,11 +54,15 @@ type Mote = {
 };
 
 /** 階層ごとの空気。灯の色は共通の蝋燭色、漂う粒の色と動きで領域の違いを出す。 */
-const BIOME_ATMOSPHERE: Record<BiomeTheme, { mote: number; rise: number; drift: number; glow: number }> = {
-  blackstone: { mote: 0xd9b27a, rise: 6, drift: 5, glow: 0xffb871 },
-  crypt: { mote: 0x9fd2c4, rise: 3, drift: 7, glow: 0xffc98a },
-  furnace: { mote: 0xff8a3d, rise: 18, drift: 6, glow: 0xffa45c },
-  "black-candle": { mote: 0xb79bff, rise: 5, drift: 9, glow: 0xffc27e },
+const BIOME_ATMOSPHERE: Record<BiomeTheme, { mote: number; rise: number; drift: number; glow: number; brightness: number; size: number }> = {
+  // 黒石: 灯に浮かぶ細かな埃。
+  blackstone: { mote: 0xd9b27a, rise: 6, drift: 5, glow: 0xffb871, brightness: 0.85, size: 1 },
+  // 墓所: ゆっくり漂う青白い胞子。
+  crypt: { mote: 0x9fe0cf, rise: 3, drift: 8, glow: 0xffc98a, brightness: 1, size: 1.15 },
+  // 炉心: 床から昇る火の粉。
+  furnace: { mote: 0xff8a3d, rise: 24, drift: 7, glow: 0xffa45c, brightness: 1.5, size: 1.2 },
+  // 黒燭中枢: 紫の灰。
+  "black-candle": { mote: 0xb79bff, rise: 5, drift: 10, glow: 0xffc27e, brightness: 1.25, size: 1.15 },
 };
 
 const MOTE_COUNT = 54;
@@ -650,20 +654,21 @@ export class PixiRoguelikeRenderer {
       mote.x += (mote.vx + Math.sin(this.clock / 900 + mote.phase) * atmosphere.drift) * seconds;
       mote.y += mote.vy * seconds;
       const distance = Math.hypot(mote.x - cx, mote.y - cy) / radius;
-      const lit = clamp(1 - distance, 0, 1) ** 1.6;
+      const lit = clamp(1 - distance, 0, 1);
       const lifeFade = Math.min(1, mote.age / 600, (mote.life - mote.age) / 900);
       const twinkle = 0.65 + Math.sin(this.clock / 260 + mote.phase * 7) * 0.35;
       mote.sprite.tint = atmosphere.mote;
       mote.sprite.x = mote.x;
       mote.sprite.y = mote.y;
-      mote.sprite.alpha = clamp(lit * lifeFade * twinkle * (0.45 + this.currentLight * 0.5), 0, 1);
+      mote.sprite.alpha = clamp(lit * lifeFade * twinkle * (0.55 + this.currentLight * 0.45) * atmosphere.brightness * 1.5, 0, 0.95);
     }
   }
 
   private respawnMote(mote: Mote, cx: number, cy: number, radius: number, anywhere: boolean): void {
     const atmosphere = BIOME_ATMOSPHERE[this.biome];
     const angle = Math.random() * Math.PI * 2;
-    const distance = Math.sqrt(Math.random()) * radius;
+    // 灯の近くに寄せて湧かせ、見える粒を増やす。
+    const distance = Math.random() ** 0.8 * radius * 0.9;
     mote.x = cx + Math.cos(angle) * distance;
     mote.y = cy + Math.sin(angle) * distance + (anywhere ? 0 : radius * 0.25);
     mote.vx = (Math.random() - 0.5) * 6;
@@ -671,7 +676,7 @@ export class PixiRoguelikeRenderer {
     mote.phase = Math.random() * Math.PI * 2;
     mote.age = anywhere ? Math.random() * 3000 : 0;
     mote.life = 4200 + Math.random() * 5200;
-    const size = 0.09 + Math.random() * 0.16;
+    const size = (0.1 + Math.random() * 0.17) * atmosphere.size;
     mote.sprite.scale.set(size);
   }
 

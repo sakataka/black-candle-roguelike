@@ -1564,3 +1564,151 @@ body { font-feature-settings: "lnum" 1; }
   .end-milestone, .end-milestone * { animation: none !important; }
   .end-milestone[data-kind="fallen"] .milestone-smoke { opacity: 0.5; transform: translateX(-50%); }
 }
+
+/* タッチ端末では品名はタップした時だけ出すので、空の説明行に場所を取らせない。 */
+@media (hover: none) {
+  .inventory-caption:empty { display: none; }
+}
+
+/* ---------- 支度: 探索者を主役に据え、灰灯院の記録は一冊の帳面にまとめる ---------- */
+
+.candidate-portrait { position: relative; display: grid; place-items: center; overflow: hidden; }
+.candidate-figure { position: absolute; top: 50%; left: 50%; display: block; width: 112px; height: 112px; transform: translate(-50%, -50%) scale(0.7); }
+
+@media (min-width: 701px) {
+  .prepare-step-delver .candidate-list { grid-template-columns: repeat(auto-fill, minmax(196px, 1fr)); gap: 14px; }
+  .prepare-step-delver .candidate-card {
+    grid-template-columns: minmax(0, 1fr);
+    justify-items: stretch;
+    gap: 12px;
+    padding: 0 0 16px;
+    text-align: center;
+  }
+  /* 龕: 上がアーチの暗い窪みに立ち、足元だけを灯が照らす。 */
+  .prepare-step-delver .candidate-portrait {
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    width: 100%;
+    height: 156px;
+    border: 0;
+    border-bottom: 1px solid rgba(212, 173, 98, 0.16);
+    border-radius: 3px 3px 0 0;
+    background: linear-gradient(180deg, #0b0907, #15100c);
+    box-shadow: none;
+  }
+  .prepare-step-delver .candidate-portrait::before {
+    content: "";
+    position: absolute;
+    inset: 14px 22% 0;
+    border: 1px solid rgba(212, 173, 98, 0.14);
+    border-bottom: 0;
+    border-radius: 999px 999px 0 0;
+    background: radial-gradient(ellipse 80% 60% at 50% 100%, rgba(255, 170, 90, 0.1), transparent 70%), #0d0a08;
+    box-shadow: inset 0 18px 30px rgba(0, 0, 0, 0.7);
+  }
+  .prepare-step-delver .candidate-portrait::after {
+    content: "";
+    position: absolute;
+    bottom: 6px;
+    left: 50%;
+    width: 70%;
+    height: 26px;
+    border-radius: 50%;
+    background: radial-gradient(closest-side, rgba(255, 180, 100, 0.28), transparent);
+    opacity: 0.35;
+    transform: translateX(-50%);
+    transition: opacity 400ms ease;
+  }
+  .prepare-step-delver .candidate-figure {
+    position: relative;
+    top: auto;
+    left: auto;
+    z-index: 1;
+    margin-bottom: 6px;
+    transform: none;
+    filter: drop-shadow(0 8px 10px rgba(0, 0, 0, 0.7)) saturate(0.8) brightness(0.82);
+    transition: transform 500ms var(--ease-out), filter 500ms ease;
+  }
+  .prepare-step-delver .candidate-card.is-selected .candidate-portrait { box-shadow: none; }
+  .prepare-step-delver .candidate-card.is-selected .candidate-portrait::after { opacity: 1; }
+  .prepare-step-delver .candidate-card.is-selected .candidate-figure { filter: drop-shadow(0 8px 10px rgba(0, 0, 0, 0.7)) drop-shadow(0 0 14px rgba(255, 180, 100, 0.22)); transform: translateY(-3px); }
+  .prepare-step-delver .candidate-body { justify-items: center; padding: 0 14px; }
+  .prepare-step-delver .candidate-body > strong { padding-right: 0; font-size: 1.3rem; }
+  .prepare-step-delver .candidate-body > small { text-align: center; text-wrap: pretty; }
+  .prepare-step-delver .candidate-index { top: 8px; right: 8px; z-index: 2; }
+  .prepare-step-delver .mini-stats { justify-content: center; }
+}
+@media (min-width: 701px) and (hover: hover) and (pointer: fine) {
+  .prepare-step-delver .candidate-card:hover .candidate-figure { filter: drop-shadow(0 8px 10px rgba(0, 0, 0, 0.7)); transform: translateY(-3px); }
+  .prepare-step-delver .candidate-card:hover .candidate-portrait::after { opacity: 0.75; }
+}
+
+@media (min-width: 1000px) {
+  .prepare-side {
+    gap: 0;
+    padding: 4px 20px 8px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background:
+      radial-gradient(120% 30% at 50% 0%, rgba(212, 173, 98, 0.08), transparent 70%),
+      linear-gradient(180deg, rgba(22, 18, 13, 0.92), rgba(11, 9, 7, 0.94));
+    box-shadow: inset 0 1px rgba(240, 204, 123, 0.1), var(--shadow);
+    backdrop-filter: blur(6px);
+  }
+  .prepare-side .side-section {
+    position: relative;
+    padding: 18px 0;
+    border: 0;
+    border-radius: 0;
+    background: none;
+    backdrop-filter: none;
+  }
+  .prepare-side .side-section + .side-section::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    right: 0;
+    left: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(212, 173, 98, 0.32) 18%, rgba(212, 173, 98, 0.32) 82%, transparent);
+  }
+  .prepare-side .side-section + .side-section::after {
+    content: "";
+    position: absolute;
+    top: -3px;
+    left: 50%;
+    width: 6px;
+    height: 6px;
+    border: 1px solid rgba(240, 204, 123, 0.7);
+    background: #120e0a;
+    transform: translateX(-50%) rotate(45deg);
+  }
+}
+.prepare-side .side-heading h3::before {
+  content: "";
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  margin: 0 9px 0.2em 0;
+  border: 1px solid var(--gold);
+  transform: rotate(45deg);
+  vertical-align: middle;
+}
+.prepare-side .side-heading h3 { letter-spacing: 0.24em; }
+.prepare-side .side-heading span { font-family: var(--latin); font-size: var(--fs-sm); font-style: italic; }
+
+/* 古参が一人以下なら、遠征団と志願者を一列に並べて見比べやすくする。 */
+@media (min-width: 1100px) {
+  .prepare-step-delver:not(:has(#veteran-list > :nth-child(2))) {
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-areas: "head head" "vlabel rlabel" "vlist rlist";
+    column-gap: 22px;
+  }
+  .prepare-step-delver:not(:has(#veteran-list > :nth-child(2))) > :nth-child(1) { grid-area: head; }
+  .prepare-step-delver:not(:has(#veteran-list > :nth-child(2))) > :nth-child(2) { grid-area: vlabel; }
+  .prepare-step-delver:not(:has(#veteran-list > :nth-child(2))) > :nth-child(3) { grid-area: vlist; grid-template-columns: repeat(1, 196px); }
+  .prepare-step-delver:not(:has(#veteran-list > :nth-child(2))) > :nth-child(4) { grid-area: rlabel; }
+  .prepare-step-delver:not(:has(#veteran-list > :nth-child(2))) > :nth-child(5) { grid-area: rlist; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); }
+  .prepare-step-delver:not(:has(#veteran-list > :nth-child(2))) #veteran-list .empty-state { width: 196px; height: 100%; }
+}

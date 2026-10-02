@@ -200,20 +200,20 @@ app.innerHTML = `
       </header>
       <div class="prepare-body">
         <div class="prepare-main">
-          <section class="prepare-step" aria-labelledby="step-mission">
-            <div class="step-heading"><span class="step-no" aria-hidden="true">I</span><h3 id="step-mission">遠征任務</h3><small>任務もAIが目指す一周の目的になる。</small></div>
-            <div id="mission-list" class="mission-list"></div>
-          </section>
-          <section class="prepare-step" aria-labelledby="step-tactics">
-            <div class="step-heading"><span class="step-no" aria-hidden="true">II</span><h3 id="step-tactics">作戦カード</h3><em id="tactic-count">0/2</em><small>探索者の判断の癖。3階・6階の節目でも組み替えられる。</small></div>
-            <div id="tactic-list" class="tactic-list"></div>
-          </section>
-          <section class="prepare-step" aria-labelledby="step-delver">
-            <div class="step-heading"><span class="step-no" aria-hidden="true">III</span><h3 id="step-delver">探索者</h3><small>番号キー 1〜4 でも選べる。</small></div>
-            <div class="candidate-group"><strong>遠征団</strong><small>生還した古参は位階が上がって強くなる。瀕死で帰ると古傷を負い、倒れた者は戻らない。</small></div>
+          <section class="prepare-step prepare-step-delver" aria-labelledby="step-delver">
+            <div class="step-heading"><span class="step-no" aria-hidden="true">I</span><h3 id="step-delver">探索者</h3><small>生還した古参は位階が上がって強くなる。瀕死で帰ると古傷を負い、倒れた者は戻らない。番号キー 1〜4 でも選べる。</small></div>
+            <div class="candidate-group"><strong>遠征団</strong></div>
             <div id="veteran-list" class="candidate-list"></div>
             <div class="candidate-group"><strong>新たな志願者</strong><small id="recruit-capacity"></small></div>
             <div id="candidate-list" class="candidate-list"></div>
+          </section>
+          <section class="prepare-step" aria-labelledby="step-mission">
+            <div class="step-heading"><span class="step-no" aria-hidden="true">II</span><h3 id="step-mission">遠征任務</h3><small>任務もAIが目指す一周の目的になる。</small></div>
+            <div id="mission-list" class="mission-list"></div>
+          </section>
+          <section class="prepare-step" aria-labelledby="step-tactics">
+            <div class="step-heading"><span class="step-no" aria-hidden="true">III</span><h3 id="step-tactics">作戦カード</h3><em id="tactic-count">0/2</em><small>探索者の判断の癖。3階・6階の節目でも組み替えられる。</small></div>
+            <div id="tactic-list" class="tactic-list"></div>
           </section>
         </div>
         <aside class="prepare-side" aria-label="灰灯院">
@@ -698,9 +698,13 @@ function candidateCard(options: {
   button.dataset[options.dataKey[0]] = options.dataKey[1];
   button.className = `candidate-card${options.veteran ? " is-veteran" : ""}${options.selected ? " is-selected" : ""}`;
   button.setAttribute("aria-pressed", String(options.selected));
+  // 肖像はアーチ形の龕に立たせ、選ぶと足元の灯がともる。
   const portrait = document.createElement("span");
   portrait.className = "candidate-portrait";
-  applySprite(portrait, assetForContent(options.roleId), 76);
+  const figure = document.createElement("i");
+  figure.className = "candidate-figure";
+  applySprite(figure, assetForContent(options.roleId), 112);
+  portrait.append(figure);
   const body = document.createElement("span");
   body.className = "candidate-body";
   body.innerHTML = `
