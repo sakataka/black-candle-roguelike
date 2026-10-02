@@ -358,8 +358,9 @@ kbd {
 .vitals-hp-label { display: flex; align-items: baseline; justify-content: space-between; }
 .vitals-hp-label span { color: var(--muted); font-size: var(--fs-2xs); letter-spacing: 0.1em; }
 .vitals-hp-label strong { font-size: var(--fs-lg); font-variant-numeric: tabular-nums; line-height: 1.2; }
-.vitals-hp-track { height: 10px; margin-top: 4px; overflow: hidden; border-radius: 99px; background: #0a0807; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.05); }
-.vitals-hp-track i { display: block; width: 100%; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #4f7b5b, #86b78f); transition: width 220ms var(--ease-out), background 220ms ease-out; }
+.vitals-hp-track { position: relative; height: 10px; margin-top: 4px; overflow: hidden; border-radius: 99px; background: #0a0807; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.05); }
+.vitals-hp-track b { position: absolute; inset: 0 auto 0 0; width: 100%; border-radius: inherit; background: linear-gradient(90deg, #d8a27a, #f3d3b0); opacity: 0.7; transition: width 700ms cubic-bezier(0.6, 0, 0.3, 1) 380ms; }
+.vitals-hp-track i { position: relative; display: block; width: 100%; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #4f7b5b, #86b78f); transition: width 220ms var(--ease-out), background 220ms ease-out; }
 .vitals-hp[data-tone="warning"] .vitals-hp-track i { background: linear-gradient(90deg, #8c6a2c, #d8ad55); }
 .vitals-hp[data-tone="danger"] .vitals-hp-track i { background: linear-gradient(90deg, #7c2a22, #d3604f); animation: pulse-bright 1s ease-in-out infinite; }
 .vitals-hp[data-tone="danger"] .vitals-hp-label strong { color: #ef9486; }
@@ -916,6 +917,336 @@ kbd {
   button:not(:disabled):active { filter: brightness(1.2); }
 }
 
+/* ---------- 美術の層: 質感・装飾・入場 ---------- */
+
+/* 画面全体に薄い粒子を重ね、平らなデジタルの黒を煤けた紙と闇に寄せる。 */
+body::after {
+  content: "";
+  position: fixed;
+  z-index: 300;
+  inset: -50%;
+  pointer-events: none;
+  opacity: 0.055;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 0.9 0 0 0 0 0.75 0 0 0 1 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  mix-blend-mode: overlay;
+  animation: grain 0.9s steps(4) infinite;
+}
+@keyframes grain {
+  0% { transform: translate(0, 0); }
+  25% { transform: translate(-3%, 2%); }
+  50% { transform: translate(2%, -3%); }
+  75% { transform: translate(-1%, 3%); }
+  100% { transform: translate(3%, -1%); }
+}
+
+/* 灰灯院: タイトルの祭壇が奥に沈んだ部屋として続く。 */
+.prepare-layer {
+  background:
+    radial-gradient(ellipse 70% 55% at 78% 8%, rgba(214, 138, 62, 0.14), transparent 70%),
+    linear-gradient(180deg, rgba(8, 7, 6, 0.8), rgba(8, 7, 6, 0.95) 45%, rgba(8, 7, 6, 0.98)),
+    var(--keyart, none) 70% 30% / cover no-repeat,
+    #080706;
+}
+.prepare-header { position: relative; padding-top: 34px; border-bottom-color: transparent; }
+.prepare-header::after {
+  content: "";
+  position: absolute;
+  right: 28px;
+  bottom: 0;
+  left: 28px;
+  height: 1px;
+  background: linear-gradient(90deg, var(--gold) 0, rgba(212, 173, 98, 0.25) 30%, rgba(212, 173, 98, 0.08) 80%, transparent);
+}
+.prepare-header .eyebrow { font-family: var(--display); font-weight: 600; letter-spacing: 0.36em; }
+.prepare-header h2 {
+  font-family: var(--display);
+  font-size: clamp(1.8rem, 3.4vw, 2.75rem);
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-shadow: 0 0 36px rgba(255, 170, 90, 0.14);
+}
+
+.step-heading { align-items: center; gap: 4px 14px; }
+.step-heading h3 { font-family: var(--display); font-size: 1.3rem; font-weight: 700; letter-spacing: 0.12em; }
+.step-no {
+  width: auto;
+  height: auto;
+  min-width: 1.6em;
+  border: 0;
+  border-radius: 0;
+  color: var(--gold);
+  font-family: var(--latin);
+  font-size: 1.6rem;
+  font-style: italic;
+  font-weight: 500;
+  line-height: 1;
+  transform: none;
+}
+.step-heading small { padding-left: calc(1.6em + 14px); font-size: var(--fs-xs); letter-spacing: 0.04em; }
+
+/* 札: 角を立て、選ぶと四隅に金の留め具が付く。 */
+.mission-option, .tactic-card, .candidate-card, .side-section, .decision-option {
+  border-radius: 4px;
+}
+.mission-option, .tactic-card, .candidate-card {
+  position: relative;
+  background: linear-gradient(180deg, rgba(255, 244, 220, 0.035), rgba(255, 244, 220, 0.01));
+  transition: transform 260ms var(--ease-out), border-color 200ms ease, background-color 200ms ease, box-shadow 300ms ease, opacity 140ms ease-out;
+}
+.mission-option.is-selected::before, .tactic-card.is-selected::before, .candidate-card.is-selected::before,
+.mission-option.is-selected::after, .tactic-card.is-selected::after, .candidate-card.is-selected::after {
+  content: "";
+  position: absolute;
+  width: 9px;
+  height: 9px;
+  border: 0 solid var(--gold-bright);
+  pointer-events: none;
+  animation: clasp-in 420ms var(--ease-out) both;
+}
+.mission-option.is-selected::before, .tactic-card.is-selected::before, .candidate-card.is-selected::before { top: -4px; left: -4px; border-width: 1.5px 0 0 1.5px; }
+.mission-option.is-selected::after, .tactic-card.is-selected::after, .candidate-card.is-selected::after { right: -4px; bottom: -4px; border-width: 0 1.5px 1.5px 0; }
+@keyframes clasp-in {
+  from { opacity: 0; transform: scale(2.2); }
+  to { opacity: 1; transform: none; }
+}
+.mission-option.is-selected, .tactic-card.is-selected, .candidate-card.is-selected {
+  background: radial-gradient(ellipse 90% 120% at 0% 0%, rgba(240, 180, 90, 0.16), transparent 60%), rgba(212, 173, 98, 0.07);
+  box-shadow: inset 0 0 0 1px rgba(240, 204, 123, 0.22), 0 10px 30px rgba(0, 0, 0, 0.35), 0 0 30px rgba(240, 160, 70, 0.06);
+}
+.mission-option.is-selected strong::before, .tactic-card.is-selected strong::before { content: ""; }
+.candidate-card.is-selected .candidate-body > strong::before { content: ""; }
+.mission-option strong, .candidate-body > strong { font-family: var(--display); font-weight: 700; letter-spacing: 0.06em; }
+.tactic-card strong { font-family: var(--display); font-weight: 700; letter-spacing: 0.04em; }
+
+/* 探索者の肖像は蝋燭に照らされた小さな額に入れる。 */
+.candidate-card { grid-template-columns: 76px minmax(0, 1fr); }
+.candidate-portrait {
+  width: 76px;
+  height: 76px;
+  border: 1px solid rgba(212, 173, 98, 0.22);
+  border-radius: 2px;
+  background-color: #110d0a;
+  box-shadow: inset 0 -26px 30px -18px rgba(255, 170, 90, 0.16);
+}
+.candidate-card.is-selected .candidate-portrait { box-shadow: inset 0 -26px 30px -18px rgba(255, 170, 90, 0.16), 0 0 0 1px var(--gold-bright), 0 0 24px rgba(240, 170, 80, 0.25); }
+
+@media (hover: hover) and (pointer: fine) {
+  .mission-option:hover, .tactic-card:hover:not(:disabled), .candidate-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 14px 34px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(240, 204, 123, 0.12);
+  }
+}
+
+.side-section {
+  background: linear-gradient(180deg, rgba(30, 25, 19, 0.82), rgba(18, 15, 12, 0.88));
+  backdrop-filter: blur(6px);
+}
+.side-heading h3 { font-family: var(--display); font-size: 1rem; font-weight: 700; letter-spacing: 0.14em; }
+
+/* 出発の札: 金の地に光が一筋走る。 */
+.primary-button {
+  position: relative;
+  overflow: hidden;
+  border-radius: 3px;
+  font-family: var(--display);
+  font-weight: 800;
+  letter-spacing: 0.2em;
+  background: linear-gradient(180deg, #f6d88e, #d2a456 55%, #b8873d);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.5), 0 0 0 4px rgba(240, 204, 123, 0.12), 0 10px 30px rgba(212, 150, 70, 0.25), inset 0 1px rgba(255, 255, 255, 0.45);
+}
+.primary-button::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(105deg, transparent 35%, rgba(255, 255, 255, 0.45) 50%, transparent 65%);
+  transform: translateX(-120%);
+  animation: sheen 5.5s ease-in-out infinite 1.5s;
+  pointer-events: none;
+}
+.primary-button:disabled::after { animation: none; }
+@keyframes sheen {
+  0%, 70% { transform: translateX(-120%); }
+  100% { transform: translateX(120%); }
+}
+
+/* タイトルから入ってきた時、部屋が奥から順に立ち上がる。 */
+.prepare-layer.is-entering .prepare-header,
+.prepare-layer.is-entering .prepare-step,
+.prepare-layer.is-entering .side-section,
+.prepare-layer.is-entering .prepare-footer {
+  animation: room-rise 1.1s var(--ease-out) both;
+}
+.prepare-layer.is-entering .prepare-header { animation-delay: 0.35s; }
+.prepare-layer.is-entering .prepare-step:nth-child(1) { animation-delay: 0.5s; }
+.prepare-layer.is-entering .prepare-step:nth-child(2) { animation-delay: 0.62s; }
+.prepare-layer.is-entering .prepare-step:nth-child(3) { animation-delay: 0.74s; }
+.prepare-layer.is-entering .side-section:nth-child(1) { animation-delay: 0.6s; }
+.prepare-layer.is-entering .side-section:nth-child(2) { animation-delay: 0.7s; }
+.prepare-layer.is-entering .side-section:nth-child(3) { animation-delay: 0.8s; }
+.prepare-layer.is-entering .side-section:nth-child(4) { animation-delay: 0.9s; }
+.prepare-layer.is-entering .prepare-footer { animation-name: footer-rise; animation-delay: 0.9s; }
+@keyframes room-rise {
+  from { opacity: 0; filter: blur(6px); transform: translateY(18px); }
+  to { opacity: 1; filter: none; transform: none; }
+}
+@keyframes footer-rise {
+  from { opacity: 0; transform: translateY(100%); }
+  to { opacity: 1; transform: none; }
+}
+
+/* ---------- 観戦: 階層のタイトルとマップ枠 ---------- */
+
+.map-stage::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  box-shadow: inset 0 0 90px 30px rgba(0, 0, 0, 0.55), inset 0 0 0 1px rgba(212, 173, 98, 0.06);
+}
+
+.floor-card {
+  position: absolute;
+  z-index: 2;
+  top: 30%;
+  left: 50%;
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  width: max-content;
+  padding: 28px 64px;
+  pointer-events: none;
+  opacity: 0;
+  transform: translate(-50%, -62%);
+  background: radial-gradient(ellipse closest-side, rgba(5, 4, 3, 0.78), rgba(5, 4, 3, 0.45) 60%, transparent);
+}
+.floor-card-no {
+  color: var(--gold);
+  font-family: var(--display);
+  font-size: 0.875rem;
+  font-weight: 600;
+  letter-spacing: 0.6em;
+  text-indent: 0.6em;
+}
+.floor-card-name {
+  color: #f3e7cf;
+  font-family: var(--display);
+  font-size: clamp(1.8rem, 3.6vw, 3rem);
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: 0.32em;
+  text-indent: 0.32em;
+  text-shadow: 0 0 30px rgba(255, 170, 90, 0.25), 0 2px 0 #000;
+}
+.floor-card i {
+  width: 180px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--gold), transparent);
+  transform: scaleX(0);
+}
+.floor-card[data-biome="crypt"] .floor-card-no { color: #9fd2c4; }
+.floor-card[data-biome="furnace"] .floor-card-no { color: #ff9a55; }
+.floor-card[data-biome="black-candle"] .floor-card-no { color: #b9a0ff; }
+.floor-card.is-shown { animation: floor-card 3.2s var(--ease-out) both; }
+.floor-card.is-shown i { animation: floor-rule 3.2s var(--ease-out) both; }
+.floor-card.is-shown .floor-card-name { animation: floor-name 3.2s var(--ease-out) both; }
+@keyframes floor-card {
+  0% { opacity: 0; }
+  14%, 72% { opacity: 1; }
+  100% { opacity: 0; }
+}
+@keyframes floor-name {
+  0% { filter: blur(10px); letter-spacing: 0.6em; text-indent: 0.6em; }
+  30%, 100% { filter: none; letter-spacing: 0.32em; text-indent: 0.32em; }
+}
+@keyframes floor-rule {
+  0% { transform: scaleX(0); }
+  40%, 100% { transform: scaleX(1); }
+}
+
+/* 観戦の数字と見出しも、明朝と欧文の数字で揃える。 */
+.live-score strong, .vitals-hp-label strong, .turn-meter-label strong, .title-ledger dd { font-variant-numeric: lining-nums tabular-nums; font-feature-settings: "lnum" 1, "tnum" 1; }
+.vitals-heading strong { font-family: var(--display); font-weight: 700; letter-spacing: 0.06em; }
+.live-score strong { font-family: var(--latin); font-size: 1.75rem; font-weight: 600; transition: color 300ms ease, text-shadow 300ms ease; }
+.live-score strong.is-rising { color: #fff0c8; text-shadow: 0 0 18px rgba(255, 190, 100, 0.55); }
+.vitals-hp-label strong, .turn-meter-label strong { font-family: var(--latin); font-size: 1.25rem; font-weight: 600; }
+.panel-heading h2, .topbar-brand h1 { font-family: var(--display); font-weight: 700; letter-spacing: 0.12em; }
+.panel, .topbar, .stage { border-radius: 6px; }
+.lantern-rite { border-radius: 4px; }
+
+/* ---------- 判断と結果: 問いの札と、結末の碑 ---------- */
+
+.modal-panel {
+  position: relative;
+  border-radius: 6px;
+  background:
+    radial-gradient(ellipse 80% 40% at 50% 0, rgba(190, 112, 48, 0.16), transparent 70%),
+    linear-gradient(180deg, #1a1510, #110e0b);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.6), 0 40px 120px rgba(0, 0, 0, 0.8), inset 0 1px rgba(255, 230, 180, 0.06);
+}
+.modal-panel > .eyebrow { font-family: var(--display); font-weight: 600; letter-spacing: 0.32em; }
+.modal-panel > h2 { font-family: var(--display); font-weight: 800; letter-spacing: 0.08em; }
+.modal-footer { border-radius: 0 0 6px 6px; }
+.result-section-heading h3, .decision-history h3, .insight-chart figcaption strong { font-family: var(--display); font-weight: 700; letter-spacing: 0.12em; }
+
+.decision-option { border-radius: 4px; transition: transform 260ms var(--ease-out), border-color 200ms ease, background-color 200ms ease, box-shadow 300ms ease; }
+.decision-option > span { border: 0; border-radius: 0; color: var(--gold); font-family: var(--latin); font-size: 1.5rem; font-style: italic; font-weight: 500; }
+.decision-option strong { font-family: var(--display); font-weight: 700; letter-spacing: 0.06em; }
+.decision-options .decision-option { animation: room-rise 700ms var(--ease-out) both; }
+.decision-options .decision-option:nth-child(2) { animation-delay: 80ms; }
+.decision-options .decision-option:nth-child(3) { animation-delay: 160ms; }
+.decision-options .decision-option:nth-child(4) { animation-delay: 240ms; }
+.decision-options .decision-option:nth-child(5) { animation-delay: 320ms; }
+@media (hover: hover) and (pointer: fine) {
+  .decision-option:hover:not(:disabled) { transform: translateX(4px); box-shadow: -3px 0 0 var(--gold-bright), 0 12px 30px rgba(0, 0, 0, 0.4); }
+}
+
+/* 結果: 生還は金、倒れた時は熾火の赤で碑の上辺を照らす。 */
+.result-panel::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 260px;
+  border-radius: 6px 6px 0 0;
+  pointer-events: none;
+  background: radial-gradient(ellipse 60% 100% at 50% 0, rgba(240, 190, 100, 0.22), transparent 70%);
+}
+.result-panel[data-tone="danger"]::before { background: radial-gradient(ellipse 60% 100% at 50% 0, rgba(200, 60, 40, 0.26), transparent 70%); }
+.result-panel > .eyebrow { text-align: center; }
+.result-panel > h2 { display: grid; justify-items: center; gap: 6px; text-align: center; }
+.result-panel .end-status {
+  font-size: clamp(3rem, 8vw, 5.25rem);
+  line-height: 1.05;
+  letter-spacing: 0.3em;
+  text-indent: 0.3em;
+  color: #f6e8c8;
+  text-shadow: 0 0 40px rgba(255, 180, 90, 0.3), 0 3px 0 #000;
+}
+.result-panel[data-tone="danger"] .end-status { color: #f1c7bc; text-shadow: 0 0 40px rgba(220, 70, 50, 0.35), 0 3px 0 #000; }
+.result-panel .end-name { color: var(--ink-soft); font-size: 1.125rem; font-weight: 600; letter-spacing: 0.4em; text-indent: 0.4em; }
+.result-panel > .modal-lead { margin-inline: auto; text-align: center; }
+.end-stats { border-radius: 4px; }
+.end-stats strong { font-family: var(--display); font-weight: 700; font-variant-numeric: lining-nums tabular-nums; }
+.score-breakdown > div { border-radius: 3px; }
+
+.result-panel.is-revealing .end-status { animation: end-status 1.8s var(--ease-out) both; }
+.result-panel.is-revealing .end-name { animation: room-rise 1.2s var(--ease-out) 0.5s both; }
+.result-panel.is-revealing .end-stats,
+.result-panel.is-revealing .run-comparison,
+.result-panel.is-revealing .run-insights,
+.result-panel.is-revealing .score-breakdown { animation: room-rise 1s var(--ease-out) both; }
+.result-panel.is-revealing .end-stats { animation-delay: 0.45s; }
+.result-panel.is-revealing .run-comparison { animation-delay: 0.6s; }
+.result-panel.is-revealing .run-insights { animation-delay: 0.75s; }
+.result-panel.is-revealing .score-breakdown { animation-delay: 0.9s; }
+.result-panel.is-revealing .hp-line { stroke-dasharray: 1; stroke-dashoffset: 1; animation: draw-line 2.4s cubic-bezier(0.45, 0, 0.2, 1) 1s forwards; }
+.result-panel.is-revealing .score-breakdown i { transform-origin: left; animation: bar-grow 1.2s var(--ease-out) 1.2s both; }
+@keyframes end-status {
+  0% { opacity: 0; filter: blur(16px); letter-spacing: 0.7em; text-indent: 0.7em; }
+  60%, 100% { opacity: 1; filter: none; letter-spacing: 0.3em; text-indent: 0.3em; }
+}
+@keyframes draw-line { to { stroke-dashoffset: 0; } }
+@keyframes bar-grow { from { transform: scaleX(0); } }
+
 /* ---------- 利用者設定 ---------- */
 
 @media (prefers-reduced-motion: reduce) {
@@ -926,6 +1257,7 @@ kbd {
     transition-duration: 0.01ms !important;
   }
   .candidate-card:active, .decision-option:active, .speed-selector button:active, .secondary-button:active, .primary-button:active { transform: none; }
+  body::after { animation: none; }
 }
 
 @media (prefers-reduced-transparency: reduce) {

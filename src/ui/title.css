@@ -365,7 +365,11 @@
   .title-cta:hover::before { top: -7px; left: -7px; }
   .title-cta:hover::after { right: -7px; bottom: -7px; }
 }
-.title-cta:focus-visible { outline: 1px solid var(--focus-ring); outline-offset: 6px; box-shadow: none; }
+.title-cta:focus-visible {
+  outline: none;
+  border-color: rgba(240, 204, 123, 0.85);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.6), 0 0 0 4px rgba(240, 204, 123, 0.16), 0 0 42px rgba(240, 160, 70, 0.22), 0 18px 48px rgba(0, 0, 0, 0.5);
+}
 
 /* ---------- 退場: 灯が膨らみ、画面を白金に満たしてから支度の部屋へ溶ける ---------- */
 

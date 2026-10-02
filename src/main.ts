@@ -81,6 +81,7 @@ declare global {
 }
 
 const app = document.querySelector<HTMLDivElement>("#app");
+document.documentElement.style.setProperty("--keyart", `url("${import.meta.env.BASE_URL}assets/art/title-keyart.jpg")`);
 if (!app) throw new Error("Missing #app root");
 
 app.innerHTML = `
@@ -114,6 +115,7 @@ app.innerHTML = `
       <div class="map-stage" id="map-stage">
         <div id="pixi-root" class="pixi-root"></div>
         <p id="pause-banner" class="pause-banner" hidden>一時停止中 — Space で再開</p>
+        <div id="floor-card" class="floor-card" aria-hidden="true"><span class="floor-card-no"></span><strong class="floor-card-name"></strong><i></i></div>
       </div>
       <section class="lantern-dock" aria-label="灯守の介入">
         <div class="lantern-embers">
@@ -134,7 +136,7 @@ app.innerHTML = `
         </div>
         <div class="vitals-hp" id="vitals-hp">
           <div class="vitals-hp-label"><span>HP</span><strong id="vitals-hp-value">-</strong></div>
-          <div class="vitals-hp-track"><i id="vitals-hp-fill"></i></div>
+          <div class="vitals-hp-track"><b id="vitals-hp-trail" aria-hidden="true"></b><i id="vitals-hp-fill"></i></div>
         </div>
         <div id="hero-stats" class="stat-row"></div>
         <div class="vitals-tags"><div id="vitals-conditions" class="tag-row"></div><div id="vitals-tactics" class="tag-row"></div></div>
@@ -185,15 +187,15 @@ app.innerHTML = `
       <div class="prepare-body">
         <div class="prepare-main">
           <section class="prepare-step" aria-labelledby="step-mission">
-            <div class="step-heading"><span class="step-no">1</span><h3 id="step-mission">遠征任務</h3><small>任務もAIが目指す一周の目的になる。</small></div>
+            <div class="step-heading"><span class="step-no" aria-hidden="true">I</span><h3 id="step-mission">遠征任務</h3><small>任務もAIが目指す一周の目的になる。</small></div>
             <div id="mission-list" class="mission-list"></div>
           </section>
           <section class="prepare-step" aria-labelledby="step-tactics">
-            <div class="step-heading"><span class="step-no">2</span><h3 id="step-tactics">作戦カード</h3><em id="tactic-count">0/2</em><small>探索者の判断の癖。3階・6階の節目でも組み替えられる。</small></div>
+            <div class="step-heading"><span class="step-no" aria-hidden="true">II</span><h3 id="step-tactics">作戦カード</h3><em id="tactic-count">0/2</em><small>探索者の判断の癖。3階・6階の節目でも組み替えられる。</small></div>
             <div id="tactic-list" class="tactic-list"></div>
           </section>
           <section class="prepare-step" aria-labelledby="step-delver">
-            <div class="step-heading"><span class="step-no">3</span><h3 id="step-delver">探索者</h3><small>番号キー 1〜4 でも選べる。</small></div>
+            <div class="step-heading"><span class="step-no" aria-hidden="true">III</span><h3 id="step-delver">探索者</h3><small>番号キー 1〜4 でも選べる。</small></div>
             <div class="candidate-group"><strong>遠征団</strong><small>生還した古参は位階が上がって強くなる。瀕死で帰ると古傷を負い、倒れた者は戻らない。</small></div>
             <div id="veteran-list" class="candidate-list"></div>
             <div class="candidate-group"><strong>新たな志願者</strong><small id="recruit-capacity"></small></div>
@@ -326,6 +328,11 @@ let focusedModal: HTMLElement | null = null;
 let selectedDelver: { kind: "veteran"; id: string } | { kind: "recruit"; roleId: string } | null = null;
 /** 実際に送り出した遠征があるか。起動直後の仮の盤面と区別する。 */
 let runActive = false;
+/** 階層タイトルを最後に出した遠征と階。同じ階で二度出さない。 */
+let announcedFloor: string | null = null;
+let floorCardTimer: number | null = null;
+let shownScore = 0;
+let scoreFrame = 0;
 
 installEvents();
 installDebugBridge();
@@ -677,7 +684,7 @@ function candidateCard(options: {
   button.setAttribute("aria-pressed", String(options.selected));
   const portrait = document.createElement("span");
   portrait.className = "candidate-portrait";
-  applySprite(portrait, assetForContent(options.roleId), 64);
+  applySprite(portrait, assetForContent(options.roleId), 76);
   const body = document.createElement("span");
   body.className = "candidate-body";
   body.innerHTML = `
@@ -879,6 +886,7 @@ function render(): void {
   renderer.render(state, { events: recentEvents, intent: pendingIntent, stepMs: currentStepMs(), lightStrength: lightStrengthFor(state) });
   pendingVisualEvents = [];
   pendingIntent = null;
+  announceFloor();
   const observation = observeGame(state);
   const player = observation.player;
   const config = getGameConfig();
@@ -896,7 +904,7 @@ function render(): void {
   setText("#run-turn", `${state.runTurn} / ${rules.runTurnLimit}手`);
   setText("#biome-kicker", `地下${state.floor}階 / ${config.rules.maxFloor}${state.status === "playing" ? "" : ` · ${statusLabel(state.status)}`}`);
   setText("#biome-title", biomeThemeName(state.biome));
-  setText("#live-score", score.total.toLocaleString("ja-JP"));
+  tweenScore(score.total);
   const routeWarning = state.runTurn >= rules.runTurnWarning;
   setText("#turn-meter-label", routeWarning ? "灯路が揺らいでいる" : "灯路");
   requireElement<HTMLElement>("#turn-meter").classList.toggle("is-warning", routeWarning);
@@ -919,6 +927,54 @@ function render(): void {
   renderDecision(observation);
   renderEnd();
   syncModalAccessibility();
+}
+
+/** 暫定得点は一気に書き換えず、数字が転がるように追いつかせる。 */
+function tweenScore(target: number): void {
+  const element = requireElement<HTMLElement>("#live-score");
+  cancelAnimationFrame(scoreFrame);
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches || Math.abs(target - shownScore) < 1) {
+    shownScore = target;
+    element.textContent = target.toLocaleString("ja-JP");
+    return;
+  }
+  const from = shownScore;
+  const start = performance.now();
+  const duration = 520;
+  element.classList.toggle("is-rising", target > from);
+  const step = (now: number) => {
+    const t = Math.min(1, (now - start) / duration);
+    shownScore = Math.round(from + (target - from) * (1 - (1 - t) ** 3));
+    element.textContent = shownScore.toLocaleString("ja-JP");
+    if (t < 1) scoreFrame = requestAnimationFrame(step);
+    else element.classList.remove("is-rising");
+  };
+  scoreFrame = requestAnimationFrame(step);
+}
+
+/** 階を降りた時、マップの上に階の名を一度だけ浮かべる。 */
+function announceFloor(): void {
+  if (!runActive || state.status !== "playing") return;
+  const key = `${state.seed}:${state.floor}`;
+  if (announcedFloor === key) return;
+  announcedFloor = key;
+  const card = requireElement<HTMLElement>("#floor-card");
+  card.querySelector(".floor-card-no")!.textContent = `地下 ${toKanjiNumber(state.floor)} 階`;
+  card.querySelector(".floor-card-name")!.textContent = biomeThemeName(state.biome);
+  card.dataset.biome = state.biome;
+  card.classList.remove("is-shown");
+  void card.offsetWidth;
+  card.classList.add("is-shown");
+  if (floorCardTimer !== null) window.clearTimeout(floorCardTimer);
+  floorCardTimer = window.setTimeout(() => card.classList.remove("is-shown"), 3200);
+}
+
+function toKanjiNumber(value: number): string {
+  const digits = ["〇", "一", "二", "三", "四", "五", "六", "七", "八", "九"];
+  if (value < 10) return digits[value];
+  if (value === 10) return "十";
+  if (value < 20) return `十${digits[value - 10]}`;
+  return String(value);
 }
 
 /** 灯火の残りと灯路の残り時間で、探索者を照らす光の強さを決める。 */
@@ -946,6 +1002,7 @@ function renderVitals(observation: ReturnType<typeof observeGame>): void {
   setText("#vitals-hp-value", `${Math.max(0, hp)} / ${maxHp}`);
   const fill = requireElement<HTMLElement>("#vitals-hp-fill");
   fill.style.width = `${ratio * 100}%`;
+  requireElement<HTMLElement>("#vitals-hp-trail").style.width = `${ratio * 100}%`;
   const hpTone = ratio <= 0.3 ? "danger" : ratio <= 0.6 ? "warning" : "safe";
   requireElement<HTMLElement>("#vitals-hp").dataset.tone = hpTone;
   const conditions = player.conditions ?? [];
@@ -1368,7 +1425,7 @@ function renderEnd(): void {
   const review = currentReview ?? analyzeRun(runLog, state);
   const status = statusLabel(state.status);
   endKicker.textContent = state.status === "won" ? "遠征達成" : state.status === "returned" ? "生還" : "遠征終了";
-  endTitle.textContent = `${state.runIdentity.name} — ${status}`;
+  endTitle.innerHTML = `<span class="end-status">${escapeHtml(status)}</span><span class="end-name">${escapeHtml(state.runIdentity.name)}</span>`;
   endSummary.textContent = state.story.endingId
     ? `${endingLabel(state.story.endingId)}の結末を遠征録へ刻みました。`
     : `${review.summaryText} 得点は${review.score.total.toLocaleString("ja-JP")}点です。`;
@@ -1381,7 +1438,7 @@ function renderEnd(): void {
     ["得点", review.score.total.toLocaleString("ja-JP")],
     ["灯片", record?.shardsEarned ? `+${record.shardsEarned}` : "±0"],
   ].map(([label, value]) => `<div><span>${label}</span><strong>${value}</strong></div>`).join("");
-  renderRunComparison();
+  const firstReveal = endDialog.hidden;
   renderRunInsights(buildRunInsights(runLog, state, review.deathCause, campaign));
   const rows: Array<[string, number]> = [
     ["進行", review.score.depth], ["守護者", review.score.guardians], ["職業目的", review.score.roleObjective],
@@ -1390,8 +1447,34 @@ function renderEnd(): void {
   ];
   const maxRow = Math.max(1, ...rows.map(([, value]) => value));
   scoreBreakdown.innerHTML = rows.map(([label, value]) => `<div><span>${label}</span><strong>${value.toLocaleString("ja-JP")}</strong><i style="width:${Math.round(value / maxRow * 100)}%"></i></div>`).join("");
+  renderRunComparison();
   decisionHistory.innerHTML = `<h3>灯守の判断</h3>${review.decisions.length === 0 ? "<p>介入記録なし</p>" : `<ol>${review.decisions.map((entry) => `<li><span>F${entry.floor}</span><strong>${escapeHtml(entry.optionLabel)}${entry.effectSummary ? `<small>${escapeHtml(entry.effectSummary)}</small>` : ""}</strong>${entry.usedRevelation ? "<em>啓示</em>" : ""}</li>`).join("")}</ol>`}`;
   endDialog.hidden = false;
+  if (firstReveal) revealResult();
+}
+
+/** 結果を初めて開いた時だけ、見出しを浮かべ、軌跡を描き、数字を数え上げる。 */
+function revealResult(): void {
+  const panel = requireElement<HTMLElement>(".result-panel");
+  panel.classList.remove("is-revealing");
+  void panel.offsetWidth;
+  panel.classList.add("is-revealing");
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  const targets = [...panel.querySelectorAll<HTMLElement>(".end-stats strong, .score-breakdown strong")];
+  targets.forEach((element, index) => {
+    const text = element.textContent ?? "";
+    const match = text.match(/^([^\d]*)([\d,]+)(.*)$/);
+    if (!match) return;
+    const target = Number(match[2].replaceAll(",", ""));
+    const start = performance.now() + 500 + index * 70;
+    const duration = 900;
+    const tick = (now: number) => {
+      const t = Math.max(0, Math.min(1, (now - start) / duration));
+      element.textContent = `${match[1]}${Math.round(target * (1 - (1 - t) ** 4)).toLocaleString("ja-JP")}${match[3]}`;
+      if (t < 1) requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  });
 }
 
 function renderRunInsights(insights: RunInsights): void {
@@ -1431,7 +1514,7 @@ function renderRunInsights(insights: RunInsights): void {
           <svg viewBox="0 0 ${width} ${height}" preserveAspectRatio="none" role="img" aria-label="遠征中のHP推移">
             ${floorBands.join("")}
             <line class="hp-guide" x1="0" x2="${width}" y1="${y(0.3)}" y2="${y(0.3)}"/>
-            <path class="hp-line" d="${path}"/>
+            <path class="hp-line" pathLength="1" d="${path}"/>
             ${markerShapes}
             <line class="hover-line" x1="0" x2="0" y1="${top}" y2="${top + plotHeight}" visibility="hidden"/>
           </svg>

@@ -451,16 +451,21 @@ export class PixiRoguelikeRenderer {
       text: intent.text,
       style: {
         fill: palette[intent.tone],
-        fontFamily: "Hiragino Sans, Yu Gothic, system-ui, sans-serif",
-        fontSize: 17,
+        fontFamily: "Shippori Mincho B1, Hiragino Mincho ProN, serif",
+        fontSize: 16,
         fontWeight: "700",
+        letterSpacing: 1.5,
       },
     });
     label.anchor.set(0.5);
-    const width = label.width + 22;
+    const width = label.width + 28;
     const background = new Graphics();
-    background.roundRect(-width / 2, -16, width, 32, 9).fill({ color: "#120f0c", alpha: 0.88 }).stroke({ color: palette[intent.tone], width: 1.5, alpha: 0.7 });
-    background.moveTo(-6, 16).lineTo(0, 24).lineTo(6, 16).fill({ color: "#120f0c", alpha: 0.88 });
+    // 細い金の罫と小さな菱形で、吹き出しを札のように見せる。
+    background.rect(-width / 2, -15, width, 30).fill({ color: "#0d0a08", alpha: 0.84 });
+    background.moveTo(-width / 2, -15).lineTo(width / 2, -15).stroke({ color: palette[intent.tone], width: 1, alpha: 0.55 });
+    background.moveTo(-width / 2, 15).lineTo(width / 2, 15).stroke({ color: palette[intent.tone], width: 1, alpha: 0.55 });
+    background.poly([-width / 2 - 5, 0, -width / 2, -5, -width / 2 + 5, 0, -width / 2, 5]).fill({ color: palette[intent.tone], alpha: 0.8 });
+    background.poly([width / 2 - 5, 0, width / 2, -5, width / 2 + 5, 0, width / 2, 5]).fill({ color: palette[intent.tone], alpha: 0.8 });
     bubble.addChild(background, label);
     this.effectLayer.addChild(bubble);
     this.bubble = bubble;
@@ -534,7 +539,7 @@ export class PixiRoguelikeRenderer {
       this.bubbleAge += deltaMs;
       if (playerView) {
         this.bubble.x = playerView.root.x + TILE_SIZE / 2;
-        this.bubble.y = playerView.root.y - 16;
+        this.bubble.y = playerView.root.y - 34;
       }
       this.bubble.alpha = this.bubbleAge < 1500 ? Math.min(1, this.bubbleAge / 120) : Math.max(0, 1 - (this.bubbleAge - 1500) / 400);
       if (this.bubbleAge > 1900) {
@@ -749,7 +754,7 @@ export class PixiRoguelikeRenderer {
     });
     label.anchor.set(0.5);
     const baseX = pos.x * TILE_SIZE + TILE_SIZE / 2 + (Math.random() - 0.5) * 14;
-    const baseY = pos.y * TILE_SIZE + 12;
+    const baseY = pos.y * TILE_SIZE + 20;
     label.x = baseX;
     label.y = baseY;
     this.effectLayer.addChild(label);
@@ -758,7 +763,7 @@ export class PixiRoguelikeRenderer {
       age: 0,
       life,
       update: (effect, progress) => {
-        effect.node.y = baseY - 34 * (1 - (1 - progress) ** 2);
+        effect.node.y = baseY - 26 * (1 - (1 - progress) ** 2);
         effect.node.alpha = progress < 0.7 ? 1 : 1 - (progress - 0.7) / 0.3;
         effect.node.scale.set(progress < 0.12 ? 0.7 + progress * 2.5 : 1);
       },
