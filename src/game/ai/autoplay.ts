@@ -2,11 +2,19 @@ import { getGameConfig, runRules } from "../content/config";
 import { contentEntities } from "../content/entities";
 import type { AutoplayPolicyValues, Direction, GameAction, GameObservation, Point, PolicyModifier } from "../types";
 
-const directions: Array<{ action: GameAction; delta: Point }> = [
+const cardinalDirections: Array<{ action: GameAction; delta: Point }> = [
   { action: { type: "move", direction: "north" }, delta: { x: 0, y: -1 } },
   { action: { type: "move", direction: "south" }, delta: { x: 0, y: 1 } },
   { action: { type: "move", direction: "west" }, delta: { x: -1, y: 0 } },
   { action: { type: "move", direction: "east" }, delta: { x: 1, y: 0 } },
+];
+// 斜めも1手。同じ評価なら縦横を先に選ぶよう、縦横を前に並べる。
+const directions: Array<{ action: GameAction; delta: Point }> = [
+  ...cardinalDirections,
+  { action: { type: "move", direction: "northwest" }, delta: { x: -1, y: -1 } },
+  { action: { type: "move", direction: "northeast" }, delta: { x: 1, y: -1 } },
+  { action: { type: "move", direction: "southwest" }, delta: { x: -1, y: 1 } },
+  { action: { type: "move", direction: "southeast" }, delta: { x: 1, y: 1 } },
 ];
 
 const visitCounts = new Map<string, number>();
@@ -480,14 +488,13 @@ function bestHealingPotion(observation: GameObservation) {
 }
 
 function chooseMerchantService(observation: GameObservation, hpRatio: number, hasDamageCondition: boolean): GameAction | null {
-  const onMerchant = observation.knownEntities.some(
-    (entity) => entity.kind === "event" && entity.contentId === "event.wayfarer-merchant" && samePoint(entity.pos, observation.player.pos),
-  );
-  if (!onMerchant) {
+  if (observation.merchantServices.length === 0) {
     return null;
   }
 
+  // 断られる取引を選び続けないよう、商人が今引き受ける取引だけから選ぶ。
   const offers = getGameConfig().merchantOffers
+    .filter((offer) => observation.merchantServices.includes(offer.serviceId))
     .filter((offer) => offer.cost <= observation.playerProgress.gold)
     .filter((offer) => {
       if (offer.minFloor !== undefined && observation.floor < offer.minFloor) {
@@ -1211,7 +1218,8 @@ function stepOntoAdjacentRiskPanel(observation: GameObservation, hp: number, hpR
 
 function hasUnseenNeighbor(observation: GameObservation, pos: Point): boolean {
   const index = observationIndex(observation);
-  return directions.some(({ delta }) => {
+  // 未探索の境目は縦横で判定する（core の countUnseenNeighbors と揃える）。
+  return cardinalDirections.some(({ delta }) => {
     const neighbor = { x: pos.x + delta.x, y: pos.y + delta.y };
     if (neighbor.x < 0 || neighbor.y < 0 || neighbor.x >= observation.width || neighbor.y >= observation.height) {
       return false;
@@ -1220,8 +1228,9 @@ function hasUnseenNeighbor(observation: GameObservation, pos: Point): boolean {
   });
 }
 
+/** 8方向移動での歩数。 */
 function distance(a: Point, b: Point): number {
-  return Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
+  return Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y));
 }
 
 function localMoveScore(observation: GameObservation, point: Point): number {

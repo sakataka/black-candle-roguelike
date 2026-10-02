@@ -35,6 +35,23 @@ describe("作戦と方針", () => {
     expect(legacy.entities.find((entity) => entity.id === "far-archer")?.stats?.hp).toBe(30);
   });
 
+  test("斜めに隣接した敵へそのまま斬りかかり、斜めに歩いて近づく", () => {
+    resetAutoplayState();
+    const state = createInitialGame(20260504, "role.oathbound");
+    const player = state.entities.find((entity) => entity.id === state.playerId)!;
+    player.pos = { x: 5, y: 5 };
+    player.inventory = [];
+    state.tiles = state.tiles.map(() => ({ kind: "floor", visible: true, explored: true }));
+    const rat = { id: "rat", kind: "monster" as const, contentId: "monster.ash-rat", pos: { x: 6, y: 6 }, hostile: true, blocksMovement: true, stats: { hp: 30, maxHp: 30, attack: 1, defense: 0 } };
+    state.entities = [player, rat];
+    const attack = chooseAutoplayAction(observeGame(state));
+    expect(attack).toEqual({ type: "move", direction: "southeast" });
+    expect(applyAction(state, attack).entities.find((entity) => entity.id === "rat")?.stats?.hp).toBeLessThan(30);
+
+    rat.pos = { x: 8, y: 8 };
+    expect(chooseAutoplayAction(observeGame(state))).toEqual({ type: "move", direction: "southeast" });
+  });
+
   test("方針は気質の傾向を上書きし、作戦はさらにその上から効く", () => {
     const identity = { name: "テスト", roleId: "role.oathbound", temperament: "bold" as const };
     const bold = resolveAutoplayPolicy({ runIdentity: identity, directive: "conquest", tactics: [] });

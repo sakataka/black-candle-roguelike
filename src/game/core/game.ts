@@ -711,6 +711,7 @@ export function observeGame(state: GameState): GameObservation {
     messages: state.messages.slice(-8),
     status: state.status,
     bossAlive: aliveBoss,
+    merchantServices: availableMerchantServices(state),
   };
 }
 
@@ -766,7 +767,7 @@ function reachableExplorationFrontiers(
       frontiers.push({ x: current.x, y: current.y, distance: current.distance, unseenNeighbors });
     }
 
-    for (const delta of cardinalDeltas()) {
+    for (const delta of Object.values(DIRS)) {
       const next = { x: current.x + delta.x, y: current.y + delta.y };
       const key = pointKey(next);
       if (visited.has(key) || !isKnownExplorationStep(knownTileMap, knownEntities, visibleEntities, next)) {
@@ -799,7 +800,7 @@ function isKnownPointReachable(
   while (cursor < queue.length) {
     const current = queue[cursor];
     cursor += 1;
-    for (const delta of cardinalDeltas()) {
+    for (const delta of Object.values(DIRS)) {
       const next = { x: current.x + delta.x, y: current.y + delta.y };
       const key = pointKey(next);
       if (visited.has(key) || !isKnownExplorationStep(knownTileMap, knownEntities, visibleEntities, next)) {
@@ -2161,6 +2162,16 @@ function merchantOffersForState(state: GameState): GameConfig["merchantOffers"] 
   });
 }
 
+function availableMerchantServices(state: GameState): MerchantServiceId[] {
+  if (!isPlayerOnMerchant(state)) {
+    return [];
+  }
+  const player = getPlayer(state);
+  const offers = merchantOffersForState(state)
+    .filter((offer) => state.playerProgress.gold >= offer.cost && isMerchantOfferUseful(state, player, offer));
+  return [...new Set(offers.map((offer) => offer.serviceId))];
+}
+
 function isPlayerOnMerchant(state: GameState): boolean {
   const player = getPlayer(state);
   return state.entities.some((entity) => entity.kind === "event" && entity.contentId === "event.wayfarer-merchant" && samePoint(entity.pos, player.pos));
@@ -2428,7 +2439,7 @@ function shouldKeepDistance(contentId: string): boolean {
 }
 
 function stepMonsterAwayFromPlayer(state: GameState, monsterEntity: Entity, playerPos: Point): GameState | null {
-  const candidates = cardinalDeltas()
+  const candidates = Object.values(DIRS)
     .map((delta) => ({ x: monsterEntity.pos.x + delta.x, y: monsterEntity.pos.y + delta.y }))
     .filter((point) => inBounds(state, point) && isWalkable(tileAt(state, point).kind))
     .filter((point) => !state.entities.some((entity) => entity.blocksMovement && samePoint(entity.pos, point)))

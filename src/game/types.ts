@@ -679,6 +679,8 @@ export type GameObservation = {
   messages: GameMessage[];
   status: GameState["status"];
   bossAlive: boolean;
+  /** 足元の旅商人が今引き受けてくれる取引。商人の上にいない時は空。 */
+  merchantServices: MerchantServiceId[];
 };
 
 export type DeathCause = "combat" | "rangedCombat" | "trap" | "bleeding" | "venom" | "signalLoss" | "unknown";

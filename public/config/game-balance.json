@@ -15,7 +15,7 @@
     "levelUpHeal": 9,
     "monsterCountBase": 7,
     "monsterHpScale": 1.55,
-    "monsterAttackPerFloor": 0.7,
+    "monsterAttackPerFloor": 0.9,
     "monsterCountFloorCap": 10,
     "itemCountBase": 5,
     "itemCountFloorDivisor": 2,
