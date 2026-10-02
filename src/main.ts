@@ -97,6 +97,7 @@ declare global {
 const app = document.querySelector<HTMLDivElement>("#app");
 document.documentElement.style.setProperty("--keyart", `url("${import.meta.env.BASE_URL}assets/art/title-keyart.jpg")`);
 if (!app) throw new Error("Missing #app root");
+app.inert = true;
 
 app.innerHTML = `
   <main class="observer-shell" tabindex="-1">
@@ -334,7 +335,7 @@ let archivedRunId: string | null = null;
 let scheduledPace: PaceKind = "exploration";
 let pendingVisualEvents: VisualEvent[] = [];
 let pendingIntent: AutoplayIntent | null = null;
-let lookahead: { decisionKey: string; workers: Worker[]; results: Map<string, LookaheadSummary> } | null = null;
+let lookahead: { decisionKey: string; workers: Worker[]; results: Map<string, LookaheadSummary>; failedOptions: Set<string> } | null = null;
 let paused = false;
 let selectedTactics: string[] = loadSelectedTactics();
 let draftTactics: string[] | null = null;
@@ -366,6 +367,7 @@ void showTitle({
   highestFloor: campaignProgress(campaign).highestFloor,
   shards: campaign.shards,
 }).then(() => {
+  app.inert = false;
   // 灯が画面を満たしている間に、支度の部屋を奥から立ち上げる。
   candidateDialog.classList.add("is-entering");
   window.setTimeout(() => candidateDialog.classList.remove("is-entering"), 2600);
@@ -497,6 +499,12 @@ function installEvents(): void {
     if (state.status === "playing" && !state.pendingDecision) scheduleAutoplay("exploration");
   });
   window.addEventListener("keydown", (event) => {
+    if (app?.inert) return;
+    // タイトルを開いたEnterの長押しで、続けて探索者を送り出さない。
+    if (event.key === "Enter" && event.repeat) {
+      event.preventDefault();
+      return;
+    }
     if (event.key === "Tab" && focusedModal) {
       const focusable = [...focusedModal.querySelectorAll<HTMLElement>("button:not(:disabled), summary")]
         .filter((element) => element.getClientRects().length > 0);
@@ -1293,20 +1301,37 @@ function startLookahead(decisionKey: string, tactics: string[]): void {
   const rollouts = getGameConfig().autonomous.lookaheadRollouts;
   if (rollouts <= 0) return;
   const results = new Map<string, LookaheadSummary>();
+  const failedOptions = new Set<string>();
   const snapshot = structuredClone(state);
   const config = getGameConfig();
-  const workers = decision.options.filter((option) => option.outcome === "continue").map((option) => {
-    const worker = new Worker(new URL("./game/sim/lookahead.worker.ts", import.meta.url), { type: "module" });
-    worker.onmessage = (event: MessageEvent<LookaheadProgress>) => {
-      if (!lookahead || lookahead.decisionKey !== decisionKey) return;
-      results.set(event.data.summary.optionId, event.data.summary);
-      renderForecasts();
-      if (event.data.done) worker.terminate();
-    };
-    worker.postMessage({ requestId: decisionKey, config, state: snapshot, optionId: option.id, rollouts, tactics } satisfies LookaheadRequest);
-    return worker;
+  const workers = decision.options.filter((option) => option.outcome === "continue").flatMap((option) => {
+    let worker: Worker | null = null;
+    try {
+      worker = new Worker(new URL("./game/sim/lookahead.worker.ts", import.meta.url), { type: "module" });
+      const activeWorker = worker;
+      const fail = () => {
+        activeWorker.terminate();
+        if (!lookahead || lookahead.decisionKey !== decisionKey) return;
+        failedOptions.add(option.id);
+        renderForecasts();
+      };
+      worker.onerror = (event) => { event.preventDefault(); fail(); };
+      worker.onmessageerror = fail;
+      worker.onmessage = (event: MessageEvent<LookaheadProgress>) => {
+        if (!lookahead || lookahead.decisionKey !== decisionKey) return;
+        results.set(event.data.summary.optionId, event.data.summary);
+        renderForecasts();
+        if (event.data.done) activeWorker.terminate();
+      };
+      worker.postMessage({ requestId: decisionKey, config, state: snapshot, optionId: option.id, rollouts, tactics } satisfies LookaheadRequest);
+      return [worker];
+    } catch {
+      worker?.terminate();
+      failedOptions.add(option.id);
+      return [];
+    }
   });
-  lookahead = { decisionKey, workers, results };
+  lookahead = { decisionKey, workers, results, failedOptions };
 }
 
 function stopLookahead(): void {
@@ -1319,14 +1344,19 @@ function renderForecasts(): void {
   const decision = state.pendingDecision;
   if (!decision) return;
   const rollouts = getGameConfig().autonomous.lookaheadRollouts;
-  const summaries = decision.options.map((option) => lookahead?.results.get(option.id)).filter((summary): summary is LookaheadSummary => !!summary && summary.rollouts === rollouts);
+  const summaries = decision.options.filter((option) => !lookahead?.failedOptions.has(option.id)).map((option) => lookahead?.results.get(option.id)).filter((summary): summary is LookaheadSummary => !!summary && summary.rollouts === rollouts);
   const survivalRates = summaries.map((summary) => summary.survived / summary.rollouts);
   const bestSurvival = summaries.length > 1 && new Set(survivalRates).size > 1 ? Math.max(...survivalRates) : null;
   for (const option of decision.options) {
     const slot = decisionOptions.querySelector<HTMLElement>(`[data-forecast-for="${CSS.escape(option.id)}"]`);
     if (!slot) continue;
+    slot.classList.remove("is-best");
     if (option.outcome === "return") {
       slot.innerHTML = forecastMarkup({ survived: 1, lost: 0, stranded: 0 }, "生還確定・ここまでの戦果で得点を確定");
+      continue;
+    }
+    if (lookahead?.failedOptions.has(option.id)) {
+      slot.innerHTML = '<span class="forecast-label">先読みを取得できませんでした。現在の状態で判断してください。</span>';
       continue;
     }
     const summary = lookahead?.results.get(option.id);
@@ -1439,6 +1469,10 @@ function renderEnd(): void {
   }
   stopAutoplay();
   const review = currentReview ?? analyzeRun(runLog, state);
+  const firstReveal = endDialog.hidden;
+  const panel = requireElement<HTMLElement>(".result-panel");
+  // リサイズや作戦採用で作り直す子要素に、登場演出を再適用しない。
+  if (!firstReveal) panel.classList.remove("is-revealing");
   const status = statusLabel(state.status);
   endKicker.textContent = state.status === "won" ? "遠征達成" : state.status === "returned" ? "生還" : "遠征終了";
   endTitle.innerHTML = `<span class="end-status">${escapeHtml(status)}</span><span class="end-name">${escapeHtml(state.runIdentity.name)}</span>`;
@@ -1447,14 +1481,13 @@ function renderEnd(): void {
     : `${review.summaryText} 得点は${review.score.total.toLocaleString("ja-JP")}点です。`;
   const record = campaign.expeditions[0]?.id === archivedRunId ? campaign.expeditions[0] : null;
   const endTone = state.status === "won" || state.status === "returned" ? "safe" : "danger";
-  requireElement<HTMLElement>(".result-panel").dataset.tone = endTone;
+  panel.dataset.tone = endTone;
   endStats.innerHTML = [
     ["到達", `地下${state.story.maxFloorReached}階`],
     ["観測", `${state.runTurn}手`],
     ["得点", review.score.total.toLocaleString("ja-JP")],
     ["灯片", record?.shardsEarned ? `+${record.shardsEarned}` : "±0"],
   ].map(([label, value]) => `<div><span>${label}</span><strong>${value}</strong></div>`).join("");
-  const firstReveal = endDialog.hidden;
   renderRunInsights(buildRunInsights(runLog, state, review.deathCause, campaign));
   const rows: Array<[string, number]> = [
     ["進行", review.score.depth], ["守護者", review.score.guardians], ["職業目的", review.score.roleObjective],
