@@ -6,7 +6,7 @@ import { getGameConfig, loadBunGameConfig } from "../content/config";
 import { applyAction, createInitialGame, observeGame } from "../core/game";
 import { paceDelayMs, paceKindFor, type PaceKind } from "../core/pacing";
 import { analyzeRun, createRunLog, recordTurn } from "../core/runLog";
-import { calculateScore, campaignRunModifiers, chooseDecisionAction, createCampaignState, createRunIdentity, type DecisionPolicy } from "../core/autonomous";
+import { calculateShards, campaignRunModifiers, chooseDecisionAction, createCampaignState, createRunIdentity, type DecisionPolicy } from "../core/autonomous";
 import type { EndingId, ExpeditionDynamics, GameAction, GameState, RunReview } from "../types";
 
 export type SimulationRunInput = {
@@ -66,7 +66,6 @@ type CompactRunReview = {
 
 export type SimulationRunResult = {
   dynamics?: ExpeditionDynamics["stats"];
-  vowCompleted?: boolean;
   unpaidFlameDebt?: number;
   seed: number;
   turns: number;
@@ -88,7 +87,7 @@ export type SimulationRunResult = {
   label: string;
   configPath: string;
   review: CompactRunReview;
-  score: ReturnType<typeof calculateScore>;
+  shards: ReturnType<typeof calculateShards>;
   temperament: GameState["runIdentity"]["temperament"];
   decisions: number;
   discoveries: number;
@@ -230,7 +229,6 @@ export async function runSimulation(input: SimulationRunInput): Promise<Simulati
 
   const result: SimulationRunResult = {
     dynamics: state.expedition?.stats,
-    vowCompleted: state.expedition?.vow.completed,
     unpaidFlameDebt: state.expedition?.debt ?? 0,
     seed: input.seed,
     turns: state.runTurn,
@@ -252,7 +250,7 @@ export async function runSimulation(input: SimulationRunInput): Promise<Simulati
     label: input.label,
     configPath: input.configPath,
     review: compactReview(review),
-    score: calculateScore(state),
+    shards: calculateShards(state),
     temperament: state.runIdentity.temperament,
     decisions: state.story.decisions.length,
     discoveries: state.story.discoveries.length,

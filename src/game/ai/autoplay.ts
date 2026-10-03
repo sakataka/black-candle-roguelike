@@ -172,7 +172,7 @@ export function chooseAutoplayAction(observation: GameObservation): GameAction {
   const terrainStep = chooseTacticalStep(observation, hpRatio, false);
   if (terrainStep) return terrainStep;
 
-  if (observation.expedition?.vow.id === "memorial" && !combatPressure && hpRatio >= realtimeConfig().vows.memorialHpRatio && !observation.expedition.vow.completed) {
+  if (observation.story.missionId === "memorial" && !combatPressure && hpRatio >= realtimeConfig().missions.memorialHpRatio && !observation.story.missionCompleted) {
     const grave = nearest(observation.knownEntities.filter((e) => e.contentId === "event.grave-marker"), observation.player.pos);
     const towardGrave = grave ? stepTowardKnownReachable(observation, grave.pos) : null;
     if (towardGrave) return towardGrave;

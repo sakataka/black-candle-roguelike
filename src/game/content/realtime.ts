@@ -16,7 +16,7 @@ export const defaultRealtimeConfig: RealtimeConfig = {
   light: { cost: 1, duration: 14, radius: 3, lureRange: 6, maxActive: 1, watcherReserve: 1, watcherHostiles: 2 },
   loan: { healPercent: 22, guardedTurns: 4, debt: 2, embers: 2, watcherHpRatio: 0.24 },
   laws: { cryptWakeEveryKills: 3, cryptWakeLimit: 2, cryptWakeRadius: 6, cryptAttackBonus: 1, furnacePeriod: 12, furnaceWindup: 3, furnaceDuration: 2, furnaceDamage: 3, furnaceVentLimit: 3 },
-  vows: { memorialHpRatio: 0.5, resolveBossTarget: 2, rewardEmbers: 1 },
+  missions: { memorialHpRatio: 0.5, rewardEmbers: 1 },
   dialogue: { minTurns: 6, repeatTurns: 60, minMs: 2200, holdMs: 2500 },
 };
 

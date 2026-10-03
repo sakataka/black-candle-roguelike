@@ -46,7 +46,6 @@ type CliOptions = {
 
 type AggregateSummary = {
   averageDynamics: ExpeditionDynamics["stats"];
-  vowCompletionRate: number;
   averageUnpaidFlameDebt: number;
   runs: number;
   totalElapsedMs: number;
@@ -60,8 +59,8 @@ type AggregateSummary = {
   playingRate: number;
   averageFloor: number;
   averageTurns: number;
-  averageScore: number;
-  medianScore: number;
+  averageShards: number;
+  medianShards: number;
   averageDecisions: number;
   missionCompletionRate: number;
   averageInterventions: number;
@@ -752,7 +751,6 @@ function summarizeRuns(runResults: SimulationRunResult[]): AggregateSummary {
   const totalElapsedMs = runResults.reduce((sum, run) => sum + run.elapsedMs, 0);
   return {
     averageDynamics: Object.fromEntries(["dodges", "telegraphs", "terrainLures", "awakened", "heatHits", "lightsPlaced", "borrowed"].map((key) => [key, average(runResults, (run) => run.dynamics?.[key as keyof ExpeditionDynamics["stats"]] ?? 0)])) as ExpeditionDynamics["stats"],
-    vowCompletionRate: ratio(runResults.filter((run) => run.vowCompleted).length, count),
     averageUnpaidFlameDebt: average(runResults, (run) => run.unpaidFlameDebt ?? 0),
     runs: count,
     totalElapsedMs,
@@ -766,8 +764,8 @@ function summarizeRuns(runResults: SimulationRunResult[]): AggregateSummary {
     playingRate: ratio(statusCounts.playing, count),
     averageFloor: average(runResults, (run) => run.floor),
     averageTurns: average(runResults, (run) => run.turns),
-    averageScore: average(runResults, (run) => run.score.total),
-    medianScore: median(runResults.map((run) => run.score.total)),
+    averageShards: average(runResults, (run) => run.shards.total),
+    medianShards: median(runResults.map((run) => run.shards.total)),
     averageDecisions: average(runResults, (run) => run.decisions),
     missionCompletionRate: ratio(runResults.filter((run) => run.missionCompleted).length, count),
     averageInterventions: average(runResults, (run) => run.interventions),
@@ -1088,7 +1086,7 @@ function renderMarkdownReport(report: BatchSimulationReport): string {
     "",
     "## Label x Role",
     "",
-    "| Label | Role | Runs | Won | Returned | Lost | Stranded | Playing | Avg Floor | Avg Turns | Avg Score | Median Score | Mission % | Interventions | Display min | Avg HP | Low HP | Stagnant | Trap Steps | Discoveries | Pickups | Attacks | Attacks/100T | Descents | Decisions | UseItem | Merchant | Avg ms/run | Runs/sec | Death Causes | Choices |",
+    "| Label | Role | Runs | Won | Returned | Lost | Stranded | Playing | Avg Floor | Avg Turns | Avg Shards | Median Shards | Mission % | Interventions | Display min | Avg HP | Low HP | Stagnant | Trap Steps | Discoveries | Pickups | Attacks | Attacks/100T | Descents | Decisions | UseItem | Merchant | Avg ms/run | Runs/sec | Death Causes | Choices |",
     "| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- | --- |",
   );
 
@@ -1106,8 +1104,8 @@ function renderMarkdownReport(report: BatchSimulationReport): string {
         String(summary.statusCounts.playing),
         formatNumber(summary.averageFloor),
         formatNumber(summary.averageTurns),
-        formatNumber(summary.averageScore),
-        formatNumber(summary.medianScore),
+        formatNumber(summary.averageShards),
+        formatNumber(summary.medianShards),
         formatNumber(summary.missionCompletionRate * 100),
         formatNumber(summary.averageInterventions),
         formatNumber(summary.averageProjectedDisplayMs / 60_000),
@@ -1131,10 +1129,10 @@ function renderMarkdownReport(report: BatchSimulationReport): string {
     }
   }
 
-  lines.push("", "## Realtime Dynamics", "", "| Label | Telegraphs | Dodges | Trap Lures | Awakened | Heat Hits | Placed Lights | Borrowed Flame | Vow % | Unpaid Debt |", "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |");
+  lines.push("", "## Realtime Dynamics", "", "| Label | Telegraphs | Dodges | Trap Lures | Awakened | Heat Hits | Placed Lights | Borrowed Flame | Unpaid Debt |", "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |");
   for (const [label, summary] of Object.entries(report.byLabel)) {
     const d = summary.averageDynamics;
-    lines.push(`| ${label} | ${formatNumber(d.telegraphs)} | ${formatNumber(d.dodges)} | ${formatNumber(d.terrainLures)} | ${formatNumber(d.awakened)} | ${formatNumber(d.heatHits)} | ${formatNumber(d.lightsPlaced)} | ${formatNumber(d.borrowed)} | ${formatNumber(summary.vowCompletionRate * 100)} | ${formatNumber(summary.averageUnpaidFlameDebt)} |`);
+    lines.push(`| ${label} | ${formatNumber(d.telegraphs)} | ${formatNumber(d.dodges)} | ${formatNumber(d.terrainLures)} | ${formatNumber(d.awakened)} | ${formatNumber(d.heatHits)} | ${formatNumber(d.lightsPlaced)} | ${formatNumber(d.borrowed)} | ${formatNumber(summary.averageUnpaidFlameDebt)} |`);
   }
   lines.push("", "## Top AI Hints", "");
   if (report.analysis.aiHintSamples.length === 0) {

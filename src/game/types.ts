@@ -27,7 +27,7 @@ export type RoleTruthId = "shared-oath" | "furnace-map" | "purified-flame";
 
 export type EndingId = "inherit-flame" | "extinguish-flame" | "divide-flame";
 
-export type MissionId = "guardian-vow" | "relic-ledger" | "swift-route";
+export type MissionId = "truth-return" | "black-core" | "memorial" | "relic-ledger" | "swift-route";
 
 export type LanternRiteId = "flare" | "mend" | "guide" | "ward";
 
@@ -214,24 +214,25 @@ export type RunStoryState = {
   decisions: RunDecisionRecord[];
   contextActs: number[];
   crisisKinds: string[];
-  interventionScore: number;
   carriedTruthId?: RoleTruthId;
-  coreDisposition?: "research" | "relic";
   endingId?: EndingId;
   turnWarningShown: boolean;
   recoveredGraves?: string[];
   killedBy?: { cause: "combat" | "rangedCombat" | "trap" | "bleeding" | "venom" | "item"; contentId?: string };
 };
 
-export type ScoreBreakdown = {
+/** 遠征で灰灯院へ持ち帰る灯片の内訳。倒れた場合は到達・守り手・発見の一部だけが残る。 */
+export type ShardBreakdown = {
   depth: number;
   guardians: number;
-  roleObjective: number;
   discoveries: number;
   survival: number;
-  recoveredValue: number;
-  tempo: number;
-  autonomy: number;
+  carried: number;
+  mission: number;
+  truth: number;
+  graves: number;
+  /** 燭階・周期の余波による上乗せ率（%）。 */
+  bonusPercent: number;
   total: number;
 };
 
@@ -243,7 +244,7 @@ export type ExpeditionRecord = {
   status: "won" | "lost" | "returned" | "stranded";
   floor: number;
   runTurn: number;
-  score: ScoreBreakdown;
+  shards: ShardBreakdown;
   decisions: RunDecisionRecord[];
   deathCause: string | null;
   missionId: MissionId;
@@ -252,7 +253,6 @@ export type ExpeditionRecord = {
   interventionCount: number;
   truthRecovered?: RoleTruthId;
   endingId?: EndingId;
-  shardsEarned?: number;
   veteranOutcome?: "promoted" | "scarred" | "fallen" | "recruited" | "keeper" | "roster-full";
   heat?: number;
   cycle?: number;
@@ -261,7 +261,7 @@ export type ExpeditionRecord = {
 
 export type CampaignState = {
   flameDebt?: number;
-  version: 3;
+  version: 4;
   roleTruths: RoleTruthId[];
   expeditions: ExpeditionRecord[];
   shards: number;
@@ -470,10 +470,19 @@ export type GameConfig = {
   /** 瀕死で帰還した古参に残る古傷。作戦と同じ形で判断と能力に影響する。 */
   scars: Record<string, TacticDefinition>;
   campaign: {
-    scorePerShard: number;
-    missionShards: number;
-    truthShards: number;
-    survivalShards: number;
+    /** 遠征の灯片。到達・守り手・発見は倒れても keepPercentOnLoss だけ残り、それ以外は生還時のみ。 */
+    shards: {
+      perFloor: number;
+      perGuardian: number;
+      discoveriesPerShard: number;
+      returned: number;
+      won: number;
+      carriedValuePerShard: number;
+      carriedCap: number;
+      newTruth: number;
+      keepPercentOnLoss: number;
+    };
+    missionShards: Record<MissionId, number>;
     veteranMaxRank: number;
     veteranRankBonus: { maxHp: number; attack: number };
     scarHpRatio: number;
@@ -511,22 +520,6 @@ export type GameConfig = {
     revelationsPerRun: number;
     /** 判断画面で各選択肢ごとに走らせる先読みの本数。0で無効。 */
     lookaheadRollouts: number;
-    scoring: {
-      depthPerFloor: number;
-      guardian: number;
-      roleObjective: number;
-      roleObjectiveCap: number;
-      discovery: number;
-      discoveryCap: number;
-      returned: number;
-      won: number;
-      recoveredValueCap: number;
-      tempoParPerFloor: number;
-      tempoPerTurn: number;
-      tempoCap: number;
-      missionCompleted: number;
-      intervention: number;
-    };
     pacingMs: {
       calm: number;
       traversal: number;
@@ -707,9 +700,7 @@ export type DeathCause = "combat" | "rangedCombat" | "trap" | "bleeding" | "veno
 export type LessonId = "ranged" | "care" | "traps";
 export type LastMoment = { action: string; hp: number; pos: Point };
 export type AttackTelegraph = { kind: "shot" | "sweep" | "hex"; tiles: Point[]; remaining: number; origin: Point };
-export type PersonalVow = { id: "memorial" | "return-six" | "resolve"; label: string; completed: boolean; progress: number; target: number };
 export type ExpeditionDynamics = {
-  vow: PersonalVow;
   lights: Array<{ pos: Point; turns: number }>;
   borrowed: boolean;
   debt: number;
@@ -732,7 +723,7 @@ export type RealtimeConfig = {
   light: { cost: number; duration: number; radius: number; lureRange: number; maxActive: number; watcherReserve: number; watcherHostiles: number };
   loan: { healPercent: number; guardedTurns: number; debt: number; embers: number; watcherHpRatio: number };
   laws: { cryptWakeEveryKills: number; cryptWakeLimit: number; cryptWakeRadius: number; cryptAttackBonus: number; furnacePeriod: number; furnaceWindup: number; furnaceDuration: number; furnaceDamage: number; furnaceVentLimit: number };
-  vows: { memorialHpRatio: number; resolveBossTarget: number; rewardEmbers: number };
+  missions: { memorialHpRatio: number; rewardEmbers: number };
   dialogue: { minTurns: number; repeatTurns: number; minMs: number; holdMs: number };
 };
 
@@ -804,7 +795,7 @@ export type RunReview = {
   keyFindings: string[];
   aiImprovementHints: string[];
   lastTurns: RunLogEntry[];
-  score: ScoreBreakdown;
+  shards: ShardBreakdown;
   identity: RunIdentity;
   decisions: RunDecisionRecord[];
   stats: {

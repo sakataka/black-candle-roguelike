@@ -113,10 +113,18 @@
     "scar.reckless": { "label": "無謀の癖", "description": "手負いでも敵へ突っ込んでしまう。", "add": { "combatHp": -0.15 }, "set": { "huntWeakEnemies": true } }
   },
   "campaign": {
-    "scorePerShard": 1000,
-    "missionShards": 4,
-    "truthShards": 3,
-    "survivalShards": 3,
+    "shards": {
+      "perFloor": 1,
+      "perGuardian": 2,
+      "discoveriesPerShard": 2,
+      "returned": 3,
+      "won": 6,
+      "carriedValuePerShard": 100,
+      "carriedCap": 4,
+      "newTruth": 5,
+      "keepPercentOnLoss": 50
+    },
+    "missionShards": { "truth-return": 6, "black-core": 10, "memorial": 5, "relic-ledger": 5, "swift-route": 5 },
     "veteranMaxRank": 3,
     "veteranRankBonus": { "maxHp": 4, "attack": 1 },
     "scarHpRatio": 0.3,
@@ -154,22 +162,6 @@
   "autonomous": {
     "revelationsPerRun": 2,
     "lookaheadRollouts": 12,
-    "scoring": {
-      "depthPerFloor": 1000,
-      "guardian": 1500,
-      "roleObjective": 500,
-      "roleObjectiveCap": 4,
-      "discovery": 300,
-      "discoveryCap": 8,
-      "returned": 2000,
-      "won": 4000,
-      "recoveredValueCap": 2500,
-      "tempoParPerFloor": 150,
-      "tempoPerTurn": 5,
-      "tempoCap": 1500,
-      "missionCompleted": 1500,
-      "intervention": 250
-    },
     "pacingMs": {
       "calm": 80,
       "traversal": 220,
@@ -463,9 +455,8 @@
       "furnaceDamage": 3,
       "furnaceVentLimit": 3
     },
-    "vows": {
+    "missions": {
       "memorialHpRatio": 0.5,
-      "resolveBossTarget": 2,
       "rewardEmbers": 1
     },
     "dialogue": {

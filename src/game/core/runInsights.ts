@@ -167,7 +167,7 @@ function finalTurningPoint(entries: RunLogEntry[], finalState: GameState, deathC
     };
   }
   if (finalState.status === "stranded") {
-    return { runTurn: finalState.runTurn, floor: finalState.floor, title: "灯路断絶", detail: "観測限界に達し、灯路が途切れた。", tone: "danger" };
+    return { runTurn: finalState.runTurn, floor: finalState.floor, title: "灯芯が尽きた", detail: "灯芯が燃え尽き、黒燭との接続が切れた。", tone: "danger" };
   }
   return null;
 }

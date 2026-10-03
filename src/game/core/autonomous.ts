@@ -19,7 +19,7 @@ import type {
   RoleTruthId,
   RunIdentity,
   RunStoryState,
-  ScoreBreakdown,
+  ShardBreakdown,
   TemperamentId,
   Veteran,
 } from "../types";
@@ -36,33 +36,56 @@ export type MissionDefinition = {
   id: MissionId;
   label: string;
   description: string;
+  /** 達成条件を一行で。報酬は生還して初めて灯片として受け取る。 */
   targetLabel: string;
-  rewardLabel: string;
 };
 
 export const expeditionMissions: MissionDefinition[] = [
   {
-    id: "guardian-vow",
-    label: "守り手の誓約",
-    description: "二体の階層守護者を倒し、黒燭中枢へ封鎖突破の証を運ぶ。",
-    targetLabel: "守護者2体撃破後、F10到達",
-    rewardLabel: "紅蓮の大薬瓶",
+    id: "truth-return",
+    label: "真相を持ち帰る",
+    description: "第六階の守り手を倒すと、職業ごとの真相が現れる。抱えたまま灰灯院へ帰れば記録される。",
+    targetLabel: "第六階の守り手を倒し、生きて帰る",
+  },
+  {
+    id: "black-core",
+    label: "黒燭核を討つ",
+    description: "帰還路を振り切って第十層へ降り、黒燭の番人を倒す。倒せば遠征は踏破で終わる。",
+    targetLabel: "第十層の番人を倒す",
+  },
+  {
+    id: "memorial",
+    label: "先人を弔う",
+    description: "倒れた探索者の墓標を見つけて弔い、遺品と教訓を持ち帰る。",
+    targetLabel: "墓標を弔い、生きて帰る",
   },
   {
     id: "relic-ledger",
     label: "遺物台帳の補完",
-    description: "六種の出来事を記録し、灰灯院の欠落した台帳を埋める。",
-    targetLabel: "発見 6種",
-    rewardLabel: "啓示 +1",
+    description: "迷宮の出来事を六種記録し、灰灯院の欠けた台帳を埋める。",
+    targetLabel: "発見を6種記録し、生きて帰る",
   },
   {
     id: "swift-route",
     label: "灯路の先駆け",
     description: "700手以内に第六階へ到達し、短い帰還路を確立する。",
-    targetLabel: "700手以内に第6階",
-    rewardLabel: "退き風の巻物",
+    targetLabel: "700手以内に第六階へ到達し、生きて帰る",
   },
 ];
+
+export type MissionAvailability = { roleId: string; knownRoleTruths: RoleTruthId[]; graveCount: number };
+
+/** 支度画面で選べる任務。墓標がない時は弔いを出さない。 */
+export function availableMissions(context: MissionAvailability): MissionDefinition[] {
+  return expeditionMissions.filter((mission) => mission.id !== "memorial" || context.graveCount > 0);
+}
+
+/** 灰灯院の現状から、この探索者に勧める任務。「黒燭への道」の次の章に沿う。 */
+export function recommendedMission(context: MissionAvailability): MissionId {
+  if (!context.knownRoleTruths.includes(roleTruthFor(context.roleId))) return "truth-return";
+  if (context.graveCount > 0) return "memorial";
+  return "black-core";
+}
 
 export function createRunIdentity(seed: number, roleId: string, avoidNames: string[] = []): RunIdentity {
   const value = stableHash(`${seed}:${roleId}`);
@@ -74,7 +97,7 @@ export function createRunIdentity(seed: number, roleId: string, avoidNames: stri
   };
 }
 
-export function createRunStoryState(missionId: MissionId = "guardian-vow"): RunStoryState {
+export function createRunStoryState(missionId: MissionId = "black-core"): RunStoryState {
   return {
     missionId,
     missionCompleted: false,
@@ -84,7 +107,6 @@ export function createRunStoryState(missionId: MissionId = "guardian-vow"): RunS
     decisions: [],
     contextActs: [],
     crisisKinds: [],
-    interventionScore: 0,
     turnWarningShown: false,
   };
 }
@@ -93,22 +115,63 @@ export function missionDefinition(missionId: MissionId): MissionDefinition {
   return expeditionMissions.find((mission) => mission.id === missionId) ?? expeditionMissions[0];
 }
 
-export function defaultMissionForTemperament(temperament: TemperamentId): MissionId {
-  if (temperament === "cautious") return "swift-route";
-  if (temperament === "seeker") return "relic-ledger";
-  return "guardian-vow";
+export function missionShards(missionId: MissionId): number {
+  return getGameConfig().campaign.missionShards[missionId] ?? 0;
 }
 
-export function missionProgress(state: GameState): { current: number; target: number; completed: boolean; missed: boolean } {
-  if (state.story.missionId === "guardian-vow") {
-    const current = Math.min(2, state.story.bossesDefeated) + (state.story.maxFloorReached >= 10 ? 1 : 0);
-    return { current, target: 3, completed: state.story.bossesDefeated >= 2 && state.story.maxFloorReached >= 10, missed: false };
+/** バッチや観戦の既定任務。気質ごとの性向を任務として表す。 */
+export function defaultMissionForTemperament(temperament: TemperamentId): MissionId {
+  if (temperament === "cautious") return "truth-return";
+  if (temperament === "seeker") return "relic-ledger";
+  return "black-core";
+}
+
+export type MissionProgress = {
+  current: number;
+  target: number;
+  /** 遠征中の条件を満たした。報酬は生還で確定する。 */
+  completed: boolean;
+  missed: boolean;
+  /** 進捗の短い説明（例: 守り手 1/2）。 */
+  label: string;
+};
+
+export function missionProgress(state: GameState): MissionProgress {
+  const missionId = state.story.missionId;
+  if (missionId === "truth-return") {
+    const current = state.story.carriedTruthId ? 2 : Math.min(1, state.story.bossesDefeated);
+    return { current, target: 2, completed: current >= 2, missed: false, label: current >= 2 ? "真相を抱えている" : `守り手 ${current}/2` };
   }
-  if (state.story.missionId === "relic-ledger") {
-    return { current: Math.min(6, state.story.discoveries.length), target: 6, completed: state.story.discoveries.length >= 6, missed: false };
+  if (missionId === "black-core") {
+    const current = Math.min(10, state.story.maxFloorReached);
+    const completed = state.status === "won";
+    return { current: completed ? 10 : current, target: 10, completed, missed: false, label: completed ? "番人を倒した" : `第${current}階 / 10` };
   }
-  const reached = state.story.maxFloorReached >= 6 && state.runTurn <= 700;
-  return { current: reached ? 6 : Math.min(6, state.story.maxFloorReached), target: 6, completed: reached, missed: state.runTurn > 700 && !reached };
+  if (missionId === "memorial") {
+    const current = Math.min(1, state.story.recoveredGraves?.length ?? 0);
+    const floors = state.modifiers.graves?.map((grave) => grave.floor).sort((a, b) => a - b) ?? [];
+    return { current, target: 1, completed: current >= 1, missed: false, label: current >= 1 ? "弔いを終えた" : floors.length ? `墓標は第${floors.join("・")}階` : "墓標なし" };
+  }
+  if (missionId === "relic-ledger") {
+    const current = Math.min(6, state.story.discoveries.length);
+    return { current, target: 6, completed: current >= 6, missed: false, label: `発見 ${current}/6` };
+  }
+  const reached = state.story.missionCompleted || (state.story.maxFloorReached >= 6 && state.runTurn <= 700);
+  const missed = !reached && state.runTurn > 700;
+  return {
+    current: reached ? 6 : Math.min(6, state.story.maxFloorReached),
+    target: 6,
+    completed: reached,
+    missed,
+    label: reached ? "第六階へ到達した" : missed ? "期限切れ" : `第${Math.min(6, state.story.maxFloorReached)}階 · 残り${Math.max(0, 700 - state.runTurn)}手`,
+  };
+}
+
+/** 帰還路で探索者が自分で選ぶ既定。任務を果たしたら帰り、果たせていなければ進む。 */
+export function missionWantsReturn(state: GameState): boolean {
+  const progress = missionProgress(state);
+  if (state.story.missionId === "black-core") return false;
+  return progress.completed || progress.missed;
 }
 
 export function temperamentLabel(temperament: TemperamentId): string {
@@ -135,13 +198,15 @@ export function defaultDirectiveForTemperament(temperament: TemperamentId): Dire
   return "conquest";
 }
 
+export const ROLE_TRUTH_IDS: RoleTruthId[] = ["shared-oath", "furnace-map", "purified-flame"];
+
 export function roleTruthFor(roleId: string): RoleTruthId {
   if (roleId === "role.ash-scout") return "furnace-map";
   if (roleId === "role.lantern-priest") return "purified-flame";
   return "shared-oath";
 }
 
-function roleTruthLabel(truthId: RoleTruthId): string {
+export function roleTruthLabel(truthId: RoleTruthId): string {
   if (truthId === "shared-oath") return "分誓の碑文";
   if (truthId === "furnace-map") return "炉脈全図";
   return "浄火の祈り";
@@ -155,30 +220,37 @@ export function endingLabel(endingId: EndingId): string {
 
 export function createCheckpointDecision(state: GameState): PendingDecision {
   const defaultDirective = defaultDirectiveForTemperament(state.runIdentity.temperament);
-  const cautiousReturn = state.floor === 6 && state.runIdentity.temperament === "cautious";
+  const wantsReturn = missionWantsReturn(state);
+  const truth = state.floor === 6 && state.story.carriedTruthId ? roleTruthLabel(state.story.carriedTruthId) : null;
   const options: DecisionOption[] = [
     {
       id: "return",
-      label: cautiousReturn ? "気質に任せる: 帰還" : "ここで帰還する",
-      description: state.floor === 6 && state.story.carriedTruthId
-        ? `${roleTruthLabel(state.story.carriedTruthId)}を持ち帰り、戦果と得点を確定する。`
-        : "探索者を生還させ、ここまでの戦果と得点を確定する。",
+      label: wantsReturn ? "任務を果たして帰還" : "ここで帰還する",
+      description: truth
+        ? `真相「${truth}」を記録し、灯片と古参の位階を確定する。`
+        : "探索者を生還させ、ここまでの灯片と古参の位階を確定する。",
       outcome: "return",
     },
-    ...directiveOptions(defaultDirective, cautiousReturn),
+    ...directiveOptions(defaultDirective, wantsReturn),
   ];
   return {
     id: `checkpoint-${state.floor}`,
     kind: "checkpoint",
     floor: state.floor,
-    title: state.floor === 3 ? "第一の灯路" : "墓所の帰還路",
+    title: state.floor === 3 ? "第一の帰還路" : "第二の帰還路",
     body: state.floor === 3
-      ? "守り手が倒れ、灰灯院へ戻る灯路と、墓所へ続く階段が同時に開いた。"
-      : "黒石巨像の炉心から職業固有の真相が現れた。持ち帰るか、さらに深部へ運ぶかを選ぶ。",
-    defaultOptionId: cautiousReturn ? "return" : `continue-${defaultDirective}`,
+      ? "第三階の守り手が倒れ、灰灯院へ戻る灯路が開いた。帰れば戦果を確定できる。進めば墓所へ降りる。"
+      : `第六階の守り手が倒れ、真相「${truth ?? roleTruthLabel(roleTruthFor(state.runIdentity.roleId))}」が現れた。持ち帰れば記録され、先へ運んで倒れれば失われる。`,
+    defaultOptionId: wantsReturn ? "return" : `continue-${defaultDirective}`,
     resume: "descend",
     options,
   };
+}
+
+/** 三つの真相が揃っていれば、第十層の番人を倒した後に結末を選べる。 */
+export function endingAvailable(state: Pick<GameState, "knownRoleTruths" | "story">): boolean {
+  const truths = state.story.carriedTruthId ? [...state.knownRoleTruths, state.story.carriedTruthId] : state.knownRoleTruths;
+  return ROLE_TRUTH_IDS.every((truth) => truths.includes(truth));
 }
 
 export function createContextDecision(state: GameState, act: 1 | 2, sourceId = "black-candle-echo"): PendingDecision {
@@ -264,36 +336,19 @@ function furnaceCrisis(state: GameState): PendingDecision {
   ]);
 }
 
-export function createFinalDecision(state: GameState): PendingDecision {
-  const availableTruths = state.story.carriedTruthId ? [...state.knownRoleTruths, state.story.carriedTruthId] : state.knownRoleTruths;
-  const hasAllTruths = ["shared-oath", "furnace-map", "purified-flame"].every((truth) => availableTruths.includes(truth as RoleTruthId));
-  if (hasAllTruths) {
-    return {
-      id: "final-ending",
-      kind: "final",
-      floor: state.floor,
-      title: "黒燭の行方",
-      body: "三つの真相が黒燭中枢で重なった。灯守は封印の未来を決められる。",
-      defaultOptionId: "ending-divide-flame",
-      resume: "none",
-      options: [
-        finalEndingOption("inherit-flame", "探索者一人を次の番人として黒燭へ残す。"),
-        finalEndingOption("extinguish-flame", "封印を壊し、無明の王との戦いを地上へ移す。"),
-        finalEndingOption("divide-flame", "三つの真相を用い、封印を地上の灯火へ分ける。"),
-      ],
-    };
-  }
+export function createFinalDecision(_state: GameState): PendingDecision {
   return {
-    id: "final-core",
+    id: "final-ending",
     kind: "final",
-    floor: state.floor,
-    title: "黒燭核をどう扱うか",
-    body: "番人は倒れたが、黒燭の本体は再び形を取り始めている。核片だけは地上へ持ち帰れる。",
-    defaultOptionId: "core-research",
+    floor: _state.floor,
+    title: "黒燭の行方",
+    body: "三つの真相が黒燭中枢で重なった。灯守は封印の未来を決められる。",
+    defaultOptionId: "ending-divide-flame",
     resume: "none",
     options: [
-      { id: "core-research", label: "研究へ封じる", description: "得点より真相を優先し、灰灯院の新しい啓示を開く。", outcome: "research" },
-      { id: "core-relic", label: "戦果として持ち帰る", description: "黒燭核を遺物として回収し、持帰り得点へ加える。", outcome: "relic" },
+      finalEndingOption("inherit-flame", "探索者一人を次の番人として黒燭へ残す。"),
+      finalEndingOption("extinguish-flame", "封印を壊し、無明の王との戦いを地上へ移す。"),
+      finalEndingOption("divide-flame", "三つの真相を用い、封印を地上の灯火へ分ける。"),
     ],
   };
 }
@@ -332,28 +387,45 @@ export function chooseDecisionAction(observation: GameObservation, policy: Decis
   return { type: "resolveDecision", optionId: decision.defaultOptionId };
 }
 
-export function calculateScore(state: GameState): ScoreBreakdown {
-  const config = getGameConfig().autonomous.scoring;
+type ShardOutcome = "returned" | "won" | "lost";
+
+/**
+ * 遠征で持ち帰る灯片。到達・守り手・発見・弔いは倒れても一部が残る。
+ * 生還・持ち帰り・任務・新しい真相は生きて帰った時だけ受け取る。
+ */
+export function calculateShards(state: GameState, outcome: ShardOutcome = shardOutcome(state)): ShardBreakdown {
+  const config = getGameConfig().campaign;
+  const rates = config.shards;
   const player = state.entities.find((entity) => entity.id === state.playerId);
-  const survived = state.status === "returned" || state.status === "won";
-  const recoveredRaw = survived
-    ? state.playerProgress.gold + (player?.inventory ?? []).reduce((sum, entry) => sum + (contentEntities[entry.contentId]?.economyValue ?? 0) * entry.quantity, 0)
-    : 0;
-  const depth = state.story.maxFloorReached * config.depthPerFloor;
-  const guardians = state.story.bossesDefeated * config.guardian;
-  const roleObjective = Math.min(state.runObjectives.roleGoalProgress, config.roleObjectiveCap) * config.roleObjective;
-  const discoveries = Math.min(state.story.discoveries.length, config.discoveryCap) * config.discovery;
-  const survival = state.status === "won" ? config.won : state.status === "returned" ? config.returned : 0;
-  const recoveredValue = Math.min(config.recoveredValueCap, recoveredRaw);
-  const tempo = Math.min(config.tempoCap, Math.max(0, state.story.maxFloorReached * config.tempoParPerFloor - state.runTurn) * config.tempoPerTurn);
-  const autonomy = (state.story.missionCompleted ? config.missionCompleted : 0) + state.story.interventionScore;
-  const total = depth + guardians + roleObjective + discoveries + survival + recoveredValue + tempo + autonomy;
-  return { depth, guardians, roleObjective, discoveries, survival, recoveredValue, tempo, autonomy, total };
+  const survived = outcome !== "lost";
+  const carriedValue = state.playerProgress.gold + (player?.inventory ?? []).reduce((sum, entry) => sum + (contentEntities[entry.contentId]?.economyValue ?? 0) * entry.quantity, 0);
+  const keep = survived ? 1 : rates.keepPercentOnLoss / 100;
+  const depth = Math.floor(state.story.maxFloorReached * rates.perFloor * keep);
+  const guardians = Math.floor(state.story.bossesDefeated * rates.perGuardian * keep);
+  const discoveries = Math.floor(Math.floor(state.story.discoveries.length / rates.discoveriesPerShard) * keep);
+  const graves = Math.floor((state.story.recoveredGraves?.length ?? 0) * config.graveShards * keep);
+  const survival = outcome === "won" ? rates.won : outcome === "returned" ? rates.returned : 0;
+  const carried = survived ? Math.min(rates.carriedCap, Math.floor(carriedValue / rates.carriedValuePerShard)) : 0;
+  const missionDone = state.story.missionCompleted || (state.story.missionId === "black-core" && outcome === "won");
+  const mission = survived && missionDone ? missionShards(state.story.missionId) : 0;
+  const truth = survived && state.story.carriedTruthId && !state.knownRoleTruths.includes(state.story.carriedTruthId) ? rates.newTruth : 0;
+  const bonusPercent = runShardBonusPercent(state.modifiers.heat ?? 0, state.modifiers.aftermath);
+  const base = depth + guardians + discoveries + graves + survival + carried + mission + truth;
+  return { depth, guardians, discoveries, survival, carried, mission, truth, graves, bonusPercent, total: Math.floor(base * (100 + bonusPercent) / 100) };
+}
+
+function shardOutcome(state: GameState): ShardOutcome {
+  return state.status === "won" ? "won" : state.status === "returned" ? "returned" : "lost";
+}
+
+/** 遠征中の見込み。今帰還できた場合と、ここで倒れた場合の灯片。 */
+export function shardForecast(state: GameState): { ifReturned: number; ifLost: number } {
+  return { ifReturned: calculateShards(state, "returned").total, ifLost: calculateShards(state, "lost").total };
 }
 
 export function createCampaignState(): CampaignState {
   return {
-    version: 3,
+    version: 4,
     roleTruths: [],
     expeditions: [],
     shards: 0,
@@ -368,7 +440,7 @@ export function createCampaignState(): CampaignState {
 export function normalizeCampaignState(value: unknown): CampaignState {
   if (!value || typeof value !== "object") return createCampaignState();
   const version = (value as { version?: unknown }).version;
-  if (version !== 1 && version !== 2 && version !== 3) return createCampaignState();
+  if (version !== 1 && version !== 2 && version !== 3 && version !== 4) return createCampaignState();
   const input = value as { roleTruths?: unknown; expeditions?: unknown; shards?: unknown; facilities?: unknown; roster?: unknown; fallen?: unknown; heat?: unknown; cycle?: unknown; lessons?: unknown; flameDebt?: unknown };
   const roleTruths = Array.isArray(input.roleTruths) ? input.roleTruths.filter(isRoleTruthId) : [];
   const expeditions = Array.isArray(input.expeditions)
@@ -376,7 +448,7 @@ export function normalizeCampaignState(value: unknown): CampaignState {
     : [];
   const facilities = (input.facilities && typeof input.facilities === "object" ? input.facilities : {}) as Partial<Record<FacilityId, unknown>>;
   return {
-    version: 3,
+    version: 4,
     roleTruths: unique(roleTruths),
     expeditions,
     shards: typeof input.shards === "number" && Number.isFinite(input.shards) ? Math.max(0, Math.floor(input.shards)) : 0,
@@ -430,11 +502,9 @@ function normalizeVeteran(value: unknown): Veteran[] {
 
 export function recordCampaignResult(campaign: CampaignState, state: GameState, deathCause: string | null): CampaignState {
   if (state.status === "playing") return campaign;
-  const score = calculateScore(state);
+  const shards = calculateShards(state);
   const truthRecovered = (state.status === "won" || state.status === "returned") ? state.story.carriedTruthId : undefined;
-  const newTruth = !!truthRecovered && !campaign.roleTruths.includes(truthRecovered);
   const recoveredGraves = new Set(state.story.recoveredGraves ?? []);
-  const shardsEarned = shardsForRun(state, newTruth) + recoveredGraves.size * getGameConfig().campaign.graveShards;
   const rosterUpdate = updateRoster(campaign, state, deathCause);
   const heatUnlocked = state.status === "won" && (state.modifiers.heat ?? 0) >= campaign.heat.unlocked
     ? Math.min(getGameConfig().ascension.tiers.length, (state.modifiers.heat ?? 0) + 1)
@@ -450,7 +520,7 @@ export function recordCampaignResult(campaign: CampaignState, state: GameState, 
     status: state.status,
     floor: state.story.maxFloorReached,
     runTurn: state.runTurn,
-    score,
+    shards,
     decisions: state.story.decisions.map((entry) => ({ ...entry })),
     deathCause,
     missionId: state.story.missionId,
@@ -459,17 +529,16 @@ export function recordCampaignResult(campaign: CampaignState, state: GameState, 
     interventionCount: state.story.decisions.filter((entry) => entry.effectSummary && entry.usedRevelation).length,
     truthRecovered,
     endingId: state.story.endingId,
-    shardsEarned,
     veteranOutcome: rosterUpdate.outcome,
     heat: state.modifiers.heat ?? 0,
     cycle: campaign.cycle.number,
     gravesRecovered: recoveredGraves.size,
   };
   return {
-    version: 3,
+    version: 4,
     roleTruths: truthRecovered ? unique([...campaign.roleTruths, truthRecovered]) : [...campaign.roleTruths],
     expeditions: [record, ...campaign.expeditions].slice(0, 100),
-    shards: campaign.shards + shardsEarned,
+    shards: campaign.shards + shards.total,
     facilities: { ...campaign.facilities },
     roster: rosterUpdate.roster,
     fallen: rosterUpdate.fallen.map((entry) => entry.id && recoveredGraves.has(entry.id) ? { ...entry, recovered: true } : entry),
@@ -478,17 +547,6 @@ export function recordCampaignResult(campaign: CampaignState, state: GameState, 
     heat: { unlocked: heatUnlocked, selected: Math.min(campaign.heat.selected, heatUnlocked) },
     cycle,
   };
-}
-
-/** 遠征で得る灯片。得点に応じた基本分に、任務・新しい真相・生還の加算がつく。 */
-export function shardsForRun(state: GameState, newTruth: boolean): number {
-  const config = getGameConfig().campaign;
-  const survived = state.status === "returned" || state.status === "won";
-  const base = Math.floor(calculateScore(state).total / config.scorePerShard)
-    + (state.story.missionCompleted ? config.missionShards : 0)
-    + (newTruth ? config.truthShards : 0)
-    + (survived ? config.survivalShards : 0);
-  return Math.floor(base * (100 + runShardBonusPercent(state.modifiers.heat ?? 0, state.modifiers.aftermath)) / 100);
 }
 
 /** 燭階と周期の余波による灯片の上乗せ率（%）。 */
@@ -631,53 +689,84 @@ export function unlockedTacticIds(campaign: CampaignState): string[] {
     .map(([id]) => id);
 }
 
+export type RoadmapChapter = {
+  id: "first-route" | "first-truth" | "three-truths" | "black-core" | "ending";
+  label: string;
+  /** 次に何をすればよいかを一行で。 */
+  hint: string;
+  done: boolean;
+};
+
 export type CampaignProgress = {
   highestFloor: number;
-  bestScore: number;
+  bestShards: number;
   completedRuns: number;
   completedMissionIds: MissionId[];
   endingIds: EndingId[];
-  milestones: Array<{ label: string; unlocked: boolean }>;
+  /** 「黒燭への道」。上から順に進む大目標。 */
+  roadmap: RoadmapChapter[];
+  /** 最初の未達の章。全章を終えた後は null。 */
+  nextChapter: RoadmapChapter | null;
 };
+
+const ROLE_FOR_TRUTH: Record<RoleTruthId, string> = { "shared-oath": "誓約の探索者", "furnace-map": "灰弓の斥候", "purified-flame": "灯火の祈祷者" };
+
+export function truthRoleLabel(truthId: RoleTruthId): string {
+  return ROLE_FOR_TRUTH[truthId];
+}
 
 export function campaignProgress(campaign: CampaignState): CampaignProgress {
   const highestFloor = campaign.expeditions.reduce((best, record) => Math.max(best, record.floor), 0);
-  const bestScore = campaign.expeditions.reduce((best, record) => Math.max(best, record.score.total), 0);
+  const bestShards = campaign.expeditions.reduce((best, record) => Math.max(best, record.shards.total), 0);
   const completedRuns = campaign.expeditions.filter((record) => record.status === "won").length;
   const completedMissionIds = unique(campaign.expeditions.filter((record) => record.missionCompleted).map((record) => record.missionId));
   const endingIds = unique(campaign.expeditions.flatMap((record) => record.endingId ? [record.endingId] : []));
+  const missingTruths = ROLE_TRUTH_IDS.filter((truth) => !campaign.roleTruths.includes(truth));
+  const firstRoute = highestFloor >= 4 || campaign.expeditions.some((record) => record.decisions.some((decision) => decision.id === "checkpoint-3"));
+  const roadmap: RoadmapChapter[] = [
+    { id: "first-route", label: "第一の帰還路を開く", hint: "第三階の守り手を倒すと、灰灯院へ戻る灯路が開く。", done: firstRoute },
+    { id: "first-truth", label: "真相を一つ持ち帰る", hint: "第六階の守り手を倒して現れる真相を抱え、生きて帰る。任務「真相を持ち帰る」が近道。", done: campaign.roleTruths.length > 0 },
+    {
+      id: "three-truths",
+      label: "三つの真相を揃える",
+      hint: missingTruths.length
+        ? `真相は職業ごとに一つ。残り: ${missingTruths.map((truth) => `${roleTruthLabel(truth)}（${ROLE_FOR_TRUTH[truth]}）`).join("、")}`
+        : "三つの真相が揃った。",
+      done: missingTruths.length === 0,
+    },
+    { id: "black-core", label: "黒燭核を討つ", hint: "第十層の番人を倒す。帰還路では帰らず進み続ける必要がある。", done: completedRuns > 0 },
+    { id: "ending", label: "黒燭の行方を決める", hint: "三つの真相を揃えた上で第十層の番人を倒すと、結末を選べる。結末は次の周期の迷宮を変える。", done: endingIds.length > 0 },
+  ];
   return {
     highestFloor,
-    bestScore,
+    bestShards,
     completedRuns,
     completedMissionIds,
     endingIds,
-    milestones: [
-      { label: "初遠征", unlocked: campaign.expeditions.length > 0 },
-      { label: "第一灯路", unlocked: highestFloor >= 4 },
-      { label: "真相回収", unlocked: campaign.roleTruths.length > 0 },
-      { label: "黒燭中枢", unlocked: highestFloor >= 10 },
-      { label: "三つの真相", unlocked: campaign.roleTruths.length >= 3 },
-      { label: "結末", unlocked: endingIds.length > 0 },
-    ],
+    roadmap,
+    nextChapter: roadmap.find((chapter) => !chapter.done) ?? null,
   };
 }
 
 function normalizeExpeditionRecord(value: unknown): ExpeditionRecord[] {
   if (!value || typeof value !== "object") return [];
   const record = value as Partial<ExpeditionRecord>;
-  if (!record.id || !record.identity || !record.score || !record.status || typeof record.floor !== "number") return [];
+  if (!record.id || !record.identity || !record.status || typeof record.floor !== "number") return [];
   const missionId = isMissionId(record.missionId) ? record.missionId : defaultMissionForTemperament(record.identity.temperament);
+  // version 3 以前は得点だけを記録していた。灯片の合計だけを引き継ぎ、内訳は空にする。
+  const { score: _legacyScore, shardsEarned, ...rest } = record as Partial<ExpeditionRecord> & { score?: unknown; shardsEarned?: number };
+  const shards: ShardBreakdown = record.shards ?? { depth: 0, guardians: 0, discoveries: 0, survival: 0, carried: 0, mission: 0, truth: 0, graves: 0, bonusPercent: 0, total: shardsEarned ?? 0 };
   const decisions = Array.isArray(record.decisions) ? record.decisions.map((entry) => ({ ...entry })) : [];
   return [{
-    ...record,
+    ...rest,
     completedAt: record.completedAt ?? new Date(0).toISOString(),
     seed: record.seed ?? 0,
     runTurn: record.runTurn ?? 0,
     decisions,
     deathCause: record.deathCause ?? null,
     missionId,
-    missionCompleted: record.missionCompleted ?? false,
+    shards,
+    missionCompleted: isMissionId(record.missionId) ? record.missionCompleted ?? false : false,
     discoveryCount: record.discoveryCount ?? 0,
     interventionCount: record.interventionCount ?? decisions.filter((entry) => entry.usedRevelation && entry.id.startsWith("context-")).length,
   } as ExpeditionRecord];
@@ -701,5 +790,5 @@ function isRoleTruthId(value: unknown): value is RoleTruthId {
 }
 
 function isMissionId(value: unknown): value is MissionId {
-  return value === "guardian-vow" || value === "relic-ledger" || value === "swift-route";
+  return expeditionMissions.some((mission) => mission.id === value);
 }

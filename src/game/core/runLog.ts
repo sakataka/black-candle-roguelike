@@ -15,7 +15,7 @@ import type {
   RunIdentity,
 } from "../types";
 import { observeGame } from "./game";
-import { calculateScore, createRunIdentity } from "./autonomous";
+import { calculateShards, createRunIdentity } from "./autonomous";
 
 type AiDebugSnapshot = {
   stagnantTurns: number;
@@ -156,7 +156,7 @@ export function analyzeRun(log: RunLog, finalState: GameState, finalObservation 
     keyFindings,
     aiImprovementHints,
     lastTurns,
-    score: calculateScore(finalState),
+    shards: calculateShards(finalState),
     identity: { ...finalState.runIdentity },
     decisions: finalState.story.decisions.map((entry) => ({ ...entry })),
     stats,
@@ -352,7 +352,7 @@ function deathCauseLabel(cause: DeathCause | null): string {
     case "venom":
       return "毒";
     case "signalLoss":
-      return "灯路断絶";
+      return "灯芯切れ";
     default:
       return "不明";
   }

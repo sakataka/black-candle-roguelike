@@ -6,7 +6,7 @@ import { applyAction, canBorrowFlame, canPlaceLantern, createInitialGame, observ
 import { createContextDecision, recordCampaignResult, createCampaignState, campaignRunModifiers } from "./autonomous";
 import { chooseAutoplayAction, describeAutoplayIntent, resetAutoplayState, resolveAutoplayPolicy } from "../ai/autoplay";
 import { chooseDelverSpeech, createSpeechMemory } from "../ai/speech";
-import { telegraphTiles, updateVow } from "./realtime";
+import { telegraphTiles } from "./realtime";
 import type { Entity, GameState, Point } from "../types";
 
 beforeEach(async () => { await loadBunGameConfig(); resetAutoplayState(); });
@@ -155,18 +155,18 @@ describe("止めずに介入する遠征", () => {
     expect(state.expedition!.stats.terrainLures).toBe(1);
   });
 
-  test("墓標と誓いの残り火も返済に回り、誓いの報酬を重複させない", () => {
+  test("弔いの任務の灯火も返済に回り、報酬を重複させない", () => {
     let state = arena();
     state.lantern.embers = 0;
     state.expedition!.debt = 2;
-    state.expedition!.vow = { id: "memorial", label: "先人を弔う", progress: 0, target: 1, completed: false };
+    state.story.missionId = "memorial";
     state.modifiers.graves = [{ id: "past", name: "先人", roleId: "role.oathbound", floor: 1 }];
     state.entities.push({ id: "event.grave-marker.past", kind: "event", contentId: "event.grave-marker", pos: { x: 3, y: 4 }, blocksMovement: false });
     state = applyAction(state, { type: "move", direction: "west" });
     expect(state.expedition!.debt).toBe(0);
-    expect(state.expedition!.vow.completed).toBe(true);
+    expect(state.story.missionCompleted).toBe(true);
     expect(state.lantern.embers).toBe(0);
-    updateVow(state);
+    state = applyAction(state, { type: "wait" });
     expect(state.lantern.embers).toBe(0);
   });
 

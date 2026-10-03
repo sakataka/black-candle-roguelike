@@ -64,8 +64,8 @@
 ## AI方針
 
 - 観戦中の介入は任意。伝言の選択中も探索・敵・状態異常・灯路は動かし、期限後は探索者の判断で解決する。停止や入力待ちを追加しない。
-- 予告、置灯、借灯、領域の法則、誓い、教訓の調整は `public/config/game-balance.json` の `realtime` を使う。台詞本文は `src/game/content/speech.ts` に置き、発話は戦闘乱数や進行速度へ影響させない。
-- 新機構のbatch評価では `averageDynamics`・誓い達成率・未返済灯火も確認する。介入なしと `--watcher lantern` は別条件で比べる。詳細は `docs/realtime-expedition-design.md`。
+- 予告、置灯、借灯、領域の法則、任務の寄り道と達成時の灯火、教訓の調整は `public/config/game-balance.json` の `realtime` を使う。台詞本文は `src/game/content/speech.ts` に置き、発話は戦闘乱数や進行速度へ影響させない。
+- 新機構のbatch評価では `averageDynamics`・任務達成率・灯片の中央値・未返済灯火も確認する。目的と進捗の設計は `docs/goals-and-progress-design.md`。介入なしと `--watcher lantern` は別条件で比べる。詳細は `docs/realtime-expedition-design.md`。
 
 - AIは決定的・再現可能なルールベースを基本にする。
 - AIは人間と同じ表示/探索済み情報を前提に判断する。

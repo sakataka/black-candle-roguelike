@@ -1,9 +1,10 @@
 import { getGameConfig } from "../content/config";
 import { realtimeConfig } from "../content/realtime";
-import { delverSpeech, roleSpeech } from "../content/speech";
+import { delverSpeech, missionOpeners, roleSpeech } from "../content/speech";
 import { visibleDangerTiles } from "../core/realtime";
 import type { GameAction, GameObservation } from "../types";
 import type { AutoplayIntent } from "./autoplay";
+
 
 export type SpeechMemory = { lastTurn: number; lastMs: number; topics: Record<string, number>; events: Set<string> };
 export const createSpeechMemory = (): SpeechMemory => ({ lastTurn: -999, lastMs: -Infinity, topics: {}, events: new Set() });
@@ -29,10 +30,10 @@ export function chooseDelverSpeech(observation: GameObservation, action: GameAct
     topic = "thanks";
     eventKey = riteKey;
   } else if (request && observation.runTurn - (memory.topics.request ?? -999) >= config.repeatTurns) topic = "request";
-  else if (dynamics?.vow.completed && !memory.events.has("vow-done")) {
-    topic = "vow"; text = "約束は果たした。生きて持ち帰ろう"; eventKey = "vow-done";
+  else if (observation.story.missionCompleted && !memory.events.has("vow-done")) {
+    topic = "vow"; text = observation.status === "playing" ? "任務は果たした。生きて持ち帰ろう" : "任務は果たした"; eventKey = "vow-done";
   } else if (dynamics && !memory.events.has("vow-start")) {
-    topic = "vow"; text = dynamics.vow.id === "memorial" ? "先に逝った者の灯を受け継ぐ" : dynamics.vow.id === "return-six" ? "第六階の真相を持ち帰ろう" : `${dynamics.vow.target}体の守り手を越えてみせる`; eventKey = "vow-start";
+    topic = "vow"; text = missionOpeners[observation.story.missionId]; eventKey = "vow-start";
   } else if (!request && observation.runTurn - memory.lastTurn < config.minTurns) return null;
   else if (topic === "explore") {
     if (observation.lantern.embers === 0) topic = "scarce";

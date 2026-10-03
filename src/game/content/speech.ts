@@ -1,4 +1,4 @@
-import type { TemperamentId } from "../types";
+import type { MissionId, TemperamentId } from "../types";
 
 type Voices = Record<TemperamentId, string[]>;
 /** 台詞は状況と実際の判断を先に選んでから、気質・職業・経験で語り分ける。 */
@@ -84,4 +84,13 @@ export const roleSpeech: Record<string, string[]> = {
   "role.oathbound": ["誓いは、歩くためにある", "刃より先に退路を確かめる", "残した約束を持ち帰ろう"],
   "role.ash-scout": ["足跡と射線を読もう", "灰の向こうにも道はある", "見切ってから距離を詰める"],
   "role.lantern-priest": ["この火が途切れないように", "祈りは歩きながらでも届く", "失った灯も、道を照らす"],
+};
+
+/** 任務を背負って歩き出す時の一言。 */
+export const missionOpeners: Record<MissionId, string> = {
+  "truth-return": "第六階の真相を持ち帰ろう",
+  "black-core": "第十層まで、帰らずに行く",
+  memorial: "先に逝った者の灯を受け継ぐ",
+  "relic-ledger": "見たものは全部、書き留めていく",
+  "swift-route": "急ごう。七百手で第六階だ",
 };

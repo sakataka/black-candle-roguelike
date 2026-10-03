@@ -206,7 +206,7 @@ kbd {
 .depth-chip span { color: var(--gold); font-size: var(--fs-2xs); font-weight: 800; letter-spacing: 0.1em; white-space: nowrap; }
 .depth-chip strong { font-family: var(--serif); font-size: var(--fs-md); font-weight: 600; white-space: nowrap; }
 
-.turn-meter { display: grid; flex: 1 1 180px; gap: 5px; min-width: 120px; max-width: 420px; }
+.turn-meter { display: grid; flex: 0 1 150px; gap: 5px; min-width: 110px; }
 .turn-meter-label { display: flex; justify-content: space-between; gap: 8px; }
 .turn-meter-label span { color: var(--muted); font-size: var(--fs-2xs); letter-spacing: 0.08em; }
 .turn-meter-label strong { color: var(--ink-soft); font-size: var(--fs-xs); font-variant-numeric: tabular-nums; }
@@ -215,9 +215,37 @@ kbd {
 .turn-meter.is-warning .turn-meter-label span { color: var(--danger); }
 .turn-meter.is-warning .turn-meter-track i { background: linear-gradient(90deg, #a2463a, var(--danger)); animation: pulse-bright 1.2s ease-in-out infinite; }
 
-.live-score { display: grid; flex: none; justify-items: end; }
-.live-score span { color: var(--muted); font-size: var(--fs-2xs); }
-.live-score strong { color: var(--gold-bright); font-size: var(--fs-xl); font-variant-numeric: tabular-nums; line-height: 1.1; }
+/* 道のり: 十階を一列に並べ、帰還路（3・6階）と第十層、任務の目標階に印をつける。 */
+.route-track { display: grid; flex: 1 1 260px; gap: 6px; min-width: 200px; max-width: 440px; }
+.route-track-label { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
+.route-track-label span { color: var(--muted); font-size: var(--fs-2xs); letter-spacing: 0.08em; }
+.route-track-label strong { overflow: hidden; color: var(--ink-soft); font-size: var(--fs-xs); font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+.route-nodes { display: flex; align-items: center; margin: 0; padding: 0; list-style: none; }
+.route-nodes li { position: relative; display: grid; flex: 1 1 0; place-items: center; height: 18px; }
+.route-nodes li::before { content: ""; position: absolute; left: 0; right: 50%; top: 50%; height: 2px; background: #2a241b; transform: translateY(-50%); }
+.route-nodes li + li::before { left: -50%; right: 50%; }
+.route-nodes li:first-child::before { display: none; }
+.route-nodes li.is-reached::before { background: linear-gradient(90deg, #80673d, var(--gold)); }
+.route-nodes i { position: relative; z-index: 1; width: 7px; height: 7px; border: 1px solid #4a4032; border-radius: 50%; background: #120f0b; }
+.route-nodes li.is-reached i { border-color: var(--gold); background: var(--gold); }
+.route-nodes li.is-gate i, .route-nodes li.is-core i { width: 14px; height: 14px; border-radius: 2px; transform: rotate(45deg); }
+.route-nodes li.is-core i { border-color: #8a3f34; background: #2a0f0b; }
+.route-nodes li.is-core.is-reached i { border-color: var(--danger); background: #6d261d; }
+.route-nodes li.is-target i { box-shadow: 0 0 0 3px rgba(240, 204, 123, 0.28), 0 0 10px rgba(240, 204, 123, 0.5); }
+.route-nodes li.is-current i { border-color: #fff0c8; background: var(--gold-bright); box-shadow: 0 0 0 3px rgba(255, 240, 200, 0.18), 0 0 12px rgba(255, 200, 110, 0.7); }
+.route-nodes span { position: absolute; z-index: 2; color: var(--ink-soft); font-size: 9px; font-weight: 800; pointer-events: none; }
+.route-nodes li.is-core span { color: #f3c2b8; }
+.route-nodes li.is-reached.is-gate span, .route-nodes li.is-current span { color: #1a140c; }
+
+/* 持ち帰る灯片: 帰還した場合と、倒れた場合を並べる。 */
+.shard-forecast { display: grid; flex: none; grid-template-columns: auto auto; column-gap: 12px; align-items: end; }
+.shard-forecast > span { grid-column: 1 / -1; color: var(--muted); font-size: var(--fs-2xs); letter-spacing: 0.08em; }
+.shard-forecast strong { display: flex; align-items: baseline; gap: 4px; }
+.shard-forecast b { color: var(--gold-bright); font-family: var(--latin); font-size: 1.6rem; font-weight: 600; font-variant-numeric: lining-nums tabular-nums; line-height: 1.05; transition: color 300ms ease, text-shadow 300ms ease; }
+.shard-forecast small { color: var(--muted); font-size: var(--fs-2xs); }
+.shard-forecast .is-loss b { color: #b9837a; font-size: 1.15rem; }
+.shard-forecast b.is-rising { color: #fff0c8; text-shadow: 0 0 18px rgba(255, 190, 100, 0.55); }
+.shard-forecast.is-ended .is-loss { display: none; }
 
 .topbar-controls { display: flex; align-items: center; gap: 8px; }
 .speed-selector { display: flex; align-items: center; gap: 2px; padding: 3px; border: 1px solid var(--line); border-radius: 10px; background: rgba(0, 0, 0, 0.25); }
@@ -402,17 +430,26 @@ kbd {
 .stat-row strong { color: var(--ink); font-size: var(--fs-md); font-variant-numeric: tabular-nums; line-height: 1.3; }
 
 .expedition-card { display: grid; gap: 8px; }
-.mission-line { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 8px; align-items: baseline; }
-.mission-line strong { overflow: hidden; font-size: var(--fs-sm); text-overflow: ellipsis; white-space: nowrap; }
-.mission-line em { color: var(--gold); font-size: var(--fs-xs); font-style: normal; font-weight: 700; font-variant-numeric: tabular-nums; }
-.mission-track { height: 4px; overflow: hidden; border-radius: 99px; background: #090806; }
+.mission-line { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
+.mission-line em { padding: 1px 7px; border: 1px solid rgba(212, 173, 98, 0.4); border-radius: 99px; color: var(--gold); font-size: var(--fs-2xs); font-style: normal; font-weight: 700; white-space: nowrap; }
+.mission-line em[data-tone="done"] { border-color: rgba(140, 191, 150, 0.55); color: var(--safe); }
+.mission-line em[data-tone="missed"] { border-color: var(--line-soft); color: var(--faint); }
+.mission-name { color: var(--gold-bright); font-family: var(--serif); font-size: var(--fs-lg); font-weight: 600; line-height: 1.3; }
+.mission-target { margin: -4px 0 0; color: var(--ink-soft); font-size: var(--fs-xs); line-height: 1.5; }
+.mission-progress-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: center; }
+.mission-progress-row em { color: var(--ink); font-size: var(--fs-xs); font-style: normal; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.mission-reward-line { margin: -2px 0 0; color: var(--gold); font-size: var(--fs-2xs); line-height: 1.5; }
+.landmark { display: grid; gap: 2px; padding: 8px 10px; border: 1px solid rgba(212, 173, 98, 0.2); border-radius: var(--radius-sm); background: rgba(212, 173, 98, 0.05); }
+.landmark strong { color: var(--ink); font-size: var(--fs-sm); }
+.landmark p { margin: 0; color: var(--muted); font-size: var(--fs-xs); line-height: 1.55; }
+.mission-track { height: 5px; overflow: hidden; border-radius: 99px; background: #090806; }
 .mission-track i { display: block; width: 0; height: 100%; background: var(--gold); transition: width 220ms var(--ease-out); }
 .mission-track i[data-tone="done"] { background: var(--safe); }
 .mission-track i[data-tone="missed"] { background: #6b6252; }
 .expedition-meta { display: flex; flex-wrap: wrap; gap: 4px 14px; color: var(--muted); font-size: var(--fs-2xs); }
 .expedition-meta strong { margin-left: 3px; color: var(--ink); font-size: var(--fs-xs); }
 .objective { display: grid; gap: 2px; padding-top: 8px; border-top: 1px solid var(--line-soft); }
-.objective strong { color: var(--gold-bright); font-family: var(--serif); font-size: var(--fs-md); line-height: 1.4; }
+.objective strong { color: var(--ink); font-family: var(--serif); font-size: var(--fs-sm); line-height: 1.4; }
 .objective p { margin: 0; color: var(--muted); font-size: var(--fs-xs); line-height: 1.55; }
 
 .equipment-list { display: grid; gap: 3px; margin-bottom: 9px; }
@@ -533,7 +570,9 @@ kbd {
 .mission-option strong { color: var(--ink); font-size: var(--fs-md); }
 .mission-option small { color: var(--muted); font-size: var(--fs-xs); line-height: 1.55; }
 .mission-option em { color: var(--ink-soft); font-size: var(--fs-2xs); font-style: normal; }
-.mission-option .mission-reward { color: var(--gold); font-size: var(--fs-2xs); }
+.mission-option .mission-reward { color: var(--gold); font-size: var(--fs-2xs); font-weight: 700; }
+.mission-option .mission-note { color: var(--ink-soft); }
+.mission-badge { position: absolute; top: -9px; right: 10px; padding: 1px 8px; border: 1px solid var(--gold); border-radius: 99px; background: #1d170e; color: var(--gold-bright); font-size: var(--fs-2xs); font-weight: 800; letter-spacing: 0.1em; }
 
 /* 選択状態は枠色と左上のマークで示す（色だけに頼らない）。 */
 .mission-option.is-selected, .tactic-card.is-selected, .candidate-card.is-selected, .heat-option.is-selected {
@@ -625,19 +664,21 @@ kbd {
 .heat-layers { display: grid; gap: 2px; margin: 0; padding-left: 16px; color: #d2ae8f; font-size: var(--fs-2xs); }
 .heat-next { color: var(--muted); font-size: var(--fs-2xs); }
 
-.story-progress { height: 5px; overflow: hidden; border-radius: 99px; background: #090806; }
-.story-progress i { display: block; width: 0; height: 100%; background: linear-gradient(90deg, #7d5737, var(--gold-bright)); transition: width 180ms ease-out; }
-.story-milestones { display: flex; flex-wrap: wrap; gap: 4px 10px; }
-.story-milestones span { color: var(--faint); font-size: var(--fs-2xs); }
-.story-milestones span.is-unlocked { color: var(--gold); }
-.truth-list { display: grid; gap: 6px; }
-.truth-item { display: grid; grid-template-columns: 18px minmax(0, 1fr); gap: 8px; align-items: center; padding: 7px 9px; border: 1px solid var(--line-soft); border-radius: var(--radius-sm); }
-.truth-item:not(.is-unlocked) { color: var(--muted); }
-.truth-item.is-unlocked { border-color: rgba(212, 173, 98, 0.3); background: rgba(212, 173, 98, 0.07); }
-.truth-item i { color: var(--gold); font-style: normal; }
-.truth-item strong, .truth-item small { display: block; }
-.truth-item strong { font-size: var(--fs-xs); }
-.truth-item small { color: var(--muted); font-size: var(--fs-2xs); }
+/* 黒燭への道: 大目標を章で並べる。次の章だけヒントを開く。 */
+.roadmap-list { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; }
+.roadmap-list li { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 8px; align-items: start; padding: 6px 8px; border: 1px solid transparent; border-radius: var(--radius-sm); color: var(--faint); }
+.roadmap-list strong { display: block; font-size: var(--fs-xs); font-weight: 600; }
+.roadmap-list small { display: block; margin-top: 2px; color: var(--ink-soft); font-size: var(--fs-2xs); line-height: 1.55; }
+.roadmap-no { display: grid; place-items: center; width: 20px; height: 20px; border: 1px solid #3a3226; border-radius: 50%; font-size: 10px; }
+.roadmap-list li.is-done { color: var(--gold); }
+.roadmap-list li.is-done .roadmap-no { border-color: rgba(212, 173, 98, 0.5); }
+.roadmap-list li.is-next { border-color: rgba(240, 204, 123, 0.45); background: rgba(212, 173, 98, 0.08); color: var(--ink); }
+.roadmap-list li.is-next .roadmap-no { border-color: var(--gold-bright); color: var(--gold-bright); }
+.roadmap-list li.is-fresh { border-color: rgba(140, 191, 150, 0.55); background: rgba(140, 191, 150, 0.08); color: var(--safe); animation: pulse-bright 1.6s ease-in-out 2; }
+.roadmap-truths { display: flex; flex-wrap: wrap; gap: 2px 10px; margin-top: 3px; }
+.roadmap-truths i { color: var(--faint); font-size: var(--fs-2xs); font-style: normal; }
+.roadmap-truths i.is-done { color: var(--gold); }
+.roadmap-truths i.is-fresh { color: var(--safe); font-weight: 700; }
 
 .campaign-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1px; overflow: hidden; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--line); }
 .campaign-summary div { min-width: 0; padding: 6px 8px; background: var(--panel-sunken); }
@@ -759,7 +800,7 @@ kbd {
 .end-stats div { display: grid; gap: 2px; padding: 12px 14px; background: var(--panel-sunken); }
 .end-stats span { color: var(--muted); font-size: var(--fs-2xs); }
 .end-stats strong { font-size: var(--fs-xl); font-variant-numeric: tabular-nums; line-height: 1.2; }
-.end-stats div:nth-child(3) strong { color: var(--gold-bright); }
+.end-stats div:nth-child(4) strong { color: var(--gold-bright); }
 .run-comparison { margin-top: 12px; padding: 12px 14px; border: 1px solid rgba(212, 173, 98, 0.3); border-radius: 10px; background: rgba(212, 173, 98, 0.07); }
 .run-comparison:empty { display: none; }
 .run-comparison > strong { color: var(--gold-bright); font-size: var(--fs-sm); }
@@ -871,15 +912,19 @@ kbd {
     gap: 8px;
     padding: calc(8px + env(safe-area-inset-top)) calc(8px + env(safe-area-inset-right)) calc(var(--lantern-dock-height, 230px) + 12px) calc(8px + env(safe-area-inset-left));
   }
-  /* 1行目: 階層・得点・灰灯院 / 2行目: 灯路・観測速度 */
+  /* 1行目: 階層・灯片・灰灯院 / 2行目: 道のり / 3行目: 灯芯・観測速度 */
   .topbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; padding: 8px 10px; }
   .topbar-brand { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
   .topbar-run, .topbar-controls { display: contents; }
   .depth-chip { flex: 1 1 auto; order: 1; }
-  .live-score { order: 2; }
-  .live-score strong { font-size: var(--fs-lg); }
-  #new-expedition { order: 4; min-height: 44px; }
-  .turn-meter { flex: 1 1 110px; order: 5; min-width: 110px; max-width: none; }
+  .shard-forecast { order: 2; }
+  .shard-forecast b { font-size: var(--fs-lg); }
+  .shard-forecast .is-loss b { font-size: var(--fs-sm); }
+  .route-track { flex: 1 1 100%; order: 3; max-width: none; }
+  #new-expedition { order: 7; min-height: 40px; }
+  .turn-meter { flex: 1 1 80px; order: 5; min-width: 80px; max-width: none; }
+  .turn-meter-label strong { font-size: var(--fs-md) !important; }
+  .live-indicator { display: none; }
   .speed-selector { order: 6; }
   .speed-selector button { min-width: 42px; min-height: 40px; padding-inline: 4px; }
 
@@ -1195,10 +1240,8 @@ body::after {
 }
 
 /* 観戦の数字と見出しも、明朝と欧文の数字で揃える。 */
-.live-score strong, .vitals-hp-label strong, .turn-meter-label strong, .title-ledger dd { font-variant-numeric: lining-nums tabular-nums; font-feature-settings: "lnum" 1, "tnum" 1; }
+.vitals-hp-label strong, .turn-meter-label strong, .title-ledger dd { font-variant-numeric: lining-nums tabular-nums; font-feature-settings: "lnum" 1, "tnum" 1; }
 .vitals-heading strong { font-family: var(--display); font-weight: 700; letter-spacing: 0.06em; }
-.live-score strong { font-family: var(--latin); font-size: 1.75rem; font-weight: 600; transition: color 300ms ease, text-shadow 300ms ease; }
-.live-score strong.is-rising { color: #fff0c8; text-shadow: 0 0 18px rgba(255, 190, 100, 0.55); }
 .vitals-hp-label strong, .turn-meter-label strong { font-family: var(--latin); font-size: 1.25rem; font-weight: 600; }
 .panel-heading h2, .topbar-brand h1 { font-family: var(--display); font-weight: 700; letter-spacing: 0.12em; }
 .panel, .topbar, .stage { border-radius: 6px; }
@@ -1361,7 +1404,7 @@ body::after {
 .mission-track { height: 2px; border-radius: 0; background: rgba(255, 255, 255, 0.05); }
 .expedition-meta strong { font-family: var(--latin); font-size: 1rem; font-weight: 600; }
 .objective { padding-top: 10px; }
-.objective strong { font-family: var(--display); font-size: 1.05rem; font-weight: 600; letter-spacing: 0.1em; }
+.objective strong { font-family: var(--display); font-size: var(--fs-md); font-weight: 600; letter-spacing: 0.08em; }
 
 .inventory-slot { border-radius: 3px; background: radial-gradient(circle at 50% 40%, rgba(212, 173, 98, 0.07), rgba(0, 0, 0, 0.35) 70%); box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.5); }
 .inventory-slot b { font-family: var(--latin); font-size: 0.85rem; font-weight: 600; }
@@ -1744,3 +1787,37 @@ body { font-feature-settings: "lnum" 1; }
   .prepare-step-delver:not(:has(#veteran-list > :nth-child(2))) > :nth-child(5) { grid-area: rlist; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); }
   .prepare-step-delver:not(:has(#veteran-list > :nth-child(2))) #veteran-list .empty-state { width: 196px; height: 100%; }
 }
+
+/* ---------- 目標と得失 ---------- */
+
+.next-goal { display: grid; gap: 2px; max-width: 760px; margin-top: 10px; padding: 9px 14px; border-left: 3px solid var(--gold); background: linear-gradient(90deg, rgba(212, 173, 98, 0.12), transparent); }
+.next-goal-kicker { color: var(--gold); font-size: var(--fs-2xs); font-weight: 800; letter-spacing: 0.12em; }
+.next-goal strong { color: var(--ink); font-family: var(--serif); font-size: var(--fs-lg); font-weight: 600; }
+.next-goal small { color: var(--ink-soft); font-size: var(--fs-xs); line-height: 1.55; }
+
+.decision-stakes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 2px 0 10px; }
+.stake { display: grid; gap: 3px; padding: 8px 10px; border: 1px solid var(--line-soft); border-radius: var(--radius-sm); background: rgba(0, 0, 0, 0.25); }
+.stake > span { font-size: var(--fs-2xs); font-weight: 800; letter-spacing: 0.1em; }
+.stake p { margin: 0; color: var(--ink-soft); font-size: var(--fs-xs); line-height: 1.6; }
+.stake b { color: var(--gold-bright); font-size: var(--fs-sm); }
+.stake-return { border-color: rgba(140, 191, 150, 0.3); }
+.stake-return > span { color: var(--safe); }
+.stake-continue > span { color: var(--gold); }
+.stake-loss { color: #d69a90 !important; }
+.stake-loss b { color: #f0b3a8; }
+
+.end-stats > div.is-done strong { color: var(--safe); }
+.end-stats > div.is-missed strong { color: var(--faint); }
+.end-stats > div:nth-child(1) strong { font-size: var(--fs-lg); }
+.score-breakdown > div.is-zero { opacity: 0.45; }
+.result-section-heading small { color: var(--muted); font-size: var(--fs-2xs); }
+.end-roadmap { display: grid; gap: 8px; }
+.end-roadmap:empty { display: none; }
+.end-next-goal { margin: 0; padding: 9px 12px; border-left: 3px solid var(--gold); background: rgba(212, 173, 98, 0.08); color: var(--ink-soft); font-size: var(--fs-xs); line-height: 1.6; }
+.end-next-goal strong { color: var(--gold-bright); }
+
+@media (max-width: 700px) {
+  .decision-stakes { grid-template-columns: minmax(0, 1fr); }
+  .next-goal strong { font-size: var(--fs-md); }
+}
+.truth-tag { justify-self: center; color: var(--gold-bright); font-size: var(--fs-2xs); font-weight: 700; letter-spacing: 0.06em; }

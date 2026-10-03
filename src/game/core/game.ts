@@ -27,7 +27,7 @@ import type {
 } from "../types";
 import { Rng } from "./rng";
 import { realtimeConfig } from "../content/realtime";
-import { armDecision, createDynamics, gridDistance, recordLastMoment, repayFlame, telegraphTiles, updateVow } from "./realtime";
+import { armDecision, createDynamics, gridDistance, recordLastMoment, repayFlame, telegraphTiles } from "./realtime";
 import {
   createCheckpointDecision,
   createContextDecision,
@@ -36,8 +36,10 @@ import {
   createRunStoryState,
   defaultMissionForTemperament,
   defaultDirectiveForTemperament,
+  endingAvailable,
   missionDefinition,
   missionProgress,
+  missionShards,
   roleTruthFor,
 } from "./autonomous";
 
@@ -344,8 +346,7 @@ export function applyAction(state: GameState, action: GameAction): GameState {
     if (action.tactics && next.pendingDecision?.kind === "checkpoint") {
       next.tactics = normalizeTactics(action.tactics, next.modifiers.tacticSlots);
     }
-    next = resolveDecision(next, action.optionId);
-    updateVow(next);
+    next = resolveMissionCompletion(resolveDecision(next, action.optionId));
     return updateVisibility(next);
   }
   if (action.type === "invokeLantern") {
@@ -387,8 +388,7 @@ export function applyAction(state: GameState, action: GameAction): GameState {
           break;
         }
         if (next.floor >= getGameConfig().rules.maxFloor) {
-          next.pendingDecision = createFinalDecision(next);
-          next.messages = pushMessage(next, "黒燭の番人が崩れ、中枢の火が灯守へ問いかけた。", "system");
+          next = reachBlackCore(next);
         } else if ((next.floor === 3 || next.floor === 6) && !next.story.decisions.some((d) => d.id === `checkpoint-${next.floor}`)) {
           if (next.floor === 6) {
             next.story.carriedTruthId = roleTruthFor(next.runIdentity.roleId);
@@ -422,11 +422,11 @@ export function applyAction(state: GameState, action: GameAction): GameState {
     next.pendingDecision.remainingTurns = Math.max(0, (next.pendingDecision.remainingTurns ?? 1) - 1);
     if (next.pendingDecision.remainingTurns === 0) next = resolveDecision(next, next.pendingDecision.defaultOptionId);
   }
-  updateVow(next);
+  next = resolveMissionCompletion(next);
   recordLastMoment(next, action);
   if (next.status === "playing" && next.runTurn >= runRules(next.modifiers).runTurnWarning && !next.story.turnWarningShown) {
     next.story.turnWarningShown = true;
-    next.messages = pushMessage(next, "黒燭の像が揺らいだ。灯路断絶まで残された時間は少ない。", "danger");
+    next.messages = pushMessage(next, "黒燭の像が揺らいだ。灯芯が尽きるまで残された時間は少ない。", "danger");
   }
   if (next.status === "playing" && next.runTurn >= runRules(next.modifiers).runTurnLimit) {
     next.status = "stranded";
@@ -448,9 +448,6 @@ function resolveDecision(state: GameState, optionId: string): GameState {
   if (option.requiresRevelation) state.revelationsRemaining -= 1;
   if (option.directive) state.directive = option.directive;
   const effectSummary = applyDecisionEffect(state, option.effect);
-  if (decision.kind === "context" && option.requiresRevelation && option.effect) {
-    state.story.interventionScore += getGameConfig().autonomous.scoring.intervention;
-  }
   state.story.decisions.push({
     id: decision.id,
     floor: state.floor,
@@ -464,19 +461,6 @@ function resolveDecision(state: GameState, optionId: string): GameState {
   if (option.outcome === "return") {
     state.status = "returned";
     state.messages = pushMessage(state, `${state.runIdentity.name}は灯路をたどり、灰灯院へ帰還した。`, "system");
-    return state;
-  }
-  if (option.outcome === "research") {
-    state.story.coreDisposition = "research";
-    state.status = "won";
-    state.messages = pushMessage(state, "黒燭核は灰灯院の記録庫へ封じられ、新しい真相の研究が始まった。", "system");
-    return state;
-  }
-  if (option.outcome === "relic") {
-    state.story.coreDisposition = "relic";
-    addInventoryItem(getPlayer(state), "item.black-candle-core", 1);
-    state.status = "won";
-    state.messages = pushMessage(state, "黒燭核を戦果として回収し、第十層から帰還した。", "system");
     return state;
   }
   if (option.outcome === "ending" && option.endingId) {
@@ -726,18 +710,31 @@ function tickExpedition(state: GameState): GameState {
   return state;
 }
 
+/**
+ * 任務の条件を満たした瞬間に一度だけ知らせ、灯火を返す。
+ * 灯片の報酬は生還して初めて受け取る（calculateShards）。
+ */
 function resolveMissionCompletion(state: GameState): GameState {
   if (state.story.missionCompleted || !missionProgress(state).completed) return state;
   state.story.missionCompleted = true;
   const mission = missionDefinition(state.story.missionId);
-  if (state.story.missionId === "guardian-vow") {
-    addInventoryItem(getPlayer(state), "item.greater-tonic", 1);
-  } else if (state.story.missionId === "relic-ledger") {
-    state.revelationsRemaining += 1;
-  } else {
-    addInventoryItem(getPlayer(state), "item.repulsion-scroll", 1);
+  const embers = repayFlame(state, realtimeConfig().missions.rewardEmbers);
+  if (embers > 0 && state.status === "playing") state.lantern = { ...state.lantern, embers: Math.min(state.lantern.maxEmbers, state.lantern.embers + embers) };
+  const tail = state.status === "playing" ? `生きて帰れば灯片+${missionShards(mission.id)}。` : `灯片+${missionShards(mission.id)}を持ち帰る。`;
+  state.messages = pushMessage(state, `任務「${mission.label}」の条件を果たした。${embers > 0 && state.status === "playing" ? `灯火+${embers}。` : ""}${tail}`, "loot");
+  return state;
+}
+
+/** 第十層の番人を越えた。三つの真相が揃っていれば結末を問い、なければ踏破で終える。 */
+function reachBlackCore(state: GameState): GameState {
+  if (endingAvailable(state)) {
+    state.pendingDecision = createFinalDecision(state);
+    state.messages = pushMessage(state, "黒燭の番人が崩れ、三つの真相が中枢の火を照らした。灯守へ結末が問われる。", "system");
+    return state;
   }
-  state.messages = pushMessage(state, `遠征任務「${mission.label}」を達成した。報酬: ${mission.rewardLabel}。`, "loot");
+  addInventoryItem(getPlayer(state), "item.black-candle-core", 1);
+  state.status = "won";
+  state.messages = pushMessage(state, "黒燭の番人が崩れた。核片を抱えて灰灯院へ戻る。真相が三つ揃えば、黒燭の行方を決められる。", "system");
   return state;
 }
 
@@ -1818,7 +1815,7 @@ function defeatMonster(state: GameState, defeated: Entity): GameState {
         if (state.floor === 6) state.story.carriedTruthId = roleTruthFor(state.runIdentity.roleId);
         state.pendingDecision = createCheckpointDecision(state);
         state.pendingDecision.resume = "none";
-      } else if (state.floor === getGameConfig().rules.maxFloor) state.pendingDecision = createFinalDecision(state);
+      } else if (state.floor === getGameConfig().rules.maxFloor) state = reachBlackCore(state);
       armDecision(state);
     }
     const lantern = getGameConfig().lantern;
