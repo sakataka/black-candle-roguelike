@@ -1,6 +1,7 @@
 import { chooseAutoplayAction, resetAutoplayState } from "../ai/autoplay";
 import { chooseDecisionAction } from "../core/autonomous";
 import { applyAction, observeGame } from "../core/game";
+import { realtimeConfig } from "../content/realtime";
 import type { GameState } from "../types";
 
 export type RolloutOutcome = {
@@ -31,7 +32,7 @@ export function runRollout(origin: GameState, optionId: string, rolloutIndex: nu
   state = applyAction(state, { type: "resolveDecision", optionId, tactics });
   for (let step = 0; step < maxSteps && state.status === "playing"; step += 1) {
     const observation = observeGame(state);
-    const action = observation.pendingDecision ? chooseDecisionAction(observation, "temperament") : chooseAutoplayAction(observation);
+    const action = observation.pendingDecision && !realtimeConfig().enabled ? chooseDecisionAction(observation, "temperament") : chooseAutoplayAction(observation);
     const next = applyAction(state, action);
     if (next === state) break;
     state = next;

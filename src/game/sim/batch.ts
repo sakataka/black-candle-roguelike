@@ -1,5 +1,5 @@
 import { getGameConfig, loadBunGameConfig } from "../content/config";
-import type { GameAction, GameState } from "../types";
+import type { ExpeditionDynamics, GameAction, GameState } from "../types";
 import { runSimulation, type SimulationProfile, type SimulationRunResult } from "./simulation";
 import type { DecisionPolicy } from "../core/autonomous";
 import type { WatcherPolicy } from "../ai/watcher";
@@ -45,6 +45,9 @@ type CliOptions = {
 };
 
 type AggregateSummary = {
+  averageDynamics: ExpeditionDynamics["stats"];
+  vowCompletionRate: number;
+  averageUnpaidFlameDebt: number;
   runs: number;
   totalElapsedMs: number;
   averageElapsedMs: number;
@@ -725,6 +728,8 @@ function summarizeRuns(runResults: SimulationRunResult[]): AggregateSummary {
     descend: 0,
     resolveDecision: 0,
     invokeLantern: 0,
+    placeLantern: 0,
+    borrowFlame: 0,
   };
 
   for (const run of runResults) {
@@ -746,6 +751,9 @@ function summarizeRuns(runResults: SimulationRunResult[]): AggregateSummary {
   const count = runResults.length;
   const totalElapsedMs = runResults.reduce((sum, run) => sum + run.elapsedMs, 0);
   return {
+    averageDynamics: Object.fromEntries(["dodges", "telegraphs", "terrainLures", "awakened", "heatHits", "lightsPlaced", "borrowed"].map((key) => [key, average(runResults, (run) => run.dynamics?.[key as keyof ExpeditionDynamics["stats"]] ?? 0)])) as ExpeditionDynamics["stats"],
+    vowCompletionRate: ratio(runResults.filter((run) => run.vowCompleted).length, count),
+    averageUnpaidFlameDebt: average(runResults, (run) => run.unpaidFlameDebt ?? 0),
     runs: count,
     totalElapsedMs,
     averageElapsedMs: ratio(totalElapsedMs, count),
@@ -781,6 +789,8 @@ function summarizeRuns(runResults: SimulationRunResult[]): AggregateSummary {
       descend: ratio(actionTotals.descend, count),
       resolveDecision: ratio(actionTotals.resolveDecision, count),
       invokeLantern: ratio(actionTotals.invokeLantern, count),
+      placeLantern: ratio(actionTotals.placeLantern, count),
+      borrowFlame: ratio(actionTotals.borrowFlame, count),
     },
     averagePickups: average(runResults, (run) => run.pickups),
     averageAttacks: average(runResults, (run) => run.attacks),
@@ -1110,7 +1120,7 @@ function renderMarkdownReport(report: BatchSimulationReport): string {
         formatNumber(summary.averageAttacks),
         formatNumber(summary.averageAttacksPer100Turns),
         formatNumber(summary.averageDescents),
-        formatNumber(summary.averageActions.resolveDecision),
+        formatNumber(summary.averageDecisions),
         formatNumber(summary.averageActions.useItem),
         formatNumber(summary.averageActions.merchantService),
         formatNumber(summary.averageElapsedMs),
@@ -1121,6 +1131,11 @@ function renderMarkdownReport(report: BatchSimulationReport): string {
     }
   }
 
+  lines.push("", "## Realtime Dynamics", "", "| Label | Telegraphs | Dodges | Trap Lures | Awakened | Heat Hits | Placed Lights | Borrowed Flame | Vow % | Unpaid Debt |", "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |");
+  for (const [label, summary] of Object.entries(report.byLabel)) {
+    const d = summary.averageDynamics;
+    lines.push(`| ${label} | ${formatNumber(d.telegraphs)} | ${formatNumber(d.dodges)} | ${formatNumber(d.terrainLures)} | ${formatNumber(d.awakened)} | ${formatNumber(d.heatHits)} | ${formatNumber(d.lightsPlaced)} | ${formatNumber(d.borrowed)} | ${formatNumber(summary.vowCompletionRate * 100)} | ${formatNumber(summary.averageUnpaidFlameDebt)} |`);
+  }
   lines.push("", "## Top AI Hints", "");
   if (report.analysis.aiHintSamples.length === 0) {
     lines.push("- なし");

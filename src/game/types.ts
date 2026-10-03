@@ -122,6 +122,8 @@ export type FallenDelver = {
   cause: string | null;
   gear?: string;
   recovered?: boolean;
+  echoes?: LastMoment[];
+  lesson?: LessonId;
 };
 
 export type GraveMarker = {
@@ -130,6 +132,8 @@ export type GraveMarker = {
   roleId: string;
   floor: number;
   gear?: string;
+  echoes?: LastMoment[];
+  lesson?: LessonId;
 };
 
 /** 燭階や周期の余波が遠征へ与える補正。ルール値は加算で重ねる。 */
@@ -147,6 +151,7 @@ export type RunRuleKey = "fovRadius" | "monsterCountBase" | "trapCountBase" | "r
 
 /** 遠征開始時に灰灯院と遠征団から持ち込む条件。 */
 export type RunModifiers = {
+  flameDebt?: number;
   tacticSlots: number;
   scars: string[];
   rank: number;
@@ -156,6 +161,7 @@ export type RunModifiers = {
   ruleDeltas?: Partial<Record<RunRuleKey, number>>;
   bossOverride?: { floor: number; contentId: string };
   graves?: GraveMarker[];
+  lessons?: LessonId[];
 };
 
 export type DecisionOption = {
@@ -186,6 +192,8 @@ export type PendingDecision = {
   defaultOptionId: string;
   resume: "none" | "descend";
   options: DecisionOption[];
+  /** 自動選択までの探索者の手数。UIの操作・先読みは時計を止めない。 */
+  remainingTurns?: number;
 };
 
 export type RunDecisionRecord = {
@@ -252,6 +260,7 @@ export type ExpeditionRecord = {
 };
 
 export type CampaignState = {
+  flameDebt?: number;
   version: 3;
   roleTruths: RoleTruthId[];
   expeditions: ExpeditionRecord[];
@@ -259,6 +268,7 @@ export type CampaignState = {
   facilities: Record<FacilityId, number>;
   roster: Veteran[];
   fallen: FallenDelver[];
+  lessons?: LessonId[];
   /** 燭階。勝利した最高段の次まで解放され、選んだ段の制約が重なる。 */
   heat: { unlocked: number; selected: number };
   /** 結末を迎えるたびに進む周期と、次の迷宮に残る余波。 */
@@ -399,6 +409,7 @@ export type RunObjectiveFlags = {
 };
 
 export type GameConfig = {
+  realtime?: RealtimeConfig;
   rules: {
     mapWidth: number;
     mapHeight: number;
@@ -567,6 +578,10 @@ export type Entity = {
   goldAmount?: number;
   /** 間合いを取り直せるようになるまでの残り手番（遠隔敵）。 */
   retreatCooldown?: number;
+  telegraph?: AttackTelegraph;
+  attackCooldown?: number;
+  recoveryTurns?: number;
+  awakened?: boolean;
 };
 
 export type PlayerProgress = {
@@ -608,6 +623,7 @@ export type GameState = {
   status: "playing" | "won" | "lost" | "returned" | "stranded";
   /** 直前の1アクションで起きた攻撃。描画演出専用で、ルール判定には使わない。 */
   strikes?: StrikeRecord[];
+  expedition?: ExpeditionDynamics;
 };
 
 export type StrikeRecord = {
@@ -629,9 +645,11 @@ export type GameAction =
   | { type: "descend" }
   | { type: "resolveDecision"; optionId: string; tactics?: string[] }
   /** 灯守（観戦者）の介入。探索者の手番を消費しない。 */
-  | { type: "invokeLantern"; rite: LanternRiteId };
+  | { type: "invokeLantern"; rite: LanternRiteId }
+  | { type: "placeLantern"; pos?: Point }
+  | { type: "borrowFlame" };
 
-type VisibleEntity = Pick<Entity, "id" | "kind" | "contentId" | "pos" | "stats" | "hostile" | "blocksMovement" | "goldAmount" | "conditions">;
+type VisibleEntity = Pick<Entity, "id" | "kind" | "contentId" | "pos" | "stats" | "hostile" | "blocksMovement" | "goldAmount" | "conditions" | "telegraph" | "recoveryTurns" | "awakened">;
 
 type ExplorationObjective = "explore" | "findStairs" | "defeatBoss" | "descend" | "resolveStall";
 
@@ -654,6 +672,7 @@ type ExplorationStatus = {
 };
 
 export type GameObservation = {
+  expedition?: ExpeditionDynamics;
   seed: number;
   turn: number;
   runTurn: number;
@@ -684,6 +703,38 @@ export type GameObservation = {
 };
 
 export type DeathCause = "combat" | "rangedCombat" | "trap" | "bleeding" | "venom" | "signalLoss" | "unknown";
+
+export type LessonId = "ranged" | "care" | "traps";
+export type LastMoment = { action: string; hp: number; pos: Point };
+export type AttackTelegraph = { kind: "shot" | "sweep" | "hex"; tiles: Point[]; remaining: number; origin: Point };
+export type PersonalVow = { id: "memorial" | "return-six" | "resolve"; label: string; completed: boolean; progress: number; target: number };
+export type ExpeditionDynamics = {
+  vow: PersonalVow;
+  lights: Array<{ pos: Point; turns: number }>;
+  borrowed: boolean;
+  debt: number;
+  loanShieldTurns: number;
+  lawPhase: number;
+  floorKills: number;
+  floorAwakened: number;
+  heat: Array<{ pos: Point; remaining: number; active: boolean }>;
+  trail: LastMoment[];
+  memories: Array<{ name: string; echoes: LastMoment[]; lesson: LessonId }>;
+  lastRite?: { rite: string; runTurn: number };
+  stats: { dodges: number; telegraphs: number; terrainLures: number; awakened: number; heatHits: number; lightsPlaced: number; borrowed: number };
+};
+
+export type RealtimeConfig = {
+  enabled: boolean;
+  decisionTurns: { checkpoint: number; context: number; final: number };
+  telegraphs: Record<string, { kind: AttackTelegraph["kind"]; windup: number; cooldown: number; recovery: number; range: number; damageScale: number }>;
+  ai: { dodgeHpRatio: number; terrainHpRatio: number; terrainCooldown: number; coverWeight: number; hostileWeight: number; trapLureWeight: number; recoveryDamageBonus: number; lessonHealBonus: number; lessonTrapPatience: number };
+  light: { cost: number; duration: number; radius: number; lureRange: number; maxActive: number; watcherReserve: number; watcherHostiles: number };
+  loan: { healPercent: number; guardedTurns: number; debt: number; embers: number; watcherHpRatio: number };
+  laws: { cryptWakeEveryKills: number; cryptWakeLimit: number; cryptWakeRadius: number; cryptAttackBonus: number; furnacePeriod: number; furnaceWindup: number; furnaceDuration: number; furnaceDamage: number; furnaceVentLimit: number };
+  vows: { memorialHpRatio: number; resolveBossTarget: number; rewardEmbers: number };
+  dialogue: { minTurns: number; repeatTurns: number; minMs: number; holdMs: number };
+};
 
 export type RunLogPlayerSnapshot = {
   pos: Point;

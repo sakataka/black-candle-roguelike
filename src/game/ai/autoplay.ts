@@ -1,5 +1,7 @@
 import { getGameConfig, runRules } from "../content/config";
 import { contentEntities } from "../content/entities";
+import { realtimeConfig } from "../content/realtime";
+import { visibleDangerTiles } from "../core/realtime";
 import type { AutoplayPolicyValues, Direction, GameAction, GameObservation, Point, PolicyModifier } from "../types";
 
 const cardinalDirections: Array<{ action: GameAction; delta: Point }> = [
@@ -58,12 +60,15 @@ type ObservationIndex = {
 };
 
 const observationIndexes = new WeakMap<GameObservation, ObservationIndex>();
+const tacticalIntents = new WeakMap<GameObservation, "dodge" | "lure" | "cover" | "opening">();
+const terrainTurns = new Map<string, number>();
 
 export function resetAutoplayState(): void {
   visitCounts.clear();
   recentPositions.clear();
   progressMemory.clear();
   frontierTargets.clear();
+  terrainTurns.clear();
 }
 
 export function chooseAutoplayAction(observation: GameObservation): GameAction {
@@ -83,6 +88,8 @@ export function chooseAutoplayAction(observation: GameObservation): GameAction {
   const combatPressure = nearbyEnemies.length > 0 || !!visibleRangedThreat;
   const urgentRangedPressure = visibleRangedThreats.length >= 2 || (visibleRangedThreats.length >= 1 && hpRatio <= 0.35);
   const hasDamageCondition = observation.player.conditions?.some((condition) => condition.kind === "bleeding" || condition.kind === "venomed") ?? false;
+  const dodge = chooseTacticalStep(observation, hpRatio, true);
+  if (dodge) return dodge;
   const salve = observation.player.inventory?.find((entry) => entry.contentId === "item.bloodmoss-salve" && entry.quantity > 0);
   if (salve && (hasDamageCondition || hpRatio <= (combatPressure ? policy.salveCombat : policy.salveCalm) + policy.healBonus)) {
     return { type: "useItem", contentId: "item.bloodmoss-salve" };
@@ -127,7 +134,7 @@ export function chooseAutoplayAction(observation: GameObservation): GameAction {
   const onStairs = observation.visibleTiles.find(
     (tile) => tile.kind === "stairsDown" && tile.x === observation.player.pos.x && tile.y === observation.player.pos.y,
   );
-  if (onStairs && !observation.bossAlive) {
+  if (onStairs && !observation.bossAlive && !observation.pendingDecision) {
     return { type: "descend" };
   }
 
@@ -159,7 +166,16 @@ export function chooseAutoplayAction(observation: GameObservation): GameAction {
     .filter((entity) => entity.kind === "monster" && entity.hostile)
     .find((entity) => distance(entity.pos, observation.player.pos) <= 1);
   if (adjacentEnemy) {
+    if (adjacentEnemy.recoveryTurns) tacticalIntents.set(observation, "opening");
     return { type: "move", direction: directionFromDelta(adjacentEnemy.pos.x - observation.player.pos.x, adjacentEnemy.pos.y - observation.player.pos.y) };
+  }
+  const terrainStep = chooseTacticalStep(observation, hpRatio, false);
+  if (terrainStep) return terrainStep;
+
+  if (observation.expedition?.vow.id === "memorial" && !combatPressure && hpRatio >= realtimeConfig().vows.memorialHpRatio && !observation.expedition.vow.completed) {
+    const grave = nearest(observation.knownEntities.filter((e) => e.contentId === "event.grave-marker"), observation.player.pos);
+    const towardGrave = grave ? stepTowardKnownReachable(observation, grave.pos) : null;
+    if (towardGrave) return towardGrave;
   }
 
   const visibleBoss = nearest(
@@ -171,6 +187,10 @@ export function chooseAutoplayAction(observation: GameObservation): GameAction {
     if (bossStep) {
       return bossStep;
     }
+  }
+  if (realtimeConfig().enabled && observation.bossAlive && !visibleBoss && observation.exploration.reachableFrontierCount === 0) {
+    const gateSearch = stepTowardCurrentObjective(observation, allowRiskyTraversal, progress.stagnantTurns, hp);
+    if (gateSearch) return gateSearch;
   }
 
   const dart = observation.player.inventory?.find((entry) => entry.contentId === "item.ember-dart" && entry.quantity > 0);
@@ -355,7 +375,44 @@ export function resolveAutoplayPolicy(observation: Pick<GameObservation, "runIde
   for (const scarId of observation.modifiers?.scars ?? []) {
     policy = applyPolicyModifier(policy, scars[scarId]);
   }
+  if (realtimeConfig().enabled) {
+    for (const lesson of observation.modifiers?.lessons ?? []) {
+      if (lesson === "ranged") { policy.coverApproach = true; policy.rangedPriority = true; }
+      if (lesson === "care") policy.healBonus += realtimeConfig().ai.lessonHealBonus;
+      if (lesson === "traps") { policy.avoidRiskPanels = true; policy.trapPatience += realtimeConfig().ai.lessonTrapPatience; }
+    }
+  }
   return policy;
+}
+
+/** 可視の予告と既知の地形だけで回避・誘導する。隠れた敵や罠は参照しない。 */
+function chooseTacticalStep(observation: GameObservation, hpRatio: number, dodgeOnly: boolean): GameAction | null {
+  const config = realtimeConfig();
+  if (!config.enabled) return null;
+  const danger = visibleDangerTiles(observation);
+  const threatened = danger.some((p) => samePoint(p, observation.player.pos));
+  if (dodgeOnly && (!threatened || hpRatio > config.ai.dodgeHpRatio)) return null;
+  if (!dodgeOnly && (hpRatio > config.ai.terrainHpRatio || observation.runTurn - (terrainTurns.get(runScope(observation)) ?? -999) < config.ai.terrainCooldown)) return null;
+  const enemies = observation.visibleEntities.filter((e) => e.kind === "monster" && e.hostile);
+  if (!threatened && enemies.length < 2) return null;
+  const traps = observation.knownEntities.filter((e) => e.kind === "trap");
+  const tiles = observation.knownTiles;
+  const candidates = directions.flatMap(({ action, delta }) => {
+    const p = { x: observation.player.pos.x + delta.x, y: observation.player.pos.y + delta.y };
+    if (!isKnownWalkable(observation, p) || danger.some((d) => samePoint(d, p)) || traps.some((t) => samePoint(t.pos, p)) || enemies.some((e) => samePoint(e.pos, p))) return [];
+    const adjacent = enemies.filter((e) => distance(e.pos, p) <= 1).length;
+    const rangedExposure = enemies.filter((e) => isRangedThreat(e.contentId) && hasKnownLineOfSight(observation, e.pos, p)).length;
+    const cover = tiles.filter((t) => distance(t, p) <= 1 && (t.kind === "wall" || t.kind === "cover")).length;
+    const lure = traps.some((t) => distance(t.pos, p) === 1 && enemies.some((e) => distance(e.pos, t.pos) === 1 && distance(e.pos, p) >= 2));
+    const currentAdjacent = enemies.filter((e) => distance(e.pos, observation.player.pos) <= 1).length;
+    if (!dodgeOnly && !lure && !(adjacent < currentAdjacent && cover > 0)) return [];
+    return [{ action, lure, cover, score: cover * config.ai.coverWeight + (lure ? config.ai.trapLureWeight : 0) - (adjacent * 2 + rangedExposure) * config.ai.hostileWeight }];
+  }).sort((a, b) => b.score - a.score);
+  const best = candidates[0];
+  if (!best) return null;
+  tacticalIntents.set(observation, dodgeOnly ? "dodge" : best.lure ? "lure" : "cover");
+  if (!dodgeOnly) terrainTurns.set(runScope(observation), observation.runTurn);
+  return best.action;
 }
 
 function applyPolicyModifier(policy: AutoplayPolicyValues, modifier: PolicyModifier | undefined): AutoplayPolicyValues {
@@ -740,6 +797,13 @@ function avoidImmediateOscillation(observation: GameObservation, action: GameAct
 
 function stepTowardCurrentObjective(observation: GameObservation, allowRiskyTraversal: boolean, stagnantTurns: number, hp: number): GameAction | null {
   const reachableStairs = observation.exploration.reachableStairs;
+  // 地図を埋めたあと守り手が視界外にいる場合も、既知の階段へ戻って探す。
+  // 敵の実座標は使わず、探索者が発見した出口だけを手掛かりにする。
+  if (realtimeConfig().enabled && observation.bossAlive && reachableStairs && observation.exploration.reachableFrontierCount === 0 && !samePoint(observation.player.pos, reachableStairs)) {
+    const towardGate = stepTowardKnownReachable(observation, reachableStairs, { allowHostileBlockers: true })
+      ?? (allowRiskyTraversal ? stepTowardKnownReachable(observation, reachableStairs, { avoidTraps: false, allowHostileBlockers: true }) : null);
+    if (towardGate) return towardGate;
+  }
   if (reachableStairs && !observation.bossAlive) {
     return stepTowardKnownReachableWeighted(observation, reachableStairs, { allowHostileBlockers: true }) ?? (allowRiskyTraversal ? stepTowardKnownReachableWeighted(observation, reachableStairs, { avoidTraps: false, allowHostileBlockers: true }) : null);
   }
@@ -1306,6 +1370,7 @@ function directionFromDelta(dx: number, dy: number): Direction {
 export type AutoplayIntent = {
   text: string;
   tone: "combat" | "survival" | "loot" | "explore" | "descend";
+  topic?: string;
 };
 
 /**
@@ -1313,6 +1378,11 @@ export type AutoplayIntent = {
  * 判断そのものには使わず、吹き出しやログ表示に使う。
  */
 export function describeAutoplayIntent(observation: GameObservation, action: GameAction): AutoplayIntent | null {
+  const tactical = tacticalIntents.get(observation);
+  if (tactical === "dodge") return { text: "構えの外へ抜ける", tone: "survival", topic: "dodge" };
+  if (tactical === "lure") return { text: "罠の向こうへ誘い込む", tone: "combat", topic: "lure" };
+  if (tactical === "cover") return { text: "狭い道へ引きつける", tone: "survival", topic: "cover" };
+  if (tactical === "opening") return { text: "今なら踏み込める", tone: "combat", topic: "opening" };
   const player = observation.player;
   const hpRatio = (player.stats?.hp ?? 1) / (player.stats?.maxHp ?? 1);
   if (action.type === "useItem") {

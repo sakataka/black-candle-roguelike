@@ -223,7 +223,6 @@ kbd {
 .speed-selector { display: flex; align-items: center; gap: 2px; padding: 3px; border: 1px solid var(--line); border-radius: 10px; background: rgba(0, 0, 0, 0.25); }
 .speed-selector button { min-width: 40px; min-height: 32px; padding: 4px 8px; color: var(--muted); font-size: var(--fs-xs); font-variant-numeric: tabular-nums; }
 .speed-selector button.is-active { border-color: rgba(212, 173, 98, 0.5); background: rgba(212, 173, 98, 0.16); color: var(--gold-bright); }
-.pause-toggle { display: inline-grid; place-items: center; }
 @media (hover: hover) and (pointer: fine) {
   .speed-selector button:hover { color: var(--ink); background: rgba(255, 255, 255, 0.05); }
 }
@@ -291,6 +290,37 @@ kbd {
 .lantern-pips i.is-lit:nth-child(3n) { animation-delay: -1.5s; }
 
 .lantern-rites { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; min-width: 0; }
+.live-indicator { padding: 5px 7px; color: var(--gold); font-size: var(--fs-2xs); white-space: nowrap; }
+.battle-forecast { position: absolute; top: 8px; left: 8px; right: 8px; z-index: 5; width: fit-content; max-width: calc(100% - 16px); padding: 5px 9px; border: 1px solid #ad7660; border-radius: 4px; background: rgba(18, 12, 9, 0.94); color: #f0ccb8; font-size: 12px; pointer-events: none; }
+.extra-rites { grid-column: 2; display: flex; gap: 8px; }
+.extra-rites button { display: grid; grid-template-columns: 28px auto auto; align-items: center; column-gap: 6px; text-align: left; min-height: 44px; padding: 6px 9px; }
+.extra-rites small { grid-column: 2 / 4; font-size: var(--fs-2xs); color: var(--muted); }
+.extra-rite-icon { grid-row: 1 / 3; width: 28px; height: 28px; }
+.expedition-note { grid-column: 1 / -1; margin: 0; color: var(--muted); font-size: var(--fs-2xs); }
+.realtime-choice { border-top: 1px solid var(--line); background: #15100c; padding: 10px 12px; }
+.realtime-choice .decision-panel { width: 100%; }
+.realtime-choice h2 { font-size: 17px; margin: 3px 0; }
+.realtime-choice .modal-lead { font-size: 12px; margin: 3px 0 7px; }
+.realtime-choice .decision-options { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+.realtime-choice .decision-option { grid-template-columns: minmax(0, 1fr); padding: 7px; min-height: 64px; gap: 3px; }
+.realtime-choice .decision-option small, .realtime-choice .decision-option em, .realtime-choice .option-forecast { grid-column: 1; grid-row: auto; white-space: normal; }
+.realtime-choice .decision-option strong { font-size: 12px; }
+.realtime-choice .decision-option small { font-size: 11px; line-height: 1.45; }
+.realtime-choice .decision-option > span { display: none; }
+.realtime-choice .decision-options .decision-option { animation: none; }
+.realtime-choice .option-forecast { display: none; }
+.realtime-choice:has(.decision-details[open]) .option-forecast { display: block; }
+.realtime-choice .decision-details { font-size: 12px; }
+.realtime-choice .modal-hint { margin-top: 5px; font-size: 11px; }
+@media (max-width: 900px) { .extra-rites { grid-column: 1 / -1; } }
+@media (max-width: 640px) {
+  .extra-rites { display: grid; grid-template-columns: 1fr 1fr; }
+  .extra-rites button { padding: 5px; }
+  .extra-rites small { font-size: 10px; }
+  .extra-rites kbd { display: none; }
+  .realtime-choice .decision-options { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .realtime-choice .modal-lead { display: none; }
+}
 .lantern-rite {
   position: relative;
   display: grid;
@@ -839,7 +869,7 @@ kbd {
   body { min-width: 0; }
   .observer-shell {
     gap: 8px;
-    padding: calc(8px + env(safe-area-inset-top)) calc(8px + env(safe-area-inset-right)) calc(150px + env(safe-area-inset-bottom)) calc(8px + env(safe-area-inset-left));
+    padding: calc(8px + env(safe-area-inset-top)) calc(8px + env(safe-area-inset-right)) calc(var(--lantern-dock-height, 230px) + 12px) calc(8px + env(safe-area-inset-left));
   }
   /* 1行目: 階層・得点・灰灯院 / 2行目: 灯路・観測速度 */
   .topbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; padding: 8px 10px; }
@@ -855,6 +885,7 @@ kbd {
 
   .stage { margin-inline: -8px; border-radius: 0; border-inline: 0; }
   .map-stage { height: min(54svh, 112vw); min-height: 260px; }
+  .realtime-choice { position: fixed; z-index: 51; left: 0; right: 0; bottom: var(--lantern-dock-height, 230px); max-height: min(34svh, 300px); overflow-y: auto; box-shadow: 0 -6px 18px #0008; }
 
   /* 灯の介入は画面下に固定し、スクロール位置に関係なく押せるようにする。 */
   .lantern-dock {

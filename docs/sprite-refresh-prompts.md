@@ -56,3 +56,11 @@ Game asset edit/reference recreation: preserve these four dark-fantasy cover obs
 ## stairsPrompt
 
 Recreate ONLY the descending stairwell from bottom-left cell of reference as a standalone dungeon map overlay. Single compact square inset stairwell, four worn grey stone steps descending into black darkness, narrow chipped stone lip around opening. Viewed directly from above with same modest depth cue as reference, clearly stairs DOWN not raised steps or upright door. Preserve detailed dark-fantasy pixel-art style. No surrounding floor paving whatsoever, no rectangular background tile: only the opening, black interior, steps and thin grey stone rim, isolated on 100% flat #FF00FF magenta background for alpha extraction. Centered with 15% padding around all sides, no shadow outside lip, no text labels borders. Grey neutral stone compatible with different floor biomes.
+
+## リアルタイム遠征の素材（2026-10-03）
+
+内蔵image_genで `public/assets/sprites/realtime-rites-sheet.png` を新規生成した。背景透過、1235×1274px、2列2行。左上に青銅の携行灯、右上に紫の未来火を抱く割れた砂時計、左下に青白い足跡と失われた剣の残響、右下に火が漏れる鉄の通気口。`assetCatalog` で同じシートから切り出し、ボタンと床への重ね合わせを実ブラウザで確認した。
+
+生成指示の要点: dark medieval fantasy roguelike sprite sheet, exactly 2 columns × 2 rows, four separate centered objects, transparent background, warm bronze lantern / broken hourglass with violet borrowed flame / spectral cyan footsteps and a fallen sword / iron furnace vent with a restrained ember glow. Detailed painted pixel-art compatible with the existing sprites, legible at small size, generous spacing, no labels, borders, floor tile or background.
+
+輪郭と色で4用途を見分ける。灯と通気口は暖色、借灯は紫、残響は青白色。新素材の詳細は [リアルタイム遠征の設計](realtime-expedition-design.md) を参照。

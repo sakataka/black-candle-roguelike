@@ -1,5 +1,7 @@
 import { getGameConfig } from "../content/config";
 import { contentEntities } from "../content/entities";
+import { realtimeConfig } from "../content/realtime";
+import { visibleDangerTiles } from "../core/realtime";
 import type { GameAction, GameObservation, LanternRiteId, Point } from "../types";
 
 export type WatcherPolicy = "none" | "lantern";
@@ -9,7 +11,7 @@ export type WatcherPolicy = "none" | "lantern";
  * batch simulation で灯介入の効果を測るために使い、探索者AIとは独立させる。
  */
 export function chooseWatcherAction(observation: GameObservation, policy: WatcherPolicy): GameAction | null {
-  if (policy === "none" || observation.pendingDecision || observation.status !== "playing") return null;
+  if (policy === "none" || (observation.pendingDecision && !realtimeConfig().enabled) || observation.status !== "playing") return null;
   const { rites, watcher } = getGameConfig().lantern;
   const embers = observation.lantern.embers;
   const affordable = (rite: LanternRiteId) => embers >= rites[rite].cost;
@@ -23,6 +25,14 @@ export function chooseWatcherAction(observation: GameObservation, policy: Watche
   const adjacent = undazedHostiles.filter((entity) => distance(entity.pos, observation.player.pos) <= 1);
   const ranged = undazedHostiles.filter((entity) => getGameConfig().rangedMonsters.includes(entity.contentId) && distance(entity.pos, observation.player.pos) <= 6);
   const bossNear = undazedHostiles.some((entity) => contentEntities[entity.contentId]?.tier === "boss" && distance(entity.pos, observation.player.pos) <= 2);
+  const dynamics = observation.expedition;
+  if (realtimeConfig().enabled && dynamics) {
+    if (!dynamics.borrowed && !dynamics.debt && embers === 0 && hpRatio <= realtimeConfig().loan.watcherHpRatio) return { type: "borrowFlame" };
+    const predictedDanger = visibleDangerTiles(observation).some((p) => p.x === observation.player.pos.x && p.y === observation.player.pos.y);
+    if (predictedDanger && adjacent.length >= 2 && affordable("flare")) return { type: "invokeLantern", rite: "flare" };
+    const lureable = hostiles.filter((e) => ["beast", "undead"].includes(contentEntities[e.contentId]?.family ?? "") && contentEntities[e.contentId]?.tier !== "boss" && distance(e.pos, observation.player.pos) > 1);
+    if (embers >= realtimeConfig().light.cost + realtimeConfig().light.watcherReserve && dynamics.lights.length < realtimeConfig().light.maxActive && lureable.length >= realtimeConfig().light.watcherHostiles && hpRatio < watcher.wardHpRatio) return { type: "placeLantern" };
+  }
 
   if (affordable("mend") && (hpRatio <= watcher.mendHpRatio || (afflicted && hpRatio <= watcher.mendAfflictedHpRatio))) {
     return { type: "invokeLantern", rite: "mend" };

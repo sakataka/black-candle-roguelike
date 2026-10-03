@@ -1,11 +1,13 @@
 import { chooseAutoplayAction, getAutoplayDebugState, resetAutoplayState } from "../ai/autoplay";
 import { chooseWatcherAction, type WatcherPolicy } from "../ai/watcher";
+import { realtimeConfig } from "../content/realtime";
+import { isInstantIntervention } from "../core/realtime";
 import { getGameConfig, loadBunGameConfig } from "../content/config";
 import { applyAction, createInitialGame, observeGame } from "../core/game";
 import { paceDelayMs, paceKindFor, type PaceKind } from "../core/pacing";
 import { analyzeRun, createRunLog, recordTurn } from "../core/runLog";
 import { calculateScore, campaignRunModifiers, chooseDecisionAction, createCampaignState, createRunIdentity, type DecisionPolicy } from "../core/autonomous";
-import type { EndingId, GameAction, GameState, RunReview } from "../types";
+import type { EndingId, ExpeditionDynamics, GameAction, GameState, RunReview } from "../types";
 
 export type SimulationRunInput = {
   seed: number;
@@ -63,6 +65,9 @@ type CompactRunReview = {
 };
 
 export type SimulationRunResult = {
+  dynamics?: ExpeditionDynamics["stats"];
+  vowCompleted?: boolean;
+  unpaidFlameDebt?: number;
   seed: number;
   turns: number;
   floor: number;
@@ -108,6 +113,8 @@ export async function runSimulation(input: SimulationRunInput): Promise<Simulati
     descend: 0,
     resolveDecision: 0,
     invokeLantern: 0,
+    placeLantern: 0,
+    borrowFlame: 0,
   };
 
   const configStartMs = performance.now();
@@ -144,13 +151,12 @@ export async function runSimulation(input: SimulationRunInput): Promise<Simulati
       break;
     }
     const beforeObservation = observation;
-    if (!beforeObservation.pendingDecision) {
-      projectedDisplayMs += paceDelayMs(scheduledPace);
-    }
     const watcherAction = chooseWatcherAction(beforeObservation, input.watcherPolicy ?? "none");
-    const action = watcherAction ?? timeProfile(profile, "chooseAutoplayAction", () => beforeObservation.pendingDecision
+    const realtimeDefault = realtimeConfig().enabled && (input.decisionPolicy ?? "temperament") === "temperament";
+    const action = watcherAction ?? timeProfile(profile, "chooseAutoplayAction", () => beforeObservation.pendingDecision && !realtimeDefault
       ? chooseDecisionAction(beforeObservation, input.decisionPolicy ?? "temperament")
       : chooseAutoplayAction(beforeObservation));
+    if (!isInstantIntervention(action)) projectedDisplayMs += paceDelayMs(scheduledPace);
     const debug = timeProfile(profile, "getAutoplayDebugState", () => getAutoplayDebugState(beforeObservation));
     actions[action.type] += 1;
     const before = state;
@@ -159,7 +165,7 @@ export async function runSimulation(input: SimulationRunInput): Promise<Simulati
     const logEntry = timeProfile(profile, "recordTurn", () => recordTurn({ log: runLog, before, action, after: state, actor: "ai", aiDebug: debug, beforeObservation, afterObservation }));
 
     const knownTiles = afterObservation.knownTiles.length;
-    if (knownTiles > lastKnownTiles) {
+    if (state.floor !== before.floor || knownTiles > lastKnownTiles) {
       lastKnownTiles = knownTiles;
       turnsWithoutKnownTileGrowth = 0;
     } else {
@@ -186,7 +192,7 @@ export async function runSimulation(input: SimulationRunInput): Promise<Simulati
       }
     }
     maxTurnsWithoutKnownTileGrowth = Math.max(maxTurnsWithoutKnownTileGrowth, turnsWithoutKnownTileGrowth);
-    if (action.type !== "resolveDecision" && action.type !== "invokeLantern") {
+    if (!isInstantIntervention(action)) {
       executedTurns += 1;
     }
     scheduledPace = paceKindFor(action, state, logEntry.messageDelta);
@@ -223,6 +229,9 @@ export async function runSimulation(input: SimulationRunInput): Promise<Simulati
   }
 
   const result: SimulationRunResult = {
+    dynamics: state.expedition?.stats,
+    vowCompleted: state.expedition?.vow.completed,
+    unpaidFlameDebt: state.expedition?.debt ?? 0,
     seed: input.seed,
     turns: state.runTurn,
     floor: state.floor,

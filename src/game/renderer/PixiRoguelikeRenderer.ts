@@ -1,6 +1,7 @@
 import { Application, Assets, Container, Graphics, Rectangle, Sprite, Text, Texture } from "pixi.js";
 import { assetCatalog, assetIdForContent } from "../content/assets";
 import { facingAfterStep } from "./characterFacing";
+import { realtimeConfig } from "../content/realtime";
 import type { VisualEvent } from "../core/visualEvents";
 import type { BiomeTheme, Direction, Entity, GameState, Point, TileKind } from "../types";
 
@@ -81,6 +82,7 @@ export class PixiRoguelikeRenderer {
   private readonly world = new Container();
   private readonly terrainLayer = new Container();
   private readonly groundLayer = new Container();
+  private readonly signalLayer = new Container();
   private readonly actorLayer = new Container();
   private readonly effectLayer = new Container();
   private readonly overlayLayer = new Container();
@@ -137,7 +139,7 @@ export class PixiRoguelikeRenderer {
       resolution: Math.min(window.devicePixelRatio || 1, 2),
       autoDensity: true,
     });
-    this.world.addChild(this.terrainLayer, this.groundLayer, this.actorLayer, this.moteLayer, this.effectLayer);
+    this.world.addChild(this.terrainLayer, this.groundLayer, this.signalLayer, this.actorLayer, this.moteLayer, this.effectLayer);
     this.app.stage.addChild(this.world, this.overlayLayer);
     container.replaceChildren(this.app.canvas);
     await this.buildTextures();
@@ -210,6 +212,7 @@ export class PixiRoguelikeRenderer {
     }
 
     this.drawTerrain(state, sceneChanged);
+    this.drawSignals(state);
     this.syncEntities(state, options.stepMs ?? 200, sceneChanged, events);
     this.playEvents(state, events);
     if (options.intent) this.showIntent(options.intent);
@@ -522,8 +525,49 @@ export class PixiRoguelikeRenderer {
     }
   }
 
+  private drawSignals(state: GameState): void {
+    for (const child of this.signalLayer.removeChildren()) child.destroy();
+    const graphics = new Graphics();
+    const visible = (p: Point) => !!state.tiles[p.y * state.width + p.x]?.visible;
+    const explored = (p: Point) => !!state.tiles[p.y * state.width + p.x]?.explored;
+    const drawSprite = (key: string, p: Point, alpha = 1) => {
+      const texture = this.textures.get(key);
+      if (!texture) return;
+      const sprite = new Sprite(texture);
+      sprite.anchor.set(0.5);
+      sprite.position.set((p.x + 0.5) * TILE_SIZE, (p.y + 0.5) * TILE_SIZE);
+      sprite.width = TILE_SIZE * 0.75;
+      sprite.height = TILE_SIZE * 0.75;
+      sprite.alpha = alpha;
+      this.signalLayer.addChild(sprite);
+    };
+    for (const lamp of state.expedition?.lights ?? []) if (explored(lamp.pos)) drawSprite("rite.place", lamp.pos);
+    for (const vent of state.expedition?.heat ?? []) {
+      if (!explored(vent.pos)) continue;
+      drawSprite("terrain.furnace-vent", vent.pos, vent.active ? 1 : 0.55);
+      if (visible(vent.pos) && (vent.active || vent.remaining <= realtimeConfig().laws.furnaceWindup)) {
+        graphics.rect(vent.pos.x * TILE_SIZE + 3, vent.pos.y * TILE_SIZE + 3, TILE_SIZE - 6, TILE_SIZE - 6).fill({ color: 0xd46635, alpha: 0.18 }).stroke({ color: 0xe89b58, width: 2, alpha: 0.8 });
+      }
+    }
+    for (const enemy of state.entities) {
+      if (enemy.kind !== "monster" || !visible(enemy.pos)) continue;
+      for (const p of enemy.telegraph?.tiles ?? []) {
+        if (!visible(p)) continue;
+        graphics.rect(p.x * TILE_SIZE + 4, p.y * TILE_SIZE + 4, TILE_SIZE - 8, TILE_SIZE - 8).fill({ color: 0xaf493e, alpha: 0.17 }).stroke({ color: 0xe2a084, width: 2, alpha: 0.8 });
+        const count = new Text({ text: String(enemy.telegraph!.remaining), style: { fontFamily: "sans-serif", fontSize: 14, fontWeight: "bold", fill: 0xffd5b6 } });
+        count.position.set(p.x * TILE_SIZE + 8, p.y * TILE_SIZE + 5);
+        this.signalLayer.addChild(count);
+      }
+      if ((enemy.recoveryTurns ?? 0) > 0) graphics.circle((enemy.pos.x + 0.5) * TILE_SIZE, (enemy.pos.y + 0.5) * TILE_SIZE, TILE_SIZE * 0.42).stroke({ color: 0x9bc6ab, width: 2, alpha: 0.8 });
+    }
+    for (const grave of state.entities.filter((e) => e.contentId === "event.grave-marker" && visible(e.pos))) {
+      if (state.modifiers.graves?.some((g) => grave.id.endsWith(g.id) && g.echoes?.length)) drawSprite("effect.echo", grave.pos, 0.42);
+    }
+    this.signalLayer.addChildAt(graphics, 0);
+  }
+
   private showIntent(intent: RenderIntent): void {
-    if (this.bubble && this.bubbleText === intent.text && this.bubbleAge < 1400) {
+    if (this.bubble && this.bubbleText === intent.text && this.bubbleAge < realtimeConfig().dialogue.holdMs) {
       return;
     }
     if (this.bubble) this.bubble.destroy({ children: true });
@@ -630,8 +674,9 @@ export class PixiRoguelikeRenderer {
         this.bubble.x = playerView.root.x + TILE_SIZE / 2;
         this.bubble.y = playerView.root.y - 34;
       }
-      this.bubble.alpha = this.bubbleAge < 1500 ? Math.min(1, this.bubbleAge / 120) : Math.max(0, 1 - (this.bubbleAge - 1500) / 400);
-      if (this.bubbleAge > 1900) {
+      const hold = realtimeConfig().dialogue.holdMs;
+      this.bubble.alpha = this.bubbleAge < hold ? Math.min(1, this.bubbleAge / 120) : Math.max(0, 1 - (this.bubbleAge - hold) / 400);
+      if (this.bubbleAge > hold + 400) {
         this.bubble.destroy({ children: true });
         this.bubble = null;
         this.bubbleText = "";

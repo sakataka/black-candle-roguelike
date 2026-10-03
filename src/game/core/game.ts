@@ -26,6 +26,8 @@ import type {
   TrapKind,
 } from "../types";
 import { Rng } from "./rng";
+import { realtimeConfig } from "../content/realtime";
+import { armDecision, createDynamics, gridDistance, recordLastMoment, repayFlame, telegraphTiles, updateVow } from "./realtime";
 import {
   createCheckpointDecision,
   createContextDecision,
@@ -58,7 +60,7 @@ type FloorPlan = {
   monsterPoints: Point[];
 };
 
-type RunCarryState = Pick<GameState, "runTurn" | "runIdentity" | "directive" | "revelationsRemaining" | "lantern" | "tactics" | "modifiers" | "knownRoleTruths" | "story">;
+type RunCarryState = Pick<GameState, "runTurn" | "runIdentity" | "directive" | "revelationsRemaining" | "lantern" | "tactics" | "modifiers" | "knownRoleTruths" | "story" | "expedition">;
 
 export function playableRoles() {
   return getGameConfig().roles;
@@ -102,6 +104,7 @@ export function createInitialGame(
     story: createRunStoryState(options.missionId ?? defaultMissionForTemperament(identity.temperament)),
   });
   const player = getPlayer(state);
+  if (state.expedition?.debt) state.lantern.embers = repayFlame(state, state.lantern.embers);
   if (player.stats && modifiers.rank > 0) {
     const bonus = getGameConfig().campaign.veteranRankBonus;
     player.stats.maxHp += bonus.maxHp * modifiers.rank;
@@ -136,7 +139,7 @@ function createFloorState(
 ): GameState {
   const config = getGameConfig();
   const fallbackIdentity = createRunIdentity(seed, roleId);
-  const run = carriedRun ?? {
+  const run: RunCarryState = carriedRun ?? {
     runTurn: 0,
     runIdentity: fallbackIdentity,
     directive: defaultDirectiveForTemperament(fallbackIdentity.temperament),
@@ -302,6 +305,17 @@ function createFloorState(
     next.story.crisisKinds.push(decision.id);
     next.pendingDecision = decision;
   }
+  if (realtimeConfig().enabled) {
+    next.expedition = run.expedition ? structuredClone(run.expedition) : createDynamics(next);
+    next.expedition.lights = [];
+    next.expedition.floorKills = 0;
+    next.expedition.floorAwakened = 0;
+    next.expedition.lawPhase = 0;
+    next.expedition.heat = biome === "furnace"
+      ? tiles.flatMap((tile, i) => tile.kind === "cover" ? [{ pos: { x: i % rules.mapWidth, y: Math.floor(i / rules.mapWidth) }, remaining: realtimeConfig().laws.furnacePeriod, active: false }] : []).slice(0, realtimeConfig().laws.furnaceVentLimit)
+      : [];
+  }
+  armDecision(next);
   return next;
 }
 
@@ -310,13 +324,15 @@ export function applyAction(state: GameState, action: GameAction): GameState {
     return state;
   }
 
-  if (state.pendingDecision && action.type !== "resolveDecision") {
+  if (state.pendingDecision && action.type !== "resolveDecision" && !realtimeConfig().enabled) {
     return state;
   }
 
   if (action.type === "invokeLantern" && !canInvokeLantern(state, action.rite)) {
     return state;
   }
+  if (action.type === "placeLantern" && !canPlaceLantern(state, action.pos)) return state;
+  if (action.type === "borrowFlame" && !canBorrowFlame(state)) return state;
   // 対象指定の投擲は人間・AIとも視界内の敵に限る。不正な指定で道具や手番を失わせない。
   if (action.type === "useItem" && action.targetId !== undefined && getGameConfig().consumables[action.contentId]?.rangedDamage
     && !state.entities.some((entity) => entity.id === action.targetId && entity.kind === "monster" && entity.hostile && tileAt(state, entity.pos).visible)) {
@@ -328,11 +344,17 @@ export function applyAction(state: GameState, action: GameAction): GameState {
     if (action.tactics && next.pendingDecision?.kind === "checkpoint") {
       next.tactics = normalizeTactics(action.tactics, next.modifiers.tacticSlots);
     }
-    return updateVisibility(resolveDecision(next, action.optionId));
+    next = resolveDecision(next, action.optionId);
+    updateVow(next);
+    return updateVisibility(next);
   }
   if (action.type === "invokeLantern") {
     return updateVisibility(invokeLantern(next, action.rite));
   }
+  if (action.type === "placeLantern") return updateVisibility(placeLantern(next, action.pos));
+  if (action.type === "borrowFlame") return updateVisibility(borrowFlame(next));
+  const previousDecisionId = next.pendingDecision?.id;
+  // 選択窓の期限も遠征の手数で進む。敵・探索・状態異常は通常どおり動く。
   const player = getPlayer(next);
 
   switch (action.type) {
@@ -358,6 +380,7 @@ export function applyAction(state: GameState, action: GameAction): GameState {
       next = dropItemAtPlayer(next, action.contentId);
       break;
     case "descend":
+      if (next.pendingDecision) break;
       if (tileAt(next, player.pos).kind === "stairsDown") {
         if (bossAlive(next)) {
           next.messages = pushMessage(next, "この階層の守り手が階段を封じている。", "danger");
@@ -366,12 +389,12 @@ export function applyAction(state: GameState, action: GameAction): GameState {
         if (next.floor >= getGameConfig().rules.maxFloor) {
           next.pendingDecision = createFinalDecision(next);
           next.messages = pushMessage(next, "黒燭の番人が崩れ、中枢の火が灯守へ問いかけた。", "system");
-        } else if (next.floor === 3 || next.floor === 6) {
+        } else if ((next.floor === 3 || next.floor === 6) && !next.story.decisions.some((d) => d.id === `checkpoint-${next.floor}`)) {
           if (next.floor === 6) {
             next.story.carriedTruthId = roleTruthFor(next.runIdentity.roleId);
           }
           next.pendingDecision = createCheckpointDecision(next);
-          next.messages = pushMessage(next, "帰還路と下層への階段が同時に開いた。灯守の判断を待っている。", "system");
+          next.messages = pushMessage(next, "帰還路が開いた。伝言がなければ、探索者は本人の方針で進む。", "system");
         } else {
           const descentMessages = pushMessage(next, "下層へ降りる。", "system");
           next = descendToNextFloor(next, descentMessages);
@@ -384,15 +407,23 @@ export function applyAction(state: GameState, action: GameAction): GameState {
 
   next = resolveMissionCompletion(next);
 
-  if (next.status === "playing" && !next.pendingDecision) {
+  if (next.status === "playing" && (!next.pendingDecision || realtimeConfig().enabled)) {
     next = reevaluateEquipment(next);
     next = runMonsterTurn(next);
   }
-  if (next.status === "playing" && !next.pendingDecision) {
+  if (next.status === "playing" && (!next.pendingDecision || realtimeConfig().enabled)) {
     next = tickPlayerConditions(next);
   }
+  if (next.status === "playing") next = tickExpedition(next);
   next.turn += 1;
   next.runTurn += 1;
+  armDecision(next);
+  if (realtimeConfig().enabled && next.status === "playing" && next.pendingDecision?.id === previousDecisionId && next.pendingDecision) {
+    next.pendingDecision.remainingTurns = Math.max(0, (next.pendingDecision.remainingTurns ?? 1) - 1);
+    if (next.pendingDecision.remainingTurns === 0) next = resolveDecision(next, next.pendingDecision.defaultOptionId);
+  }
+  updateVow(next);
+  recordLastMoment(next, action);
   if (next.status === "playing" && next.runTurn >= runRules(next.modifiers).runTurnWarning && !next.story.turnWarningShown) {
     next.story.turnWarningShown = true;
     next.messages = pushMessage(next, "黒燭の像が揺らいだ。灯路断絶まで残された時間は少ない。", "danger");
@@ -512,6 +543,7 @@ function cloneModifiers(modifiers: RunModifiers): RunModifiers {
     ...modifiers,
     scars: [...modifiers.scars],
     graves: modifiers.graves?.map((grave) => ({ ...grave })),
+    lessons: modifiers.lessons ? [...modifiers.lessons] : undefined,
     ruleDeltas: modifiers.ruleDeltas ? { ...modifiers.ruleDeltas } : undefined,
     bossOverride: modifiers.bossOverride ? { ...modifiers.bossOverride } : undefined,
   };
@@ -531,7 +563,7 @@ function createInitialLantern(bonusEmbers = 0, bonusMaxEmbers = 0): GameState["l
 
 export function canInvokeLantern(state: GameState, rite: LanternRiteId): boolean {
   const config = getGameConfig().lantern.rites[rite];
-  if (!config || state.status !== "playing" || state.pendingDecision || state.lantern.embers < config.cost) return false;
+  if (!config || state.status !== "playing" || (state.pendingDecision && !realtimeConfig().enabled) || state.lantern.embers < config.cost) return false;
   return lanternRiteHasEffect(state, config);
 }
 
@@ -590,6 +622,7 @@ function invokeLantern(state: GameState, rite: LanternRiteId): GameState {
     if (revealed > 0) applied.push(`罠${revealed}つを暴いた`);
   }
   state.messages = pushMessage(state, `灯守が「${lanternRiteLabel(rite)}」を捧げた: ${applied.join("、") || "灯が揺れた"}。`, "system");
+  reactToLight(state, lanternRiteLabel(rite));
   return state;
 }
 
@@ -598,6 +631,99 @@ export function lanternRiteLabel(rite: LanternRiteId): string {
   if (rite === "mend") return "癒灯";
   if (rite === "guide") return "導灯";
   return "護灯";
+}
+
+export function canPlaceLantern(state: GameState, pos?: Point): boolean {
+  const config = realtimeConfig();
+  const point = pos ?? getPlayer(state).pos;
+  return config.enabled && state.status === "playing" && !!state.expedition
+    && state.lantern.embers >= config.light.cost && state.expedition.lights.length < config.light.maxActive
+    && inBounds(state, point) && tileAt(state, point).visible && isWalkable(tileAt(state, point).kind)
+    && chebyshev(point, getPlayer(state).pos) <= config.light.radius
+    && !state.expedition.lights.some((l) => samePoint(l.pos, point));
+}
+
+function placeLantern(state: GameState, pos?: Point): GameState {
+  const config = realtimeConfig().light;
+  const dynamics = state.expedition!;
+  const player = getPlayer(state);
+  // 一押しで退路に置く。明示座標も人間と灯守AIで同じ可視範囲に限定する。
+  const behind = [...dynamics.trail].reverse().find((entry) => !samePoint(entry.pos, player.pos) && canPlaceLantern(state, entry.pos))?.pos;
+  const point = { ...(pos ?? behind ?? player.pos) };
+  dynamics.lights.push({ pos: point, turns: config.duration });
+  dynamics.stats.lightsPlaced += 1;
+  state.lantern.embers -= config.cost;
+  state.lantern.ritesUsed += 1;
+  state.messages = pushMessage(state, `退路に置灯を残した。${config.duration}手照らし、近くの獣と亡者を引き寄せる。`, "system");
+  reactToLight(state, "置灯");
+  return state;
+}
+
+export function canBorrowFlame(state: GameState): boolean {
+  return realtimeConfig().enabled && state.status === "playing" && !!state.expedition
+    && !state.expedition.borrowed && state.expedition.debt === 0 && state.lantern.embers === 0
+    && (getPlayer(state).stats?.hp ?? 1) < (getPlayer(state).stats?.maxHp ?? 1);
+}
+
+function borrowFlame(state: GameState): GameState {
+  const config = realtimeConfig().loan;
+  const player = getPlayer(state);
+  const dynamics = state.expedition!;
+  dynamics.borrowed = true;
+  dynamics.debt = config.debt;
+  dynamics.loanShieldTurns = config.guardedTurns;
+  dynamics.stats.borrowed += 1;
+  if (player.stats) player.stats.hp = Math.min(player.stats.maxHp, player.stats.hp + Math.ceil(player.stats.maxHp * config.healPercent / 100));
+  player.conditions = upsertCondition(player.conditions, "guarded", config.guardedTurns);
+  if (player.stats) player.stats.defense = baseDefense(state.playerProgress) + defenseBonus(player);
+  state.lantern.embers = Math.min(state.lantern.maxEmbers, config.embers);
+  state.lantern.ritesUsed += 1;
+  state.messages = pushMessage(state, `未来の灯を借りた。回復・護り・灯火+${config.embers}。次に得る灯火${config.debt}つは返済へ回る。未返済分は次の遠征に残る。`, "system");
+  reactToLight(state, "借灯");
+  return state;
+}
+
+function reactToLight(state: GameState, rite: string): void {
+  const dynamics = state.expedition;
+  if (!dynamics) return;
+  dynamics.lastRite = { rite, runTurn: state.runTurn };
+  if (state.biome !== "black-candle") return;
+  dynamics.lawPhase += 1;
+  for (const enemy of state.entities) {
+    if (!enemy.telegraph || !tileAt(state, enemy.pos).visible) continue;
+    enemy.telegraph.tiles = telegraphTiles(enemy.telegraph.kind, enemy.pos, getPlayer(state).pos, dynamics.lawPhase)
+      .filter((p) => inBounds(state, p) && isWalkable(tileAt(state, p).kind));
+    enemy.telegraph.remaining = Math.max(enemy.telegraph.remaining, realtimeConfig().telegraphs[enemy.contentId]?.windup ?? 2);
+  }
+  state.messages = pushMessage(state, "中枢の火が応えた。守り手の構えが変わり、予告が更新された。", "system");
+}
+
+function tickExpedition(state: GameState): GameState {
+  const dynamics = state.expedition;
+  if (!dynamics) return state;
+  dynamics.lights = dynamics.lights.map((l) => ({ ...l, turns: l.turns - 1 })).filter((l) => l.turns > 0);
+  dynamics.loanShieldTurns = Math.max(0, dynamics.loanShieldTurns - 1);
+  const config = realtimeConfig().laws;
+  for (const vent of dynamics.heat) {
+    vent.remaining -= 1;
+    if (vent.remaining <= 0) {
+      vent.active = !vent.active;
+      vent.remaining = vent.active ? config.furnaceDuration : config.furnacePeriod;
+    }
+    if (!vent.active) continue;
+    for (const entity of [...state.entities]) {
+      if (!entity.stats || !samePoint(entity.pos, vent.pos)) continue;
+      entity.stats.hp -= config.furnaceDamage;
+      if (entity.kind === "player") dynamics.stats.heatHits += 1;
+      if (tileAt(state, vent.pos).visible) state.messages = pushMessage(state, `${entity.kind === "player" ? state.runIdentity.name : getContentName(entity.contentId)}が炉の熱を受けた。`, "combat");
+      if (entity.stats.hp > 0) continue;
+      if (entity.kind === "player") {
+        state.status = "lost";
+        state.story.killedBy = { cause: "trap", contentId: "terrain.furnace-vent" };
+      } else state = defeatMonster(state, entity);
+    }
+  }
+  return state;
 }
 
 function resolveMissionCompletion(state: GameState): GameState {
@@ -616,7 +742,9 @@ function resolveMissionCompletion(state: GameState): GameState {
 }
 
 function descendToNextFloor(state: GameState, messages: GameMessage[]): GameState {
-  const perFloor = getGameConfig().lantern.embersPerFloor;
+  state.messages = messages;
+  const perFloor = repayFlame(state, getGameConfig().lantern.embersPerFloor);
+  messages = state.messages;
   if (perFloor > 0 && state.lantern.embers < state.lantern.maxEmbers) {
     state.lantern = { ...state.lantern, embers: Math.min(state.lantern.maxEmbers, state.lantern.embers + perFloor) };
     messages = [...messages, message(state.turn, `新しい階層の闇が黒燭に灯火を宿した。灯火+${perFloor}。`, "loot")].slice(-80);
@@ -635,6 +763,7 @@ function descendToNextFloor(state: GameState, messages: GameMessage[]): GameStat
 
 function carryRun(state: GameState): RunCarryState {
   return {
+    expedition: state.expedition ? structuredClone(state.expedition) : undefined,
     runTurn: state.runTurn,
     runIdentity: { ...state.runIdentity },
     directive: state.directive,
@@ -656,7 +785,7 @@ function carryRun(state: GameState): RunCarryState {
 
 export function observeGame(state: GameState): GameObservation {
   const player = getPlayer(state);
-  const observedEntity = ({ id, kind, contentId, pos, stats, hostile, blocksMovement, goldAmount, conditions }: Entity) => ({
+  const observedEntity = ({ id, kind, contentId, pos, stats, hostile, blocksMovement, goldAmount, conditions, telegraph, recoveryTurns, awakened }: Entity) => ({
     id,
     kind,
     contentId: kind === "trap" ? "trap.risk-panel" : contentId,
@@ -666,6 +795,9 @@ export function observeGame(state: GameState): GameObservation {
     blocksMovement,
     goldAmount,
     conditions: kind === "monster" && conditions?.length ? conditions.map((condition) => ({ ...condition })) : undefined,
+    telegraph: telegraph ? { ...telegraph, origin: { ...telegraph.origin }, tiles: telegraph.tiles.filter((p) => inBounds(state, p) && tileAt(state, p).visible).map((p) => ({ ...p })) } : undefined,
+    recoveryTurns,
+    awakened,
   });
   const visibleEntities = state.entities.filter((entity) => tileAt(state, entity.pos).visible).map(observedEntity);
   const knownEntities = state.entities
@@ -686,6 +818,10 @@ export function observeGame(state: GameState): GameObservation {
   const aliveBoss = bossAlive(state);
 
   return {
+    expedition: state.expedition ? { ...structuredClone(state.expedition),
+      heat: state.expedition.heat.filter((h) => tileAt(state, h.pos).explored).map((h) => structuredClone(h)),
+      trail: state.expedition.trail.map((e) => ({ ...e, pos: { ...e.pos } })),
+    } : undefined,
     seed: state.seed,
     turn: state.turn,
     runTurn: state.runTurn,
@@ -1162,6 +1298,7 @@ function triggerTrap(state: GameState, actor: Entity, trapEntity: Entity): GameS
     return triggerRiskPanel(state, actor, trapEntity);
   }
   const trapKind = trapKindFromContent(trapEntity.contentId);
+  if (actor.kind === "monster" && state.expedition && tileAt(state, trapEntity.pos).visible) state.expedition.stats.terrainLures += 1;
   const trapEffect = getGameConfig().trapEffects[trapEntity.contentId] ?? { damage: 4 };
   const damage = trapEffect.damage + (trapEffect.damagePerFloorDivisor ? Math.floor(state.floor / trapEffect.damagePerFloorDivisor) : 0);
   const actorName = actor.kind === "player" ? "あなた" : getContentName(actor.contentId);
@@ -1277,7 +1414,7 @@ function triggerEvent(state: GameState, eventEntity: Entity): GameState {
     const decision = createContextDecision(resolved, act, eventEntity.contentId);
     resolved.story.crisisKinds.push(decision.id);
     resolved.pendingDecision = decision;
-    resolved.messages = pushMessage(resolved, "黒燭が出来事の意味を映し返した。灯守の判断を待っている。", "system");
+    resolved.messages = pushMessage(resolved, "黒燭が出来事の意味を映し返した。伝言がなければ探索者の判断で進む。", "system");
   }
   return resolved;
 }
@@ -1409,11 +1546,18 @@ function mournAtGrave(state: GameState, eventEntity: Entity): GameState {
   const player = getPlayer(state);
   const recovered: string[] = [];
   if (grave.gear && addInventoryItem(player, grave.gear, 1)) recovered.push(`遺品「${getContentName(grave.gear)}」`);
-  if (state.lantern.embers < state.lantern.maxEmbers) {
-    state.lantern = { ...state.lantern, embers: state.lantern.embers + 1 };
+  const remainingEmber = repayFlame(state, 1);
+  if (remainingEmber && state.lantern.embers < state.lantern.maxEmbers) {
+    state.lantern = { ...state.lantern, embers: state.lantern.embers + remainingEmber };
     recovered.push("残り火（灯火+1）");
   }
   state.story.recoveredGraves = [...(state.story.recoveredGraves ?? []), grave.id];
+  if (state.expedition && grave.lesson) {
+    state.modifiers.lessons = [...new Set([...(state.modifiers.lessons ?? []), grave.lesson])];
+    state.expedition.memories = [...state.expedition.memories, { name: grave.name, echoes: structuredClone(grave.echoes ?? []), lesson: grave.lesson }].slice(-3);
+    for (const echo of grave.echoes ?? []) state.messages = pushMessage(state, `${grave.name}の残響: ${echo.action}（命火${echo.hp}）。`, "system");
+    state.messages = pushMessage(state, `${grave.name}の経験を受け継いだ。${grave.lesson === "ranged" ? "射線と遮蔽を重く見る" : grave.lesson === "traps" ? "罠の危険を重く見る" : "早めの回復を心がける"}。`, "system");
+  }
   state.messages = pushMessage(state, `${grave.name}の墓標に祈りを捧げた。${recovered.length ? `${recovered.join("と")}を受け継いだ。` : "静かな灯が揺れた。"}`, "loot");
   return reevaluateEquipment(state);
 }
@@ -1616,7 +1760,8 @@ function attack(state: GameState, attacker: Entity, defender: Entity): GameState
 
   const rng = new Rng(state.seed + state.turn * 97 + attacker.id.length * 13);
   const specialDamage = attacker.kind === "player" ? equippedWeaponSpecialDamage(attacker, defender.contentId) : 0;
-  const rawDamage = attacker.stats.attack + rng.int(0, getGameConfig().rules.attackRandomBonusMax) + specialDamage - defender.stats.defense;
+  const openingBonus = attacker.kind === "player" && (defender.recoveryTurns ?? 0) > 0 ? realtimeConfig().ai.recoveryDamageBonus : 0;
+  const rawDamage = attacker.stats.attack + rng.int(0, getGameConfig().rules.attackRandomBonusMax) + specialDamage + openingBonus - defender.stats.defense;
   const damage = Math.max(1, rawDamage);
   defender.stats.hp -= damage;
   recordStrike(state, attacker, defender, false);
@@ -1645,6 +1790,21 @@ function defeatMonster(state: GameState, defeated: Entity): GameState {
   const defeatedPos = { ...defeated.pos };
   state = awardXp(state, defeated.contentId);
   state.entities = state.entities.filter((entity) => entity.id !== defeated.id);
+  if (state.expedition) {
+    state.expedition.floorKills += 1;
+    const law = realtimeConfig().laws;
+    if (state.biome === "crypt" && state.expedition.floorKills % law.cryptWakeEveryKills === 0) {
+      const awakenedHere = state.expedition.floorAwakened;
+      const sleeper = state.entities.find((e) => e.kind === "monster" && e.stats && !e.awakened && contentEntities[e.contentId]?.family === "undead" && chebyshev(e.pos, defeatedPos) <= law.cryptWakeRadius);
+      if (sleeper && awakenedHere < law.cryptWakeLimit) {
+        sleeper.awakened = true;
+        sleeper.stats!.attack += law.cryptAttackBonus;
+        state.expedition.stats.awakened += 1;
+        state.expedition.floorAwakened += 1;
+        if (tileAt(state, sleeper.pos).visible) state.messages = pushMessage(state, "倒れた者の響きで、近くの亡者が目覚めた。", "combat");
+      }
+    }
+  }
   state.messages = pushMessage(state, `${getContentName(defeated.contentId)}を倒した。`, "combat");
   if (reward) {
     state.entities.push(item(`${reward}.boss.${state.floor}.${state.turn}`, reward, defeatedPos, state.floor, rngForFloor(state.seed + state.turn, state.floor)));
@@ -1653,10 +1813,19 @@ function defeatMonster(state: GameState, defeated: Entity): GameState {
   }
   if (contentEntities[defeated.contentId]?.tier === "boss") {
     state.story.bossesDefeated += 1;
+    if (realtimeConfig().enabled && !state.pendingDecision) {
+      if (state.floor === 3 || state.floor === 6) {
+        if (state.floor === 6) state.story.carriedTruthId = roleTruthFor(state.runIdentity.roleId);
+        state.pendingDecision = createCheckpointDecision(state);
+        state.pendingDecision.resume = "none";
+      } else if (state.floor === getGameConfig().rules.maxFloor) state.pendingDecision = createFinalDecision(state);
+      armDecision(state);
+    }
     const lantern = getGameConfig().lantern;
     if (lantern.embersPerGuardian > 0) {
-      state.lantern = { ...state.lantern, embers: Math.min(state.lantern.maxEmbers, state.lantern.embers + lantern.embersPerGuardian) };
-      state.messages = pushMessage(state, `守り手の残り火が黒燭へ還った。灯火+${lantern.embersPerGuardian}。`, "loot");
+      const earned = repayFlame(state, lantern.embersPerGuardian);
+      state.lantern = { ...state.lantern, embers: Math.min(state.lantern.maxEmbers, state.lantern.embers + earned) };
+      state.messages = pushMessage(state, `守り手の残り火が黒燭へ還った。灯火+${earned}。`, "loot");
     }
   }
   return applyRoleBossGoal(state, defeated.contentId, defeatedPos);
@@ -2392,12 +2561,62 @@ function runMonsterTurn(state: GameState): GameState {
       break;
     }
     if (monsterEntity.conditions?.some((condition) => condition.kind === "dazed")) {
+      monsterEntity.telegraph = undefined;
       monsterEntity.conditions = monsterEntity.conditions
         .map((condition) => condition.kind === "dazed" ? { ...condition, turns: condition.turns - 1 } : condition)
         .filter((condition) => condition.turns > 0);
       continue;
     }
     const distance = chebyshev(monsterEntity.pos, player.pos);
+    const special = realtimeConfig().enabled ? realtimeConfig().telegraphs[monsterEntity.contentId] : undefined;
+    if (monsterEntity.telegraph && special) {
+      monsterEntity.telegraph.remaining -= 1;
+      if (monsterEntity.telegraph.remaining <= 0) {
+        const hits = monsterEntity.telegraph.tiles.some((p) => samePoint(p, player.pos));
+        const originClear = hasLineOfSight(state, monsterEntity.pos, player.pos);
+        if (hits && originClear) {
+          const damage = Math.max(1, Math.ceil((monsterEntity.stats!.attack - (player.stats?.defense ?? 0) - (special.kind === "shot" ? rangedDefenseBonus(state, player) : 0)) * special.damageScale));
+          if (player.stats) player.stats.hp -= damage;
+          recordStrike(state, monsterEntity, player, special.kind !== "sweep");
+          state.messages = pushMessage(state, `${getContentName(monsterEntity.contentId)}の構えが放たれ、${damage}ダメージを受けた。`, "combat");
+          if ((player.stats?.hp ?? 1) <= 0) {
+            state.status = "lost";
+            state.story.killedBy = { cause: special.kind === "sweep" ? "combat" : "rangedCombat", contentId: monsterEntity.contentId };
+          }
+        } else {
+          if (state.expedition) state.expedition.stats.dodges += 1;
+          if (tileAt(state, monsterEntity.pos).visible) state.messages = pushMessage(state, "予告された一撃が外れた。敵の構えに隙が生まれた。", "combat");
+        }
+        monsterEntity.telegraph = undefined;
+        monsterEntity.recoveryTurns = special.recovery;
+        monsterEntity.attackCooldown = special.cooldown;
+      }
+      continue;
+    }
+    if ((monsterEntity.recoveryTurns ?? 0) > 0) {
+      monsterEntity.recoveryTurns! -= 1;
+      continue;
+    }
+    const specialReady = (monsterEntity.attackCooldown ?? 0) <= 0;
+    monsterEntity.attackCooldown = Math.max(0, (monsterEntity.attackCooldown ?? 0) - 1);
+    if (special && specialReady && distance <= special.range && (special.kind === "sweep" || distance > 1) && hasLineOfSight(state, monsterEntity.pos, player.pos)) {
+      monsterEntity.telegraph = { kind: special.kind, origin: { ...monsterEntity.pos }, remaining: special.windup,
+        tiles: telegraphTiles(special.kind, monsterEntity.pos, player.pos, state.expedition?.lawPhase ?? 0).filter((p) => inBounds(state, p) && isWalkable(tileAt(state, p).kind)) };
+      if (state.expedition) state.expedition.stats.telegraphs += 1;
+      if (tileAt(state, monsterEntity.pos).visible) state.messages = pushMessage(state, `${getContentName(monsterEntity.contentId)}が${special.windup}手後の一撃を構えた。`, "combat");
+      continue;
+    }
+    const family = contentEntities[monsterEntity.contentId]?.family;
+    const lure = state.expedition?.lights.find((l) => chebyshev(l.pos, monsterEntity.pos) <= realtimeConfig().light.lureRange && hasLineOfSight(state, monsterEntity.pos, l.pos));
+    if (lure && distance > 1 && (family === "beast" || family === "undead") && contentEntities[monsterEntity.contentId]?.tier !== "boss") {
+      if (samePoint(lure.pos, monsterEntity.pos)) {
+        state.expedition!.lights = state.expedition!.lights.filter((l) => l !== lure);
+      } else {
+        const step = nextStepToward(state, monsterEntity.pos, lure.pos);
+        if (step && !samePoint(step, player.pos)) state = moveActor(state, monsterEntity.id, { x: step.x - monsterEntity.pos.x, y: step.y - monsterEntity.pos.y });
+      }
+      continue;
+    }
     const retreatReady = (monsterEntity.retreatCooldown ?? 0) <= 0;
     if (!retreatReady) monsterEntity.retreatCooldown = (monsterEntity.retreatCooldown ?? 0) - 1;
     if (retreatReady && shouldKeepDistance(monsterEntity.contentId) && distance <= 2 && hasLineOfSight(state, monsterEntity.pos, player.pos)) {
@@ -2574,6 +2793,10 @@ function pushVisibleMonstersAway(state: GameState, origin: Point): number {
       continue;
     }
     monsterEntity.pos = destination;
+    if (monsterEntity.telegraph) {
+      monsterEntity.telegraph = undefined;
+      monsterEntity.recoveryTurns = realtimeConfig().telegraphs[monsterEntity.contentId]?.recovery ?? 1;
+    }
     pushed += 1;
   }
   return pushed;
@@ -2652,6 +2875,14 @@ function updateVisibility(state: GameState): GameState {
     tile.visible = true;
     tile.explored = true;
   });
+  for (const light of state.expedition?.lights ?? []) {
+    const lampFov = new ROT.FOV.PreciseShadowcasting((x, y) => inBounds(state, { x, y }) && (samePoint({ x, y }, light.pos) || !blocksSight(tileAt(state, { x, y }).kind)), { topology: 8 });
+    lampFov.compute(light.pos.x, light.pos.y, realtimeConfig().light.radius, (x, y) => {
+      if (!inBounds(state, { x, y })) return;
+      tileAt(state, { x, y }).visible = true;
+      tileAt(state, { x, y }).explored = true;
+    });
+  }
   return state;
 }
 
@@ -2687,6 +2918,7 @@ function message(turn: number, text: string, tone: GameMessage["tone"]): GameMes
 function cloneState(state: GameState): GameState {
   return {
     ...state,
+    expedition: state.expedition ? structuredClone(state.expedition) : undefined,
     playerProgress: { ...state.playerProgress },
     runObjectives: { ...state.runObjectives },
     runIdentity: { ...state.runIdentity },
@@ -2712,6 +2944,7 @@ function cloneState(state: GameState): GameState {
       stats: entity.stats ? { ...entity.stats } : undefined,
       inventory: entity.inventory?.map((entry) => ({ ...entry })),
       conditions: entity.conditions?.map((condition) => ({ ...condition })),
+      telegraph: entity.telegraph ? structuredClone(entity.telegraph) : undefined,
     })),
     messages: state.messages.map((entry) => ({ ...entry })),
     strikes: [],

@@ -5,7 +5,9 @@ import "@fontsource/cormorant-garamond/500-italic.css";
 import "@fontsource/cormorant-garamond/600.css";
 import "./styles.css";
 import { showTitle, type TitleLedger } from "./ui/title";
-import { chooseAutoplayAction, describeAutoplayIntent, getAutoplayDebugState, type AutoplayIntent } from "./game/ai/autoplay";
+import { chooseAutoplayAction, describeAutoplayIntent, getAutoplayDebugState, resetAutoplayState, type AutoplayIntent } from "./game/ai/autoplay";
+import { chooseDelverSpeech, createSpeechMemory } from "./game/ai/speech";
+import { realtimeConfig, floorLawDescription } from "./game/content/realtime";
 import { getGameConfig, loadBrowserGameConfig, runRules } from "./game/content/config";
 import { assetForContent } from "./game/content/assets";
 import { getContentName } from "./game/content/entities";
@@ -35,7 +37,7 @@ import {
   temperamentLabel,
 } from "./game/core/autonomous";
 import { chooseWatcherAction } from "./game/ai/watcher";
-import { applyAction, biomeThemeName, canInvokeLantern, createInitialGame, lanternRiteLabel, normalizeTactics, observeGame, playableRoles } from "./game/core/game";
+import { applyAction, biomeThemeName, canBorrowFlame, canPlaceLantern, canInvokeLantern, createInitialGame, lanternRiteLabel, normalizeTactics, observeGame, playableRoles } from "./game/core/game";
 import { paceDelayMs, paceKindFor, type PaceKind } from "./game/core/pacing";
 import { analyzeRun, createRunLog, recordTurn } from "./game/core/runLog";
 import { buildRunInsights, type RunInsights } from "./game/core/runInsights";
@@ -75,8 +77,6 @@ const FALL_EPITAPHS: Record<string, string> = {
 };
 const CAMPAIGN_STORAGE_KEY = "black-candle-campaign-v1";
 const TACTICS_STORAGE_KEY = "black-candle-tactics";
-const PAUSE_ICON = '<svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true"><rect x="3" y="2" width="3.5" height="12" rx="1" fill="currentColor"/><rect x="9.5" y="2" width="3.5" height="12" rx="1" fill="currentColor"/></svg>';
-const PLAY_ICON = '<svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true"><path d="M4 2.2v11.6c0 .6.7 1 1.2.6l8.3-5.8c.4-.3.4-.9 0-1.2L5.2 1.6C4.7 1.2 4 1.6 4 2.2z" fill="currentColor"/></svg>';
 const lanternRiteOrder: LanternRiteId[] = ["flare", "mend", "guide", "ward"];
 const lanternRiteKeys: Record<LanternRiteId, string> = { flare: "Q", mend: "W", guide: "E", ward: "R" };
 
@@ -90,6 +90,8 @@ declare global {
       getRunReview: () => RunReview;
       stepAi: (steps?: number) => GameState;
       stepUntilDecision: (steps?: number) => GameState;
+      loadState: (snapshot: GameState) => void;
+      resume: () => void;
     };
   }
 }
@@ -124,20 +126,21 @@ app.innerHTML = `
       </div>
       <div class="topbar-controls">
         <div class="speed-selector" role="group" aria-label="観測速度">
-          <button type="button" id="pause-toggle" class="pause-toggle" aria-pressed="false" aria-label="一時停止" title="一時停止 (Space)"></button>
+          <span class="live-indicator" title="遠征は選択中も進みます">進行中</span>
           <button type="button" data-speed="0.5" aria-pressed="false">0.5×</button>
           <button type="button" data-speed="1" class="is-active" aria-pressed="true">1×</button>
           <button type="button" data-speed="2" aria-pressed="false">2×</button>
           <button type="button" data-speed="3" aria-pressed="false">3×</button>
         </div>
-        <button id="new-expedition" class="secondary-button" type="button" title="灰灯院を開く（観戦は一時停止）">灰灯院</button>
+        <button id="new-expedition" class="secondary-button" type="button" title="遠征を終えて灰灯院へ">灰灯院</button>
       </div>
     </header>
 
     <section class="stage" aria-label="黒燭越しの迷宮">
       <div class="map-stage" id="map-stage">
         <div id="pixi-root" class="pixi-root"></div>
-        <p id="pause-banner" class="pause-banner" hidden>一時停止中 — Space で再開</p>
+        <div class="battle-forecast" id="battle-forecast" aria-label="見えている攻撃の予告"></div>
+        <p class="delver-voice sr-only" id="delver-voice" aria-live="polite"></p>
         <div id="floor-card" class="floor-card" aria-hidden="true"><span class="floor-card-no"></span><strong class="floor-card-name"></strong><i></i></div>
       </div>
       <section class="lantern-dock" aria-label="灯守の介入">
@@ -147,6 +150,12 @@ app.innerHTML = `
           <small id="lantern-hint">危機に灯を捧げると、探索者の手番を使わず介入できます。</small>
         </div>
         <div id="lantern-rites" class="lantern-rites"></div>
+        <div class="extra-rites">
+          <button type="button" id="place-lantern" class="secondary-button"><span class="extra-rite-icon" aria-hidden="true"></span><strong>置灯</strong><kbd>T</kbd><small>退路を照らし、敵を誘う</small></button>
+          <button type="button" id="borrow-flame" class="secondary-button"><span class="extra-rite-icon" aria-hidden="true"></span><strong>借灯</strong><kbd>F</kbd><small>灯火が尽きた時、未来から借りる</small></button>
+        </div>
+        <p class="expedition-note" id="expedition-note"></p>
+        <p class="expedition-note floor-law" id="floor-law"></p>
       </section>
     </section>
 
@@ -255,19 +264,19 @@ app.innerHTML = `
     </div>
   </section>
 
-  <section id="decision-dialog" class="modal-layer" hidden aria-live="assertive">
-    <div class="modal-panel decision-panel" role="dialog" aria-modal="true" aria-labelledby="decision-title">
+  <section id="decision-dialog" class="realtime-choice" hidden aria-live="polite">
+    <div class="decision-panel" role="group" aria-labelledby="decision-title">
       <p class="eyebrow" id="decision-kicker">黒燭からの問い</p>
       <h2 id="decision-title">灯守の判断</h2>
       <p id="decision-body" class="modal-lead"></p>
-      <div id="decision-status" class="decision-status" aria-label="探索者の状態"></div>
       <div id="decision-options" class="decision-options"></div>
+      <details class="decision-details" id="decision-details">
+        <summary>作戦・装備・長期の先読み（遠征は進み続けます）</summary>
+      <div id="decision-status" class="decision-status" aria-label="探索者の状態"></div>
       <section id="decision-tactics" class="decision-tactics" aria-label="作戦の組み替え" hidden>
         <div class="step-heading"><h3>作戦を組み替える</h3><em id="decision-tactic-count">0/2</em><small>組み替えると各案の先読みが更新される。</small></div>
         <div id="decision-tactic-list" class="tactic-list is-compact"></div>
       </section>
-      <details class="decision-details">
-        <summary>装備と遠征の詳細</summary>
         <section id="decision-context" class="decision-context" aria-label="判断材料"></section>
       </details>
       <p id="decision-hint" class="modal-hint"></p>
@@ -310,6 +319,8 @@ const tacticList = requireElement<HTMLDivElement>("#tactic-list");
 const decisionTactics = requireElement<HTMLElement>("#decision-tactics");
 const decisionTacticList = requireElement<HTMLDivElement>("#decision-tactic-list");
 const decisionDialog = requireElement<HTMLElement>("#decision-dialog");
+const lanternDock = requireElement<HTMLElement>(".lantern-dock");
+new ResizeObserver(() => document.documentElement.style.setProperty("--lantern-dock-height", `${lanternDock.getBoundingClientRect().height}px`)).observe(lanternDock);
 const decisionTitle = requireElement<HTMLHeadingElement>("#decision-title");
 const decisionBody = requireElement<HTMLParagraphElement>("#decision-body");
 const decisionContext = requireElement<HTMLElement>("#decision-context");
@@ -349,8 +360,9 @@ let archivedRunId: string | null = null;
 let scheduledPace: PaceKind = "exploration";
 let pendingVisualEvents: VisualEvent[] = [];
 let pendingIntent: AutoplayIntent | null = null;
+let speechMemory = createSpeechMemory();
+let decisionRenderKey = "";
 let lookahead: { decisionKey: string; workers: Worker[]; results: Map<string, LookaheadSummary>; failedOptions: Set<string> } | null = null;
-let paused = false;
 let selectedTactics: string[] = loadSelectedTactics();
 let draftTactics: string[] | null = null;
 let draftDecisionId: string | null = null;
@@ -372,7 +384,9 @@ render();
 await renderer.mount(pixiRoot);
 syncViewport();
 new ResizeObserver(syncViewport).observe(mapStage);
-requireElement<HTMLButtonElement>("#pause-toggle").innerHTML = PAUSE_ICON;
+document.querySelector(".stage")!.append(decisionDialog);
+applySprite(requireElement<HTMLElement>("#place-lantern .extra-rite-icon"), assetForContent("rite.place"), 28);
+applySprite(requireElement<HTMLElement>("#borrow-flame .extra-rite-icon"), assetForContent("rite.borrow"), 28);
 applySprite(requireElement<HTMLElement>("#brand-mark"), assetForContent("ui.heat"), 30);
 render();
 markGameReady();
@@ -420,7 +434,9 @@ function installEvents(): void {
     });
     if (autoplayTimer !== null) scheduleAutoplay(scheduledPace);
   });
-  requireElement<HTMLButtonElement>("#pause-toggle").addEventListener("click", () => setPaused(!paused));
+  requireElement<HTMLButtonElement>("#place-lantern").addEventListener("click", () => invokeExtraRite("placeLantern"));
+  requireElement<HTMLButtonElement>("#borrow-flame").addEventListener("click", () => invokeExtraRite("borrowFlame"));
+  requireElement<HTMLDetailsElement>("#decision-details").addEventListener("toggle", () => render());
   requireElement<HTMLDivElement>("#lantern-rites").addEventListener("click", (event) => {
     const button = (event.target as HTMLElement).closest<HTMLButtonElement>("button[data-rite]");
     if (!button || button.disabled) return;
@@ -506,7 +522,7 @@ function installEvents(): void {
     draftTactics = null;
     draftDecisionId = null;
     render();
-    if (state.status === "playing" && !state.pendingDecision) scheduleAutoplay("exploration");
+    if (state.status === "playing" && autoplayTimer === null) scheduleAutoplay("exploration");
   });
   window.addEventListener("keydown", (event) => {
     if (app?.inert) return;
@@ -532,10 +548,12 @@ function installEvents(): void {
     }
     if (!focusedModal && !event.metaKey && !event.ctrlKey && !event.altKey) {
       if (event.key === " ") {
-        event.preventDefault();
-        if (state.status === "playing") setPaused(!paused);
+        if (!(event.target instanceof HTMLElement) || !event.target.closest("button, summary, input, select, textarea")) event.preventDefault();
         return;
       }
+      if (event.repeat) return;
+      if (event.key.toLowerCase() === "t") { invokeExtraRite("placeLantern"); return; }
+      if (event.key.toLowerCase() === "f") { invokeExtraRite("borrowFlame"); return; }
       const rite = lanternRiteOrder.find((candidate) => lanternRiteKeys[candidate].toLowerCase() === event.key.toLowerCase());
       if (rite) {
         invokeLanternRite(rite);
@@ -568,6 +586,7 @@ function installEvents(): void {
 }
 
 function openNewExpedition(): void {
+  if (runActive && state.status === "playing") return;
   stopAutoplay();
   endDialog.hidden = true;
   decisionDialog.hidden = true;
@@ -587,7 +606,7 @@ function resumeObserving(): void {
   if (!runActive || state.status !== "playing") return;
   candidateDialog.hidden = true;
   render();
-  if (!paused && !state.pendingDecision) scheduleAutoplay(scheduledPace);
+  scheduleAutoplay(scheduledPace);
 }
 
 function selectDelver(next: NonNullable<typeof selectedDelver>): void {
@@ -626,6 +645,7 @@ function resolveSelectedDelver(): { roleId: string; veteran?: Veteran; name: str
 
 function startExpedition(roleId: string, veteran?: Veteran): void {
   stopAutoplay();
+  resetAutoplayState();
   selectedRoleId = roleId;
   selectedIdentity = veteran ? { ...veteran.identity } : recruitIdentities().find((identity) => identity.roleId === roleId) ?? createRunIdentity(candidateSeed, roleId);
   const tacticSlots = campaignTacticSlots(campaign);
@@ -647,9 +667,10 @@ function startExpedition(roleId: string, veteran?: Veteran): void {
   candidateDialog.hidden = true;
   decisionDialog.hidden = true;
   endDialog.hidden = true;
-  paused = false;
+  speechMemory = createSpeechMemory();
+  decisionRenderKey = "";
   render();
-  setPaused(false);
+  scheduleAutoplay("exploration");
 }
 
 function renderCandidateSelection(): void {
@@ -753,6 +774,9 @@ function renderDepartSummary(delver: ReturnType<typeof resolveSelectedDelver>): 
     <span class="depart-plan">
       <span>任務 <b>${escapeHtml(missionDefinition(selectedMissionId).label)}</b></span>
       <span>作戦 <b>${tactics.length ? escapeHtml(tactics.join("・")) : "なし"}</b></span>
+      <span>誓い <b>${pendingGraves(campaign).length ? "先に逝った者の灯を受け継ぐ" : delver.temperament === "慎重" ? "第六階の真相を持ち帰る" : "二体の守り手を越えて進む"}</b></span>
+      ${campaign.lessons?.length ? `<span>継承 <b>${campaign.lessons.map((l) => l === "ranged" ? "射線と遮蔽" : l === "care" ? "早めの回復" : "罠への警戒").join("・")}</b></span>` : ""}
+      ${campaign.flameDebt ? `<span>借灯の返済 <b>灯火${campaign.flameDebt}</b></span>` : ""}
       ${heat > 0 ? `<span>燭階 <b>${heat}</b></span>` : ""}
     </span>
     ${abandoning ? `<span class="depart-note is-warning">観戦中の遠征（${escapeHtml(state.runIdentity.name)}・地下${state.floor}階）は記録されずに終わる。</span>` : ""}
@@ -867,24 +891,21 @@ function stepAutoplay(): void {
     render();
     return;
   }
-  if (state.pendingDecision) {
-    render();
-    return;
-  }
   const observation = observeGame(state);
   const action = chooseAutoplayAction(observation);
-  pendingIntent = describeAutoplayIntent(observation, action);
+  pendingIntent = chooseDelverSpeech(observation, action, describeAutoplayIntent(observation, action), speechMemory, performance.now());
+  if (pendingIntent) setText("#delver-voice", `${state.runIdentity.name}「${pendingIntent.text}」`);
   const logEntry = applyLoggedAction(action, "ai", getAutoplayDebugState(observation));
   const pace = paceKindFor(action, state, logEntry?.messageDelta ?? []);
   scheduledPace = pace;
   render();
-  if (state.status === "playing" && !state.pendingDecision) scheduleAutoplay(pace);
+  if (state.status === "playing") scheduleAutoplay(pace);
 }
 
 function scheduleAutoplay(pace: PaceKind): void {
   stopAutoplay();
   scheduledPace = pace;
-  if (paused || state.status !== "playing" || state.pendingDecision || !candidateDialog.hidden) return;
+  if (state.status !== "playing" || !candidateDialog.hidden) return;
   autoplayTimer = window.setTimeout(stepAutoplay, currentStepMs(pace));
 }
 
@@ -954,6 +975,8 @@ function render(): void {
   setText("#objective-detail", objectiveDetail(observation));
   renderVitals(observation);
   renderLantern(observation);
+  renderExpeditionDynamics(observation);
+  requireElement<HTMLButtonElement>("#new-expedition").disabled = runActive && state.status === "playing";
 
   requireElement<HTMLOListElement>("#message-list").replaceChildren(...[...state.messages.slice(-30)].reverse().map((entry) => {
     const item = document.createElement("li");
@@ -1158,19 +1181,30 @@ function invokeLanternRite(rite: LanternRiteId): void {
   render();
 }
 
-function setPaused(value: boolean): void {
-  paused = value;
-  const toggle = requireElement<HTMLButtonElement>("#pause-toggle");
-  toggle.setAttribute("aria-pressed", String(paused));
-  toggle.innerHTML = paused ? PLAY_ICON : PAUSE_ICON;
-  toggle.setAttribute("aria-label", paused ? "再開" : "一時停止");
-  toggle.classList.toggle("is-active", paused);
-  requireElement<HTMLElement>("#pause-banner").hidden = !paused || state.status !== "playing";
-  if (paused) {
-    stopAutoplay();
-  } else {
-    scheduleAutoplay(scheduledPace);
-  }
+function invokeExtraRite(type: "placeLantern" | "borrowFlame"): void {
+  if (type === "placeLantern" ? !canPlaceLantern(state) : !canBorrowFlame(state)) return;
+  applyLoggedAction({ type }, "player");
+  render();
+}
+
+function renderExpeditionDynamics(observation: ReturnType<typeof observeGame>): void {
+  const dynamics = observation.expedition;
+  const threats = observation.visibleEntities.filter((e) => e.telegraph);
+  const openings = observation.visibleEntities.filter((e) => (e.recoveryTurns ?? 0) > 0);
+  const forecast = requireElement<HTMLElement>("#battle-forecast");
+  forecast.textContent = threats.length
+    ? threats.slice(0, 2).map((e) => `${getContentName(e.contentId)} · ${e.telegraph!.remaining}手後に${e.telegraph!.kind === "shot" ? "斉射" : e.telegraph!.kind === "sweep" ? "薙ぎ払い" : "呪印"}`).join(" ／ ")
+    : openings.length ? `${getContentName(openings[0].contentId)}に隙 · あと${openings[0].recoveryTurns}手` : "";
+  forecast.hidden = !forecast.textContent;
+  const place = requireElement<HTMLButtonElement>("#place-lantern");
+  place.disabled = !canPlaceLantern(state);
+  place.title = `灯火${realtimeConfig().light.cost}。退路を${realtimeConfig().light.duration}手照らし、獣と亡者を引き寄せる。`;
+  const borrow = requireElement<HTMLButtonElement>("#borrow-flame");
+  borrow.disabled = !canBorrowFlame(state);
+  borrow.title = `一遠征一回。命火${realtimeConfig().loan.healPercent}%回復・護り${realtimeConfig().loan.guardedTurns}手・灯火+${realtimeConfig().loan.embers}。次に得る灯火${realtimeConfig().loan.debt}つを返す。未返済分は次の遠征へ。`;
+  const vow = dynamics?.vow;
+  setText("#expedition-note", `${vow ? `誓い：${vow.label} · ${vow.completed ? "達成" : `${vow.progress}/${vow.target}`}` : ""}${dynamics?.debt ? ` ／ 灯の返済：あと${dynamics.debt}` : ""}`);
+  setText("#floor-law", floorLawDescription(state.biome));
 }
 
 function renderInventory(inventory: NonNullable<GameState["entities"][number]["inventory"]>): void {
@@ -1259,11 +1293,19 @@ function renderDecision(observation: ReturnType<typeof observeGame>): void {
   if (!candidateDialog.hidden || !decision || state.status !== "playing") {
     decisionDialog.hidden = true;
     stopLookahead();
+    decisionRenderKey = "";
     return;
   }
   const focusKey = focusedDataKey(decisionDialog);
-  stopAutoplay();
-  setText("#decision-kicker", `黒燭からの問い · 地下${state.floor}階 · ${state.runTurn}手`);
+  setText("#decision-kicker", `伝言の猶予 · あと${decision.remainingTurns ?? 0}手 · 操作しなければ本人の判断`);
+  const key = `${state.seed}:${decision.id}:${draftTactics?.join(",") ?? state.tactics.join(",")}`;
+  const unchanged = key === decisionRenderKey;
+  if (unchanged) {
+    if (requireElement<HTMLDetailsElement>("#decision-details").open && lookahead?.decisionKey !== key) startLookahead(key, draftTactics ?? state.tactics);
+    renderForecasts();
+    return;
+  }
+  decisionRenderKey = key;
   decisionTitle.textContent = decision.title;
   decisionBody.textContent = decision.body;
   renderDecisionContext(observation);
@@ -1283,7 +1325,7 @@ function renderDecision(observation: ReturnType<typeof observeGame>): void {
         : option.id === decision.defaultOptionId && decision.kind === "context"
           ? "探索者の判断・消費なし"
           : "消費なし";
-    button.innerHTML = `<span>${index + 1}</span><strong>${escapeHtml(option.label)}</strong><small>${escapeHtml(option.description)}</small><em>${costLabel}</em>${decision.kind === "final" ? "" : `<div class="option-forecast" data-forecast-for="${escapeHtml(option.id)}"></div>`}`;
+    button.innerHTML = `<strong>${index + 1}. ${escapeHtml(option.label)}</strong><small>${escapeHtml(option.description)}</small><em>${costLabel}</em>${decision.kind === "final" ? "" : `<div class="option-forecast" data-forecast-for="${escapeHtml(option.id)}"></div>`}`;
     return button;
   }));
   if (draftDecisionId !== decision.id) {
@@ -1297,11 +1339,11 @@ function renderDecision(observation: ReturnType<typeof observeGame>): void {
     setText("#decision-tactic-count", `${draftTactics.length}/${state.modifiers.tacticSlots}`);
   }
   const lookaheadTactics = editableTactics && draftTactics ? draftTactics : state.tactics;
-  const decisionKey = `${state.seed}:${state.runTurn}:${decision.id}:${lookaheadTactics.join(",")}`;
-  if (lookahead?.decisionKey !== decisionKey) startLookahead(decisionKey, lookaheadTactics);
+  const decisionKey = `${state.seed}:${decision.id}:${lookaheadTactics.join(",")}`;
+  if (requireElement<HTMLDetailsElement>("#decision-details").open && lookahead?.decisionKey !== decisionKey) startLookahead(decisionKey, lookaheadTactics);
   renderForecasts();
   decisionDialog.hidden = false;
-  restoreFocus(decisionDialog, focusKey);
+  if (focusKey) restoreFocus(decisionDialog, focusKey);
 }
 
 function startLookahead(decisionKey: string, tactics: string[]): void {
@@ -1371,7 +1413,7 @@ function renderForecasts(): void {
     }
     const summary = lookahead?.results.get(option.id);
     if (!summary) {
-      slot.innerHTML = `<span class="forecast-pending">未来を先読み中…</span>`;
+      slot.innerHTML = `<span class="forecast-pending">${lookahead ? "先読み中（待たずに進みます）" : "長期の先読みは詳細から"}</span>`;
       continue;
     }
     const survived = summary.survived / summary.rollouts;
@@ -1730,7 +1772,7 @@ function signed(value: number): string {
 }
 
 function syncModalAccessibility(): void {
-  const nextModal = [candidateDialog, decisionDialog, endDialog].find((dialog) => !dialog.hidden) ?? null;
+  const nextModal = [candidateDialog, endDialog].find((dialog) => !dialog.hidden) ?? null;
   observerShell.inert = nextModal !== null;
   if (nextModal === focusedModal) return;
   focusedModal = nextModal;
@@ -1748,7 +1790,22 @@ function syncModalAccessibility(): void {
 }
 
 function installDebugBridge(): void {
+  if (!import.meta.env.DEV) return;
   window.__rogueDebug = {
+    loadState: (snapshot) => {
+      stopAutoplay();
+      resetAutoplayState();
+      state = structuredClone(snapshot);
+      speechMemory = createSpeechMemory();
+      decisionRenderKey = "";
+      runLog = createRunLog(state.seed, state.runIdentity.roleId, {}, state.runIdentity);
+      runActive = true;
+      candidateDialog.hidden = true;
+      endDialog.hidden = true;
+      render();
+      scheduleAutoplay("danger");
+    },
+    resume: () => scheduleAutoplay("danger"),
     dump: () => JSON.stringify({ state, observation: observeGame(state), review: currentReview ?? analyzeRun(runLog, state), campaign }, null, 2),
     getState: () => structuredClone(state),
     getObservation: () => structuredClone(observeGame(state)),
@@ -1785,7 +1842,7 @@ function objectiveLabel(objective: ReturnType<typeof observeGame>["exploration"]
 }
 
 function objectiveDetail(observation: ReturnType<typeof observeGame>): string {
-  if (observation.pendingDecision) return "黒燭は灯守の判断を待っています。";
+  if (observation.pendingDecision) return "伝言がなければ探索者の方針で進みます。遠征は止まりません。";
   if (observation.exploration.reachableStairs) return "到達可能な階段へ向かっています。";
   if (observation.bossAlive) return "この階層の守り手が帰還路を封じています。";
   return `${observation.exploration.reachableFrontierCount}箇所の探索候補を比較しています。`;

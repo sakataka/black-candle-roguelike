@@ -25,10 +25,13 @@ describe("自律遠征", () => {
     expect(createRunIdentity(20260504, "role.oathbound")).not.toEqual(createRunIdentity(20260505, "role.oathbound"));
   });
 
-  test("選択待ちでは通常行動を受け付けない", () => {
+  test("伝言の猶予中も通常行動と時計が進む", () => {
     const state = createInitialGame(20260504, "role.oathbound");
     state.pendingDecision = createContextDecision(state, 1, "test");
-    expect(applyAction(state, { type: "move", direction: "north" })).toBe(state);
+    const next = applyAction(state, { type: "move", direction: "north" });
+    expect(next).not.toBe(state);
+    expect(next.runTurn).toBe(state.runTurn + 1);
+    expect(next.pendingDecision).not.toBeNull();
   });
 
   test("同じseed・候補者・選択方針は同じ遠征結果を再現する", async () => {

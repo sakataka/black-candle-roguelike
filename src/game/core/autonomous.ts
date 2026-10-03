@@ -216,7 +216,7 @@ function woundedCrisis(state: GameState, act: 1 | 2): PendingDecision {
 }
 
 function afflictionCrisis(state: GameState, act: 1 | 2): PendingDecision {
-  return crisisBase(state, "affliction", "血と毒の残響", "出血か毒が黒燭の像を濁らせている。痛みを受け入れるか、足を止めて処置するかを決めなければならない。", [
+  return crisisBase(state, "affliction", "血と毒の残響", "出血か毒が黒燭の像を濁らせている。痛みを道標に進むか、清めの灯を届けるか。伝言がなければ本人の判断で進む。", [
     { id: "affliction-cure", label: "傷を清める", description: "状態異常を除き、8HPを回復する。", outcome: "continue", directive: "survival", effect: { cureConditions: true, heal: 8 } },
     { id: "affliction-map", label: "痛みを道標にする", description: "周囲12マスを記録し、探究を続ける。", outcome: "continue", directive: "discovery", effect: { revealRadius: 12 } },
     { id: "affliction-revelation", label: "啓示で穢れを焼く", description: "啓示を使い、状態異常を除いて16ターン護る。", outcome: "continue", directive: act === 1 ? "discovery" : "conquest", requiresRevelation: true, effect: { cureConditions: true, guardedTurns: 16 } },
@@ -369,7 +369,7 @@ export function normalizeCampaignState(value: unknown): CampaignState {
   if (!value || typeof value !== "object") return createCampaignState();
   const version = (value as { version?: unknown }).version;
   if (version !== 1 && version !== 2 && version !== 3) return createCampaignState();
-  const input = value as { roleTruths?: unknown; expeditions?: unknown; shards?: unknown; facilities?: unknown; roster?: unknown; fallen?: unknown; heat?: unknown; cycle?: unknown };
+  const input = value as { roleTruths?: unknown; expeditions?: unknown; shards?: unknown; facilities?: unknown; roster?: unknown; fallen?: unknown; heat?: unknown; cycle?: unknown; lessons?: unknown; flameDebt?: unknown };
   const roleTruths = Array.isArray(input.roleTruths) ? input.roleTruths.filter(isRoleTruthId) : [];
   const expeditions = Array.isArray(input.expeditions)
     ? input.expeditions.flatMap((entry) => normalizeExpeditionRecord(entry)).slice(0, 100)
@@ -387,6 +387,8 @@ export function normalizeCampaignState(value: unknown): CampaignState {
     },
     roster: Array.isArray(input.roster) ? input.roster.flatMap(normalizeVeteran) : [],
     fallen: Array.isArray(input.fallen) ? (input.fallen as FallenDelver[]).filter((entry) => !!entry?.identity).slice(0, 30) : [],
+    lessons: Array.isArray(input.lessons) ? input.lessons.filter((id): id is "ranged" | "care" | "traps" => id === "ranged" || id === "care" || id === "traps") : [],
+    flameDebt: facilityLevel(input.flameDebt),
     heat: normalizeHeat(input.heat),
     cycle: normalizeCycle(input.cycle),
   };
@@ -471,6 +473,8 @@ export function recordCampaignResult(campaign: CampaignState, state: GameState, 
     facilities: { ...campaign.facilities },
     roster: rosterUpdate.roster,
     fallen: rosterUpdate.fallen.map((entry) => entry.id && recoveredGraves.has(entry.id) ? { ...entry, recovered: true } : entry),
+    lessons: [...new Set([...(campaign.lessons ?? []), ...(state.modifiers.lessons ?? [])])],
+    flameDebt: state.expedition?.debt ?? campaign.flameDebt ?? 0,
     heat: { unlocked: heatUnlocked, selected: Math.min(campaign.heat.selected, heatUnlocked) },
     cycle,
   };
@@ -514,6 +518,8 @@ export function campaignRunModifiers(campaign: CampaignState): { modifiers: Part
   }
   return {
     modifiers: {
+      lessons: [...(campaign.lessons ?? [])],
+      flameDebt: campaign.flameDebt ?? 0,
       heat,
       aftermath: campaign.cycle.aftermath,
       keeperName: campaign.cycle.keeperName,
@@ -531,7 +537,7 @@ export function pendingGraves(campaign: CampaignState): GraveMarker[] {
   const byFloor = new Map<number, GraveMarker>();
   for (const fallen of campaign.fallen) {
     if (!fallen.id || fallen.recovered || fallen.floor < 1 || byFloor.has(fallen.floor)) continue;
-    byFloor.set(fallen.floor, { id: fallen.id, name: fallen.identity.name, roleId: fallen.identity.roleId, floor: fallen.floor, gear: fallen.gear });
+    byFloor.set(fallen.floor, { id: fallen.id, name: fallen.identity.name, roleId: fallen.identity.roleId, floor: fallen.floor, gear: fallen.gear, echoes: fallen.echoes, lesson: fallen.lesson });
   }
   return [...byFloor.values()];
 }
@@ -557,6 +563,8 @@ function updateRoster(campaign: CampaignState, state: GameState, deathCause: str
       floor: state.floor,
       cause: deathCause,
       gear,
+      echoes: state.expedition?.trail.map((entry) => ({ ...entry, pos: { ...entry.pos } })),
+      lesson: state.story.killedBy?.cause === "rangedCombat" ? "ranged" : state.story.killedBy?.cause === "trap" ? "traps" : "care",
     };
     return { roster: others, fallen: [fallenEntry, ...campaign.fallen].slice(0, 30), outcome: "fallen" };
   }

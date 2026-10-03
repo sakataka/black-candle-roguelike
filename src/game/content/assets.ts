@@ -1,6 +1,10 @@
 import type { AssetDefinition } from "../types";
 
 export const assetCatalog: Record<string, AssetDefinition> = {
+  "rite.place": { contentId: "rite.place", path: "/assets/sprites/realtime-rites-sheet.png", sheet: { columns: 2, rows: 2, index: 0 } },
+  "rite.borrow": { contentId: "rite.borrow", path: "/assets/sprites/realtime-rites-sheet.png", sheet: { columns: 2, rows: 2, index: 1 } },
+  "effect.echo": { contentId: "effect.echo", path: "/assets/sprites/realtime-rites-sheet.png", sheet: { columns: 2, rows: 2, index: 2 } },
+  "terrain.furnace-vent": { contentId: "terrain.furnace-vent", path: "/assets/sprites/realtime-rites-sheet.png", sheet: { columns: 2, rows: 2, index: 3 } },
   "character.oathbound.south": { contentId: "role.oathbound", path: "/assets/sprites/oathbound-directions.png", sheet: { columns: 4, rows: 2, index: 0 } },
   "character.oathbound.southwest": { contentId: "role.oathbound", path: "/assets/sprites/oathbound-directions.png", sheet: { columns: 4, rows: 2, index: 1 } },
   "character.oathbound.west": { contentId: "role.oathbound", path: "/assets/sprites/oathbound-directions.png", sheet: { columns: 4, rows: 2, index: 2 } },

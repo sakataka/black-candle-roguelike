@@ -59,6 +59,8 @@ export function createRunLog(seed: number, roleId: string, options: RunLogOption
         descend: 0,
         resolveDecision: 0,
         invokeLantern: 0,
+        placeLantern: 0,
+        borrowFlame: 0,
       },
       damageEvents: 0,
       damageTaken: 0,
