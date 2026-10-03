@@ -47,6 +47,8 @@ type CliOptions = {
 type AggregateSummary = {
   averageDynamics: ExpeditionDynamics["stats"];
   averageUnpaidFlameDebt: number;
+  averageOverflowedEmbers: number;
+  averageRitesUsed: number;
   runs: number;
   totalElapsedMs: number;
   averageElapsedMs: number;
@@ -752,6 +754,8 @@ function summarizeRuns(runResults: SimulationRunResult[]): AggregateSummary {
   return {
     averageDynamics: Object.fromEntries(["dodges", "telegraphs", "terrainLures", "awakened", "heatHits", "lightsPlaced", "borrowed"].map((key) => [key, average(runResults, (run) => run.dynamics?.[key as keyof ExpeditionDynamics["stats"]] ?? 0)])) as ExpeditionDynamics["stats"],
     averageUnpaidFlameDebt: average(runResults, (run) => run.unpaidFlameDebt ?? 0),
+    averageOverflowedEmbers: average(runResults, (run) => run.overflowedEmbers ?? 0),
+    averageRitesUsed: average(runResults, (run) => run.ritesUsed ?? 0),
     runs: count,
     totalElapsedMs,
     averageElapsedMs: ratio(totalElapsedMs, count),
@@ -1129,10 +1133,10 @@ function renderMarkdownReport(report: BatchSimulationReport): string {
     }
   }
 
-  lines.push("", "## Realtime Dynamics", "", "| Label | Telegraphs | Dodges | Trap Lures | Awakened | Heat Hits | Placed Lights | Borrowed Flame | Unpaid Debt |", "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |");
+  lines.push("", "## Realtime Dynamics", "", "| Label | Telegraphs | Dodges | Trap Lures | Awakened | Heat Hits | Placed Lights | Borrowed Flame | Unpaid Debt | Rites | Overflowed Embers |", "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |");
   for (const [label, summary] of Object.entries(report.byLabel)) {
     const d = summary.averageDynamics;
-    lines.push(`| ${label} | ${formatNumber(d.telegraphs)} | ${formatNumber(d.dodges)} | ${formatNumber(d.terrainLures)} | ${formatNumber(d.awakened)} | ${formatNumber(d.heatHits)} | ${formatNumber(d.lightsPlaced)} | ${formatNumber(d.borrowed)} | ${formatNumber(summary.averageUnpaidFlameDebt)} |`);
+    lines.push(`| ${label} | ${formatNumber(d.telegraphs)} | ${formatNumber(d.dodges)} | ${formatNumber(d.terrainLures)} | ${formatNumber(d.awakened)} | ${formatNumber(d.heatHits)} | ${formatNumber(d.lightsPlaced)} | ${formatNumber(d.borrowed)} | ${formatNumber(summary.averageUnpaidFlameDebt)} | ${formatNumber(summary.averageRitesUsed)} | ${formatNumber(summary.averageOverflowedEmbers)} |`);
   }
   lines.push("", "## Top AI Hints", "");
   if (report.analysis.aiHintSamples.length === 0) {

@@ -5,6 +5,36 @@ export type TitleLedger = {
   expeditions: number;
   highestFloor: number;
   shards: number;
+  /** 使用中の記録の名前。 */
+  slotName: string;
+  slots: SaveSlotSummary[];
+  maxSlots: number;
+};
+
+/** タイトルの「記録を選ぶ」に並べる、各記録の現状。 */
+export type SaveSlotSummary = {
+  id: string;
+  name: string;
+  active: boolean;
+  cycle: number;
+  expeditions: number;
+  highestFloor: number;
+  shards: number;
+  roster: number;
+  roadmapDone: number;
+  roadmapTotal: number;
+  /** 次に目指す章。全章を終えていれば null。 */
+  nextGoal: string | null;
+  playedAt?: string;
+};
+
+export type TitleSaveActions = {
+  /** 別の記録に切り替える（読み直す）。 */
+  select: (slotId: string) => void;
+  /** 新しい記録を作って始める（読み直す）。 */
+  create: () => void;
+  /** 使用中でない記録を消し、残った記録の現状を返す。 */
+  remove: (slotId: string) => SaveSlotSummary[];
 };
 
 const KEYART_PATH = "assets/art/title-keyart.jpg";
@@ -18,7 +48,7 @@ const KANJI_DIGITS = ["〇", "一", "二", "三", "四", "五", "六", "七", "�
  * 灯を掲げても `ready` が済むまでは退場せず、準備途中の下の画面を見せない。
  * 解決するのは退場演出が始まった時点で、下の画面はその間に入場演出を始められる。
  */
-export function showTitle(ledger: Promise<TitleLedger>, ready: Promise<unknown>): Promise<void> {
+export function showTitle(ledger: Promise<TitleLedger>, ready: Promise<unknown>, actions: TitleSaveActions, autoEnter = false): Promise<void> {
   const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   const root = document.createElement("section");
   root.className = "title-screen";
@@ -50,7 +80,9 @@ export function showTitle(ledger: Promise<TitleLedger>, ready: Promise<unknown>)
         <kbd>Enter</kbd>
       </button>
       <div data-ledger hidden></div>
+      <button type="button" class="title-saves-toggle" data-saves-toggle hidden></button>
     </div>
+    <section class="title-saves" data-saves hidden aria-label="記録を選ぶ"></section>
     <p class="title-foot" aria-hidden="true"><span>Press any key</span><span data-cycle-foot></span></p>
   `;
   document.body.append(root);
@@ -71,16 +103,58 @@ export function showTitle(ledger: Promise<TitleLedger>, ready: Promise<unknown>)
     root.querySelector("[data-cycle]")!.textContent = cycle;
     root.querySelector("[data-cycle-foot]")!.textContent = `灰と蝋の記録 · ${cycle}`;
     root.querySelector("[data-ledger]")!.outerHTML = ledgerMarkup(value);
+    savedLedger = value;
+    const toggle = root.querySelector<HTMLButtonElement>("[data-saves-toggle]")!;
+    toggle.hidden = false;
+    toggle.innerHTML = `<span>${escapeHtml(value.slotName)}</span>記録を選ぶ・新しく始める`;
   }, () => undefined);
+  let savedLedger: TitleLedger | null = null;
+  const savesPanel = root.querySelector<HTMLElement>("[data-saves]")!;
+  let confirmingDelete: string | null = null;
+  const renderSaves = () => {
+    if (!savedLedger) return;
+    savesPanel.innerHTML = savesMarkup(savedLedger, confirmingDelete);
+  };
+  const openSaves = (open: boolean) => {
+    confirmingDelete = null;
+    renderSaves();
+    savesPanel.hidden = !open;
+    root.classList.toggle("is-choosing", open);
+    if (open) savesPanel.querySelector<HTMLButtonElement>("button")?.focus({ preventScroll: true });
+    else button?.focus({ preventScroll: true });
+  };
+  savesPanel.addEventListener("click", (event) => {
+    event.stopPropagation();
+    const target = (event.target as HTMLElement).closest<HTMLButtonElement>("button");
+    if (!target || !savedLedger) return;
+    const slotId = target.dataset.slot ?? "";
+    if (target.dataset.act === "close") openSaves(false);
+    else if (target.dataset.act === "continue") { openSaves(false); leave(); }
+    else if (target.dataset.act === "select") actions.select(slotId);
+    else if (target.dataset.act === "create") actions.create();
+    else if (target.dataset.act === "delete") {
+      if (confirmingDelete === slotId) {
+        savedLedger = { ...savedLedger, slots: actions.remove(slotId) };
+        confirmingDelete = null;
+      } else confirmingDelete = slotId;
+      renderSaves();
+      savesPanel.querySelector<HTMLButtonElement>(`[data-act="delete"][data-slot="${CSS.escape(slotId)}"], [data-act="create"]`)?.focus({ preventScroll: true });
+    }
+  });
+  root.querySelector("[data-saves-toggle]")!.addEventListener("click", (event) => {
+    event.stopPropagation();
+    openSaves(Boolean(savesPanel.hidden));
+  });
   // 遠征録を書き込んでから順に現す。途中で文字が差し替わって見えないようにする。
   void Promise.all([imageLoaded, ledgerWritten]).then(() => requestAnimationFrame(() => root.classList.add("is-ready")));
   requestAnimationFrame(() => button?.focus({ preventScroll: true }));
 
   let prepared = false;
   let requested = false;
+  let leave: () => void = () => undefined;
   return new Promise((resolve) => {
     let leaving = false;
-    const leave = () => {
+    leave = () => {
       if (leaving) return;
       if (!prepared) {
         requested = true;
@@ -99,6 +173,15 @@ export function showTitle(ledger: Promise<TitleLedger>, ready: Promise<unknown>)
     // タイトルの間は下の画面のキー操作（番号キーやEnterでの出発）に届かせない。
     const onKey = (event: KeyboardEvent) => {
       if (event.metaKey || event.ctrlKey || event.altKey) return;
+      // 記録の一覧を開いている間は、通常のボタン操作に任せる。Escで閉じる。
+      if (!savesPanel.hidden) {
+        event.stopImmediatePropagation();
+        if (event.key === "Escape") {
+          event.preventDefault();
+          openSaves(false);
+        }
+        return;
+      }
       if (event.key === "Tab") {
         event.preventDefault();
         button?.focus();
@@ -110,11 +193,15 @@ export function showTitle(ledger: Promise<TitleLedger>, ready: Promise<unknown>)
       leave();
     };
     window.addEventListener("keydown", onKey, true);
-    root.addEventListener("click", leave);
+    root.addEventListener("click", () => {
+      if (!savesPanel.hidden) openSaves(false);
+      else leave();
+    });
     const onPrepared = () => {
       prepared = true;
       if (requested) leave();
     };
+    if (autoEnter) leave();
     ready.then(onPrepared, onPrepared);
   });
 }
@@ -129,6 +216,37 @@ function ledgerMarkup(ledger: TitleLedger): string {
     ["灯片", `${ledger.shards}`],
   ];
   return `<dl class="title-ledger">${entries.map(([label, value]) => `<div><dt>${label}</dt><dd>${value}</dd></div>`).join("")}</dl>`;
+}
+
+function savesMarkup(ledger: TitleLedger, confirmingDelete: string | null): string {
+  const items = ledger.slots.map((slot) => {
+    const played = slot.playedAt ? new Date(slot.playedAt) : null;
+    const playedLabel = played && !Number.isNaN(played.getTime()) ? `${played.getMonth() + 1}月${played.getDate()}日` : "未出発";
+    const stats = slot.expeditions === 0
+      ? "<span>まだ遠征していない</span>"
+      : `<span>遠征 <b>${slot.expeditions}</b></span><span>最深 <b>${slot.highestFloor}F</b></span><span>灯片 <b>${slot.shards}</b></span><span>遠征団 <b>${slot.roster}</b>人</span>`;
+    const confirming = confirmingDelete === slot.id;
+    return `<li class="title-save${slot.active ? " is-active" : ""}">
+      <div class="title-save-head"><strong>${escapeHtml(slot.name)}</strong><em>第${toKanji(slot.cycle)}周期</em>${slot.active ? '<span class="title-save-badge">使用中</span>' : ""}<small>${playedLabel}</small></div>
+      <div class="title-save-road" aria-label="黒燭への道 ${slot.roadmapDone}/${slot.roadmapTotal}"><span class="title-save-steps">${Array.from({ length: slot.roadmapTotal }, (_, index) => `<i class="${index < slot.roadmapDone ? "is-done" : ""}"></i>`).join("")}</span><span>${slot.nextGoal ? `次: ${escapeHtml(slot.nextGoal)}` : "結末を迎えた"}</span></div>
+      <div class="title-save-stats">${stats}</div>
+      <div class="title-save-actions">
+        ${slot.active
+          ? `<button type="button" class="title-save-main" data-act="continue" data-slot="${escapeHtml(slot.id)}">この記録で続ける</button>`
+          : `<button type="button" class="title-save-main" data-act="select" data-slot="${escapeHtml(slot.id)}">この記録に切り替える</button><button type="button" class="title-save-delete${confirming ? " is-confirming" : ""}" data-act="delete" data-slot="${escapeHtml(slot.id)}">${confirming ? "本当に消す" : "消す"}</button>`}
+      </div>
+    </li>`;
+  }).join("");
+  const full = ledger.slots.length >= ledger.maxSlots;
+  return `
+    <header class="title-saves-head"><h2>記録を選ぶ</h2><small>記録ごとに灰灯院（灯片・遠征団・真相・周期）が別になる。</small><button type="button" class="title-saves-close" data-act="close" aria-label="閉じる">×</button></header>
+    <ol class="title-save-list">${items}</ol>
+    <button type="button" class="title-save-new" data-act="create"${full ? " disabled" : ""}>${full ? `記録は${ledger.maxSlots}つまで。不要な記録を消すと新しく始められる` : "＋ 新しい記録を始める（第一周期・灯片0から）"}</button>
+  `;
+}
+
+function escapeHtml(value: string): string {
+  return value.replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char] ?? char);
 }
 
 function toKanji(value: number): string {

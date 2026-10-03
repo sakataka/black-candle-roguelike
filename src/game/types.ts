@@ -81,6 +81,8 @@ export type LanternState = {
   embers: number;
   maxEmbers: number;
   ritesUsed: number;
+  /** 上限に達していて受け取れずに消えた灯火の数。 */
+  overflowed?: number;
 };
 
 export type LanternRiteConfig = {

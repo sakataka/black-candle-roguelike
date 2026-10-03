@@ -563,6 +563,21 @@ function lanternRiteHasEffect(state: GameState, config: GameConfig["lantern"]["r
   return true;
 }
 
+/**
+ * 灯火を得る。借灯の返済を先に引き、上限を超えた分は溢れとして数える。
+ * 戻り値はログに添える短い文（何も起きなければ空）。
+ */
+function gainEmbers(state: GameState, amount: number): string {
+  const earned = repayFlame(state, amount);
+  if (earned <= 0) return "";
+  const room = Math.max(0, state.lantern.maxEmbers - state.lantern.embers);
+  const kept = Math.min(room, earned);
+  const spilled = earned - kept;
+  state.lantern = { ...state.lantern, embers: state.lantern.embers + kept, overflowed: (state.lantern.overflowed ?? 0) + spilled };
+  if (spilled === 0) return `灯火+${kept}。`;
+  return kept > 0 ? `灯火+${kept}（${spilled}つは上限を超えて溢れた）。` : `灯火は満ちていて、${spilled}つが溢れて消えた。`;
+}
+
 /** 灯守の介入。探索者の手番・ターン経過・敵の手番を発生させない。 */
 function invokeLantern(state: GameState, rite: LanternRiteId): GameState {
   const config = getGameConfig().lantern.rites[rite];
@@ -718,10 +733,9 @@ function resolveMissionCompletion(state: GameState): GameState {
   if (state.story.missionCompleted || !missionProgress(state).completed) return state;
   state.story.missionCompleted = true;
   const mission = missionDefinition(state.story.missionId);
-  const embers = repayFlame(state, realtimeConfig().missions.rewardEmbers);
-  if (embers > 0 && state.status === "playing") state.lantern = { ...state.lantern, embers: Math.min(state.lantern.maxEmbers, state.lantern.embers + embers) };
+  const embers = state.status === "playing" ? gainEmbers(state, realtimeConfig().missions.rewardEmbers) : "";
   const tail = state.status === "playing" ? `生きて帰れば灯片+${missionShards(mission.id)}。` : `灯片+${missionShards(mission.id)}を持ち帰る。`;
-  state.messages = pushMessage(state, `任務「${mission.label}」の条件を果たした。${embers > 0 && state.status === "playing" ? `灯火+${embers}。` : ""}${tail}`, "loot");
+  state.messages = pushMessage(state, `任務「${mission.label}」の条件を果たした。${embers}${tail}`, "loot");
   return state;
 }
 
@@ -740,12 +754,9 @@ function reachBlackCore(state: GameState): GameState {
 
 function descendToNextFloor(state: GameState, messages: GameMessage[]): GameState {
   state.messages = messages;
-  const perFloor = repayFlame(state, getGameConfig().lantern.embersPerFloor);
+  const perFloor = gainEmbers(state, getGameConfig().lantern.embersPerFloor);
   messages = state.messages;
-  if (perFloor > 0 && state.lantern.embers < state.lantern.maxEmbers) {
-    state.lantern = { ...state.lantern, embers: Math.min(state.lantern.maxEmbers, state.lantern.embers + perFloor) };
-    messages = [...messages, message(state.turn, `新しい階層の闇が黒燭に灯火を宿した。灯火+${perFloor}。`, "loot")].slice(-80);
-  }
+  if (perFloor) messages = [...messages, message(state.turn, `新しい階層の闇が黒燭に灯火を宿した。${perFloor}`, "loot")].slice(-80);
   return createFloorState(
     state.seed + 101 * state.floor,
     state.floor + 1,
@@ -1543,11 +1554,8 @@ function mournAtGrave(state: GameState, eventEntity: Entity): GameState {
   const player = getPlayer(state);
   const recovered: string[] = [];
   if (grave.gear && addInventoryItem(player, grave.gear, 1)) recovered.push(`遺品「${getContentName(grave.gear)}」`);
-  const remainingEmber = repayFlame(state, 1);
-  if (remainingEmber && state.lantern.embers < state.lantern.maxEmbers) {
-    state.lantern = { ...state.lantern, embers: state.lantern.embers + remainingEmber };
-    recovered.push("残り火（灯火+1）");
-  }
+  const remainingEmber = gainEmbers(state, 1);
+  if (remainingEmber) recovered.push(`残り火（${remainingEmber.replace(/。$/, "")}）`);
   state.story.recoveredGraves = [...(state.story.recoveredGraves ?? []), grave.id];
   if (state.expedition && grave.lesson) {
     state.modifiers.lessons = [...new Set([...(state.modifiers.lessons ?? []), grave.lesson])];
@@ -1820,9 +1828,8 @@ function defeatMonster(state: GameState, defeated: Entity): GameState {
     }
     const lantern = getGameConfig().lantern;
     if (lantern.embersPerGuardian > 0) {
-      const earned = repayFlame(state, lantern.embersPerGuardian);
-      state.lantern = { ...state.lantern, embers: Math.min(state.lantern.maxEmbers, state.lantern.embers + earned) };
-      state.messages = pushMessage(state, `守り手の残り火が黒燭へ還った。灯火+${earned}。`, "loot");
+      const earned = gainEmbers(state, lantern.embersPerGuardian);
+      if (earned) state.messages = pushMessage(state, `守り手の残り火が黒燭へ還った。${earned}`, "loot");
     }
   }
   return applyRoleBossGoal(state, defeated.contentId, defeatedPos);

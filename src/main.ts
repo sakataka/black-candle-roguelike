@@ -4,7 +4,20 @@ import "@fontsource/shippori-mincho-b1/800.css";
 import "@fontsource/cormorant-garamond/500-italic.css";
 import "@fontsource/cormorant-garamond/600.css";
 import "./styles.css";
-import { showTitle, type TitleLedger } from "./ui/title";
+import { showTitle, type SaveSlotSummary, type TitleLedger } from "./ui/title";
+import {
+  activateSaveSlot,
+  campaignStorageKey,
+  consumeAutoEnter,
+  createSaveSlot,
+  deleteSaveSlot,
+  loadSaveIndex,
+  MAX_SAVE_SLOTS,
+  readSlotCampaign,
+  requestAutoEnter,
+  tacticsStorageKey,
+  touchSaveSlot,
+} from "./ui/saves";
 import { chooseAutoplayAction, describeAutoplayIntent, getAutoplayDebugState, resetAutoplayState, type AutoplayIntent } from "./game/ai/autoplay";
 import { chooseDelverSpeech, createSpeechMemory } from "./game/ai/speech";
 import { realtimeConfig, floorLawDescription } from "./game/content/realtime";
@@ -44,7 +57,7 @@ import {
   temperamentDescription,
   temperamentLabel,
 } from "./game/core/autonomous";
-import { chooseWatcherAction } from "./game/ai/watcher";
+import { suggestLanternAction, type WatcherSuggestion } from "./game/ai/watcher";
 import { applyAction, biomeThemeName, canBorrowFlame, canPlaceLantern, canInvokeLantern, createInitialGame, lanternRiteLabel, normalizeTactics, observeGame, playableRoles } from "./game/core/game";
 import { paceDelayMs, paceKindFor, type PaceKind } from "./game/core/pacing";
 import { analyzeRun, createRunLog, recordTurn } from "./game/core/runLog";
@@ -78,8 +91,10 @@ const FALL_EPITAPHS: Record<string, string> = {
   venom: "毒が回りきった。",
   signalLoss: "灯芯が尽き、闇に呑まれた。",
 };
-const CAMPAIGN_STORAGE_KEY = "black-candle-campaign-v1";
-const TACTICS_STORAGE_KEY = "black-candle-tactics";
+/** 使用中の記録。記録ごとに遠征録と作戦の記憶を分けて保存する。 */
+let saveIndex = loadSaveIndex();
+const CAMPAIGN_STORAGE_KEY = campaignStorageKey(saveIndex.active);
+const TACTICS_STORAGE_KEY = tacticsStorageKey(saveIndex.active);
 const lanternRiteOrder: LanternRiteId[] = ["flare", "mend", "guide", "ward"];
 const lanternRiteKeys: Record<LanternRiteId, string> = { flare: "Q", mend: "W", guide: "E", ward: "R" };
 
@@ -110,6 +125,23 @@ let markGameReady: () => void = () => undefined;
 const titleClosed = showTitle(
   new Promise<TitleLedger>((resolve) => { deliverTitleLedger = resolve; }),
   new Promise<void>((resolve) => { markGameReady = resolve; }),
+  {
+    select: (slotId) => {
+      saveIndex = activateSaveSlot(saveIndex, slotId);
+      requestAutoEnter();
+      window.location.reload();
+    },
+    create: () => {
+      saveIndex = createSaveSlot(saveIndex);
+      requestAutoEnter();
+      window.location.reload();
+    },
+    remove: (slotId) => {
+      saveIndex = deleteSaveSlot(saveIndex, slotId);
+      return saveSlotSummaries();
+    },
+  },
+  consumeAutoEnter(),
 );
 
 app.innerHTML = `
@@ -152,6 +184,8 @@ app.innerHTML = `
         <div id="pixi-root" class="pixi-root"></div>
         <div class="battle-forecast" id="battle-forecast" aria-label="見えている攻撃の予告"></div>
         <p class="delver-voice sr-only" id="delver-voice" aria-live="polite"></p>
+        <button type="button" id="lantern-call" class="lantern-call" hidden></button>
+        <p id="lantern-toast" class="lantern-toast" aria-live="polite" hidden></p>
         <div id="floor-card" class="floor-card" aria-hidden="true"><span class="floor-card-no"></span><strong class="floor-card-name"></strong><i></i></div>
       </div>
       <section class="lantern-dock" aria-label="灯守の介入">
@@ -226,13 +260,14 @@ app.innerHTML = `
     <div class="prepare-screen" role="dialog" aria-modal="true" aria-labelledby="candidate-title">
       <header class="prepare-header">
         <div>
-          <p class="eyebrow">灰灯院 · 遠征の支度</p>
+          <p class="eyebrow">灰灯院 · 遠征の支度 · <span id="save-slot-name"></span></p>
           <h2 id="candidate-title">誰を黒燭の迷宮へ送るか</h2>
           <div id="next-goal" class="next-goal"></div>
         </div>
         <div class="prepare-header-actions">
           <div class="shard-balance" title="遠征から持ち帰る。到達・守り手・任務・真相・生還で増え、施設の強化と療房に使う。"><i id="shard-icon" class="shard-icon" aria-hidden="true"></i><span>灯片</span><strong id="institute-shards">0</strong></div>
           <button id="resume-run" class="secondary-button" type="button" hidden>観戦に戻る <kbd>Esc</kbd></button>
+          <button id="switch-save" class="secondary-button" type="button" title="タイトルへ戻り、別の記録を選ぶか新しい記録を始める">記録を切り替える</button>
         </div>
       </header>
       <div class="prepare-body">
@@ -365,6 +400,9 @@ deliverTitleLedger({
   expeditions: campaign.expeditions.length,
   highestFloor: campaignProgress(campaign).highestFloor,
   shards: campaign.shards,
+  slotName: activeSlotName(),
+  slots: saveSlotSummaries(),
+  maxSlots: MAX_SAVE_SLOTS,
 });
 let candidateSeed = nextSeed();
 let selectedRoleId = playableRoles()[0].id;
@@ -397,6 +435,8 @@ let floorCardTimer: number | null = null;
 let campaignBeforeRun: CampaignState | null = null;
 /** 支度中に任務を自分で選んだか。選んでいなければ探索者に合わせて推奨へ戻す。 */
 let missionPinned = false;
+let lanternToastTimer: number | null = null;
+let heldSuggestion: { suggestion: WatcherSuggestion; until: number } | null = null;
 
 installEvents();
 installDebugBridge();
@@ -457,6 +497,11 @@ function installEvents(): void {
   });
   requireElement<HTMLButtonElement>("#place-lantern").addEventListener("click", () => invokeExtraRite("placeLantern"));
   requireElement<HTMLButtonElement>("#borrow-flame").addEventListener("click", () => invokeExtraRite("borrowFlame"));
+  requireElement<HTMLButtonElement>("#lantern-call").addEventListener("click", (event) => {
+    const action = (event.currentTarget as HTMLElement).dataset.action;
+    if (action === "placeLantern" || action === "borrowFlame") invokeExtraRite(action);
+    else if (action && lanternRiteOrder.includes(action as LanternRiteId)) invokeLanternRite(action as LanternRiteId);
+  });
   requireElement<HTMLDetailsElement>("#decision-details").addEventListener("toggle", () => render());
   requireElement<HTMLDivElement>("#lantern-rites").addEventListener("click", (event) => {
     const button = (event.target as HTMLElement).closest<HTMLButtonElement>("button[data-rite]");
@@ -486,6 +531,11 @@ function installEvents(): void {
     selectDelver({ kind: "veteran", id: button.dataset.veteranId });
   });
   departButton.addEventListener("click", departSelected);
+  requireElement<HTMLButtonElement>("#switch-save").addEventListener("click", () => {
+    // 遠征の途中では切り替えない。タイトルへ戻り、そこで記録を選ぶ。
+    if (runActive && state.status === "playing") return;
+    window.location.reload();
+  });
   resumeButton.addEventListener("click", resumeObserving);
   const inventoryList = requireElement<HTMLUListElement>("#inventory-list");
   const showInventoryName = (event: Event) => {
@@ -827,6 +877,8 @@ function renderDepartSummary(delver: ReturnType<typeof resolveSelectedDelver>): 
   applySprite(summary.querySelector<HTMLElement>(".depart-portrait") as HTMLElement, assetForContent(delver.roleId), 44);
   departButton.textContent = abandoning ? "遠征を切り替えて出発" : `${delver.name}を送り出す`;
   resumeButton.hidden = !abandoning;
+  requireElement<HTMLButtonElement>("#switch-save").hidden = abandoning;
+  setText("#save-slot-name", activeSlotName());
 }
 
 function focusedDataKey(container: HTMLElement = candidateDialog): string | null {
@@ -1235,11 +1287,19 @@ function renderLantern(observation: ReturnType<typeof observeGame>): void {
   pips.setAttribute("aria-label", `灯火 ${lantern.embers} / ${lantern.maxEmbers}`);
   pips.innerHTML = Array.from({ length: lantern.maxEmbers }, (_, index) => `<i class="${index < lantern.embers ? "is-lit" : ""}"></i>`).join("");
   setText("#lantern-count", `${lantern.embers}/${lantern.maxEmbers}`);
-  const suggestion = chooseWatcherAction(observation, "lantern");
-  const suggested = suggestion?.type === "invokeLantern" ? suggestion.rite : null;
-  setText("#lantern-hint", suggested
-    ? `黒燭が揺れている — 「${lanternRiteLabel(suggested)}」が効きそうだ。`
-    : state.status === "playing" ? "危機に灯を捧げると、探索者の手番を使わず介入できます。" : "遠征は終わった。灯は静かに燃えている。");
+  const suggestion = steadySuggestion(suggestLanternAction(observation));
+  const suggested = suggestion?.action.type === "invokeLantern" ? suggestion.action.rite : null;
+  const full = lantern.embers >= lantern.maxEmbers;
+  pips.classList.toggle("is-full", full && state.status === "playing");
+  const overflowed = lantern.overflowed ?? 0;
+  setText("#lantern-hint", state.status !== "playing"
+    ? "遠征は終わった。灯は静かに燃えている。"
+    : suggestion?.urgency === "crisis" ? `${suggestion.reason}。今こそ灯を。`
+      : full ? `灯火が満ちている。これ以上は溢れて消える${overflowed ? `（溢れた灯火 ${overflowed}）` : ""}。`
+        : "危機に灯を捧げると、探索者の手番を使わず介入できます。");
+  renderLanternCall(suggestion);
+  requireElement<HTMLButtonElement>("#place-lantern").classList.toggle("is-suggested", suggestion?.action.type === "placeLantern");
+  requireElement<HTMLButtonElement>("#borrow-flame").classList.toggle("is-suggested", suggestion?.action.type === "borrowFlame");
   const container = requireElement<HTMLDivElement>("#lantern-rites");
   if (container.childElementCount !== lanternRiteOrder.length) {
     container.replaceChildren(...lanternRiteOrder.map((rite) => {
@@ -1262,6 +1322,66 @@ function renderLantern(observation: ReturnType<typeof observeGame>): void {
     if (costLabel) costLabel.textContent = `灯${cost}`;
     button.title = `${lanternRiteLabel(rite)}（${lanternRiteKeys[rite]}）: ${lanternRiteDescription(rite)}`;
   }
+}
+
+/**
+ * 呼びかけは敵が一歩動くたびに出たり消えたりしないよう、少しの間だけ保つ。
+ * 保っている間も、その介入がもう効かなくなったら消す。
+ */
+function steadySuggestion(fresh: WatcherSuggestion | null): WatcherSuggestion | null {
+  const now = performance.now();
+  if (fresh) {
+    heldSuggestion = { suggestion: fresh, until: now + 1600 };
+    return fresh;
+  }
+  const held = heldSuggestion;
+  if (held && now < held.until && state.status === "playing" && actionStillPossible(held.suggestion.action)) return held.suggestion;
+  heldSuggestion = null;
+  return null;
+}
+
+function actionStillPossible(action: WatcherSuggestion["action"]): boolean {
+  if (action.type === "invokeLantern") return canInvokeLantern(state, action.rite);
+  if (action.type === "placeLantern") return canPlaceLantern(state);
+  if (action.type === "borrowFlame") return canBorrowFlame(state);
+  return false;
+}
+
+/** 地図の上の呼びかけ。押すとそのまま灯を捧げる。 */
+function renderLanternCall(suggestion: WatcherSuggestion | null): void {
+  const call = requireElement<HTMLButtonElement>("#lantern-call");
+  if (!suggestion || state.status !== "playing" || !runActive) {
+    call.hidden = true;
+    delete call.dataset.key;
+    return;
+  }
+  const action = suggestion.action;
+  const label = action.type === "invokeLantern" ? lanternRiteLabel(action.rite) : action.type === "placeLantern" ? "置灯" : "借灯";
+  const key = action.type === "invokeLantern" ? lanternRiteKeys[action.rite] : action.type === "placeLantern" ? "T" : "F";
+  const cost = action.type === "invokeLantern" ? getGameConfig().lantern.rites[action.rite].cost : action.type === "placeLantern" ? realtimeConfig().light.cost : 0;
+  const signature = `${suggestion.urgency}:${label}:${suggestion.reason}`;
+  call.hidden = false;
+  call.dataset.urgency = suggestion.urgency;
+  if (call.dataset.key === signature) return;
+  call.dataset.key = signature;
+  call.dataset.action = action.type === "invokeLantern" ? action.rite : action.type;
+  const lead = suggestion.urgency === "crisis" ? `${escapeHtml(state.runIdentity.name)}が灯を求めている` : "灯の使いどき";
+  call.innerHTML = `<span class="lantern-call-lead">${lead}</span><span class="lantern-call-reason">${escapeHtml(suggestion.reason)}</span><span class="lantern-call-act"><kbd>${key}</kbd>${label}${cost ? `<em>灯${cost}</em>` : ""}</span>`;
+}
+
+/** 灯を捧げた直後、効いたことを地図の上に短く残す。 */
+function showLanternToast(): void {
+  // 介入は手番を進めないので、直後の最新ログがそのまま介入の結果になる。
+  const entry = state.messages.at(-1);
+  if (!entry) return;
+  const toast = requireElement<HTMLElement>("#lantern-toast");
+  toast.textContent = entry.text;
+  toast.hidden = false;
+  toast.classList.remove("is-shown");
+  void toast.offsetWidth;
+  toast.classList.add("is-shown");
+  if (lanternToastTimer !== null) window.clearTimeout(lanternToastTimer);
+  lanternToastTimer = window.setTimeout(() => { toast.hidden = true; }, 2600);
 }
 
 function toggleTactic(current: string[], tacticId: string, slots: number): string[] {
@@ -1314,13 +1434,17 @@ function saveSelectedTactics(value: string[]): void {
 function invokeLanternRite(rite: LanternRiteId): void {
   if (!canInvokeLantern(state, rite)) return;
   applyLoggedAction({ type: "invokeLantern", rite }, "player");
+  heldSuggestion = null;
   render();
+  showLanternToast();
 }
 
 function invokeExtraRite(type: "placeLantern" | "borrowFlame"): void {
   if (type === "placeLantern" ? !canPlaceLantern(state) : !canBorrowFlame(state)) return;
   applyLoggedAction({ type }, "player");
+  heldSuggestion = null;
   render();
+  showLanternToast();
 }
 
 function renderExpeditionDynamics(observation: ReturnType<typeof observeGame>): void {
@@ -1745,7 +1869,15 @@ function renderEnd(): void {
   renderEndRoadmap();
   renderRunComparison();
   renderMilestone(record);
-  decisionHistory.innerHTML = `<h3>灯守の判断</h3>${review.decisions.length === 0 ? "<p>介入記録なし</p>" : `<ol>${review.decisions.map((entry) => `<li><span>F${entry.floor}</span><strong>${escapeHtml(entry.optionLabel)}${entry.effectSummary ? `<small>${escapeHtml(entry.effectSummary)}</small>` : ""}</strong>${entry.usedRevelation ? "<em>啓示</em>" : ""}</li>`).join("")}</ol>`}`;
+  const lanternStats = state.expedition?.stats;
+  const lanternSummary = [
+    `灯の介入 ${state.lantern.ritesUsed}回`,
+    lanternStats?.lightsPlaced ? `置灯 ${lanternStats.lightsPlaced}回` : "",
+    lanternStats?.borrowed ? "借灯 1回" : "",
+    `溢れた灯火 ${state.lantern.overflowed ?? 0}`,
+    `残った灯火 ${state.lantern.embers}`,
+  ].filter(Boolean).join(" · ");
+  decisionHistory.innerHTML = `<h3>灯守の判断</h3><p class="lantern-summary${(state.lantern.overflowed ?? 0) >= 2 ? " is-wasteful" : ""}">${escapeHtml(lanternSummary)}</p>${review.decisions.length === 0 ? "<p>介入記録なし</p>" : `<ol>${review.decisions.map((entry) => `<li><span>F${entry.floor}</span><strong>${escapeHtml(entry.optionLabel)}${entry.effectSummary ? `<small>${escapeHtml(entry.effectSummary)}</small>` : ""}</strong>${entry.usedRevelation ? "<em>啓示</em>" : ""}</li>`).join("")}</ol>`}`;
   endDialog.hidden = false;
   if (firstReveal) revealResult();
 }
@@ -2092,9 +2224,36 @@ function loadCampaign(): CampaignState {
 function saveCampaign(value: CampaignState): void {
   try {
     window.localStorage.setItem(CAMPAIGN_STORAGE_KEY, JSON.stringify(value));
+    saveIndex = touchSaveSlot(saveIndex, saveIndex.active);
   } catch (error) {
     console.warn("遠征録を保存できませんでした。", error);
   }
+}
+
+function activeSlotName(): string {
+  return saveIndex.slots.find((slot) => slot.id === saveIndex.active)?.name ?? "記録";
+}
+
+/** タイトルの「記録を選ぶ」に並べる、各記録の現状。 */
+function saveSlotSummaries(): SaveSlotSummary[] {
+  return saveIndex.slots.map((slot) => {
+    const stored = slot.id === saveIndex.active ? campaign : normalizeCampaignState(readSlotCampaign(slot.id));
+    const progress = campaignProgress(stored);
+    return {
+      id: slot.id,
+      name: slot.name,
+      active: slot.id === saveIndex.active,
+      cycle: stored.cycle.number,
+      expeditions: stored.expeditions.length,
+      highestFloor: progress.highestFloor,
+      shards: stored.shards,
+      roster: stored.roster.length,
+      roadmapDone: progress.roadmap.filter((chapter) => chapter.done).length,
+      roadmapTotal: progress.roadmap.length,
+      nextGoal: progress.nextChapter?.label ?? null,
+      playedAt: slot.playedAt ?? stored.expeditions[0]?.completedAt,
+    };
+  });
 }
 
 function nextSeed(): number {

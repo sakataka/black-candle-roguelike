@@ -67,6 +67,8 @@ type CompactRunReview = {
 export type SimulationRunResult = {
   dynamics?: ExpeditionDynamics["stats"];
   unpaidFlameDebt?: number;
+  overflowedEmbers?: number;
+  ritesUsed?: number;
   seed: number;
   turns: number;
   floor: number;
@@ -230,6 +232,8 @@ export async function runSimulation(input: SimulationRunInput): Promise<Simulati
   const result: SimulationRunResult = {
     dynamics: state.expedition?.stats,
     unpaidFlameDebt: state.expedition?.debt ?? 0,
+    overflowedEmbers: state.lantern.overflowed ?? 0,
+    ritesUsed: state.lantern.ritesUsed,
     seed: input.seed,
     turns: state.runTurn,
     floor: state.floor,

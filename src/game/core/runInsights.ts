@@ -195,11 +195,15 @@ function adviceFor(finalState: GameState, deathCause: DeathCause | null, entries
     addTactic("tactic.hoard", "薬を深層まで残し、強敵に備える。");
     addRite("flare", "閃灯で敵を怯ませ、囲まれた手番を凌ぐ。");
   } else if (finalState.status === "stranded") {
-    addTactic("tactic.straight-path", "寄り道を減らし、灯路が尽きる前に進む。");
+    addTactic("tactic.straight-path", "寄り道を減らし、灯芯が尽きる前に進む。");
     addRite("guide", "導灯で道を照らし、足踏みを減らす。");
   }
   if (finalState.status === "lost" && lanternUses === 0 && finalState.lantern.embers > 0) {
     advice.push({ kind: "rite", id: "unused", label: `灯火${finalState.lantern.embers}つが残っていた`, reason: "危機の瞬間に灯を捧げれば、結末が変わったかもしれない。" });
+  }
+  const overflowed = finalState.lantern.overflowed ?? 0;
+  if (overflowed >= 2) {
+    advice.push({ kind: "rite", id: "guide", label: `灯火${overflowed}つが溢れて消えた`, reason: "満ちた灯火は次の灯を受け取れない。静かなうちに導灯で道を照らすか、危機に早めに捧げよう。" });
   }
   return advice.slice(0, 3);
 }

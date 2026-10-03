@@ -1,6 +1,7 @@
 import { beforeAll, describe, expect, test } from "bun:test";
 import { loadBunGameConfig } from "../content/config";
-import { applyAction, canInvokeLantern, createInitialGame } from "./game";
+import { applyAction, canInvokeLantern, createInitialGame, observeGame } from "./game";
+import { suggestLanternAction } from "../ai/watcher";
 import { deriveVisualEvents } from "./visualEvents";
 import type { Entity, GameState } from "../types";
 
@@ -60,6 +61,31 @@ describe("灯守の介入", () => {
 });
 
 describe("描画演出イベント", () => {
+  test("上限に達した灯火は溢れとして数え、満ちている時は使い道を勧める", () => {
+    const state = createInitialGame(20260504, "role.ash-scout", { missionId: "relic-ledger" });
+    state.lantern.embers = state.lantern.maxEmbers;
+    state.story.discoveries = ["a", "b", "c", "d", "e", "f"];
+    const next = applyAction(state, { type: "wait" });
+    expect(next.lantern.embers).toBe(next.lantern.maxEmbers);
+    expect(next.lantern.overflowed).toBe(1);
+    expect(next.messages.at(-1)?.text).toContain("溢れて消えた");
+    next.entities = next.entities.filter((entity) => entity.kind !== "monster");
+    const observation = observeGame(next);
+    const suggestion = suggestLanternAction(observation);
+    if (observation.exploration.reachableStairs) expect(suggestion).toBeNull();
+    else expect(suggestion).toMatchObject({ urgency: "spare", action: { type: "invokeLantern", rite: "guide" } });
+  });
+
+  test("命火が細い時の呼びかけは癒灯を理由つきで求める", () => {
+    const state = createInitialGame(20260504, "role.oathbound");
+    const player = state.entities.find((entity) => entity.id === state.playerId)!;
+    player.stats!.hp = 3;
+    const suggestion = suggestLanternAction(observeGame(state));
+    expect(suggestion?.urgency).toBe("crisis");
+    expect(suggestion?.action).toEqual({ type: "invokeLantern", rite: "mend" });
+    expect(suggestion?.reason).toContain("命火");
+  });
+
   test("攻撃とダメージを差分から導出する", () => {
     const state = withVisibleMonster(createInitialGame(20260504, "role.oathbound"));
     const player = state.entities.find((entity) => entity.id === state.playerId) as Entity;
