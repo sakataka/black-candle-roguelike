@@ -4,7 +4,7 @@ import "@fontsource/shippori-mincho-b1/800.css";
 import "@fontsource/cormorant-garamond/500-italic.css";
 import "@fontsource/cormorant-garamond/600.css";
 import "./styles.css";
-import { showTitle } from "./ui/title";
+import { showTitle, type TitleLedger } from "./ui/title";
 import { chooseAutoplayAction, describeAutoplayIntent, getAutoplayDebugState, type AutoplayIntent } from "./game/ai/autoplay";
 import { getGameConfig, loadBrowserGameConfig, runRules } from "./game/content/config";
 import { assetForContent } from "./game/content/assets";
@@ -98,6 +98,14 @@ const app = document.querySelector<HTMLDivElement>("#app");
 document.documentElement.style.setProperty("--keyart", `url("${import.meta.env.BASE_URL}assets/art/title-keyart.jpg")`);
 if (!app) throw new Error("Missing #app root");
 app.inert = true;
+
+// タイトルは設定やレンダラーの準備より先に出し、裏で支度の画面を組み立てる。
+let deliverTitleLedger: (ledger: TitleLedger) => void = () => undefined;
+let markGameReady: () => void = () => undefined;
+const titleClosed = showTitle(
+  new Promise<TitleLedger>((resolve) => { deliverTitleLedger = resolve; }),
+  new Promise<void>((resolve) => { markGameReady = resolve; }),
+);
 
 app.innerHTML = `
   <main class="observer-shell" tabindex="-1">
@@ -322,6 +330,12 @@ const runInsightsPanel = requireElement<HTMLElement>("#run-insights");
 const endMilestone = requireElement<HTMLElement>("#end-milestone");
 
 let campaign = loadCampaign();
+deliverTitleLedger({
+  cycle: campaign.cycle.number,
+  expeditions: campaign.expeditions.length,
+  highestFloor: campaignProgress(campaign).highestFloor,
+  shards: campaign.shards,
+});
 let candidateSeed = nextSeed();
 let selectedRoleId = playableRoles()[0].id;
 let selectedIdentity = createRunIdentity(candidateSeed, selectedRoleId);
@@ -361,12 +375,8 @@ new ResizeObserver(syncViewport).observe(mapStage);
 requireElement<HTMLButtonElement>("#pause-toggle").innerHTML = PAUSE_ICON;
 applySprite(requireElement<HTMLElement>("#brand-mark"), assetForContent("ui.heat"), 30);
 render();
-void showTitle({
-  cycle: campaign.cycle.number,
-  expeditions: campaign.expeditions.length,
-  highestFloor: campaignProgress(campaign).highestFloor,
-  shards: campaign.shards,
-}).then(() => {
+markGameReady();
+void titleClosed.then(() => {
   app.inert = false;
   // 灯が画面を満たしている間に、支度の部屋を奥から立ち上げる。
   candidateDialog.classList.add("is-entering");

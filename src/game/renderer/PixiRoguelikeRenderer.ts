@@ -7,6 +7,8 @@ import type { BiomeTheme, Direction, Entity, GameState, Point, TileKind } from "
 const TILE_SIZE = 64;
 const MEMORY_SHADE_ALPHA = 0.46;
 const MEMORY_SHADE_SCALE = 8;
+/** 視界の出入りで記憶の暗がりが入れ替わる時間。1歩ごとに明暗が切り替わってちらつかないよう、ゆっくり馴染ませる。 */
+const MEMORY_SHADE_FADE_MS = 280;
 
 type TextureKey = TileKind | string;
 
@@ -60,9 +62,9 @@ const BIOME_ATMOSPHERE: Record<BiomeTheme, { mote: number; rise: number; drift: 
   // 墓所: ゆっくり漂う青白い胞子。
   crypt: { mote: 0x9fe0cf, rise: 3, drift: 8, glow: 0xffc98a, brightness: 1, size: 1.15 },
   // 炉心: 床から昇る火の粉。
-  furnace: { mote: 0xff8a3d, rise: 24, drift: 7, glow: 0xffa45c, brightness: 1.5, size: 1.2 },
+  furnace: { mote: 0xff8a3d, rise: 24, drift: 7, glow: 0xffa45c, brightness: 1.25, size: 1.2 },
   // 黒燭中枢: 紫の灰。
-  "black-candle": { mote: 0xb79bff, rise: 5, drift: 10, glow: 0xffc27e, brightness: 1.25, size: 1.15 },
+  "black-candle": { mote: 0xb79bff, rise: 5, drift: 10, glow: 0xffc27e, brightness: 1.1, size: 1.15 },
 };
 
 const MOTE_COUNT = 54;
@@ -99,6 +101,10 @@ export class PixiRoguelikeRenderer {
   private readonly memoryCanvas = document.createElement("canvas");
   private memoryTexture: Texture | null = null;
   private memorySprite: Sprite | null = null;
+  /** マスごとの暗がりの濃さ（0〜1）。現在値を目標値へ時間をかけて寄せる。 */
+  private memoryShade = new Float32Array(0);
+  private memoryShadeTarget = new Float32Array(0);
+  private memoryShadeSettled = true;
   private fogTexture: Texture = Texture.EMPTY;
   private fogCornerTexture: Texture = Texture.EMPTY;
   private biome: BiomeTheme = "blackstone";
@@ -203,7 +209,7 @@ export class PixiRoguelikeRenderer {
       this.camera = { ...this.cameraTarget };
     }
 
-    this.drawTerrain(state);
+    this.drawTerrain(state, sceneChanged);
     this.syncEntities(state, options.stepMs ?? 200, sceneChanged, events);
     this.playEvents(state, events);
     if (options.intent) this.showIntent(options.intent);
@@ -245,7 +251,7 @@ export class PixiRoguelikeRenderer {
     }
   }
 
-  private drawTerrain(state: GameState): void {
+  private drawTerrain(state: GameState, sceneChanged: boolean): void {
     for (const child of this.terrainLayer.removeChildren()) {
       // 記憶の暗がりは同じスプライトを使い回す。
       if (child !== this.memorySprite) child.destroy();
@@ -300,16 +306,17 @@ export class PixiRoguelikeRenderer {
       }
     }
     voids.fill("#010101");
-    this.terrainLayer.addChild(depth, voids, edges, this.updateMemoryShade(state), fog);
+    this.terrainLayer.addChild(depth, voids, edges, this.updateMemoryShade(state, sceneChanged), fog);
   }
 
   /**
    * 探索済みの記憶は地形を残したまま沈め、現在視界と見分けられるようにする。
    * マス単位の矩形だと視界の縁が階段状になるので、濃さの地図を拡大・ぼかしして境目を約1マスの階調にする。
    */
-  private updateMemoryShade(state: GameState): Sprite {
+  private updateMemoryShade(state: GameState, sceneChanged: boolean): Sprite {
     const scale = MEMORY_SHADE_SCALE;
-    if (this.memoryCells.width !== state.width || this.memoryCells.height !== state.height) {
+    const resized = this.memoryCells.width !== state.width || this.memoryCells.height !== state.height;
+    if (resized) {
       this.memoryCells.width = state.width;
       this.memoryCells.height = state.height;
       this.memoryCanvas.width = state.width * scale;
@@ -317,37 +324,64 @@ export class PixiRoguelikeRenderer {
       this.memoryTexture?.destroy(true);
       this.memoryTexture = null;
     }
-    const cells = this.memoryCells.getContext("2d");
-    const canvas = this.memoryCanvas.getContext("2d");
-    if (cells && canvas) {
-      const image = cells.createImageData(state.width, state.height);
-      const alpha = Math.round(MEMORY_SHADE_ALPHA * 255);
-      for (let index = 0; index < state.tiles.length; index += 1) {
-        const offset = index * 4;
-        image.data[offset] = 7;
-        image.data[offset + 1] = 6;
-        image.data[offset + 2] = 10;
-        // 未探索も同じ濃さにしておき、視界の縁だけが明るく抜けるようにする。
-        image.data[offset + 3] = state.tiles[index].visible ? 0 : alpha;
-      }
-      cells.putImageData(image, 0, 0);
-      canvas.clearRect(0, 0, this.memoryCanvas.width, this.memoryCanvas.height);
-      canvas.imageSmoothingEnabled = true;
-      canvas.imageSmoothingQuality = "high";
-      canvas.filter = `blur(${scale * 0.45}px)`;
-      canvas.drawImage(this.memoryCells, 0, 0, this.memoryCanvas.width, this.memoryCanvas.height);
-      canvas.filter = "none";
+    if (this.memoryShadeTarget.length !== state.tiles.length) {
+      this.memoryShade = new Float32Array(state.tiles.length);
+      this.memoryShadeTarget = new Float32Array(state.tiles.length);
     }
+    for (let index = 0; index < state.tiles.length; index += 1) {
+      // 未探索も同じ濃さにしておき、視界の縁だけが明るく抜けるようにする。
+      this.memoryShadeTarget[index] = state.tiles[index].visible ? 0 : 1;
+    }
+    // 階の切り替えは暗転で隠れるので、馴染ませずにそのまま置く。
+    if (sceneChanged || resized) this.memoryShade.set(this.memoryShadeTarget);
+    this.memoryShadeSettled = false;
+    this.paintMemoryShade(0);
     if (!this.memoryTexture) {
       this.memoryTexture = Texture.from(this.memoryCanvas);
       this.memoryTexture.source.scaleMode = "linear";
       this.memorySprite = new Sprite(this.memoryTexture);
-    } else {
-      this.memoryTexture.source.update();
     }
     const sprite = this.memorySprite as Sprite;
     sprite.scale.set(TILE_SIZE / scale);
     return sprite;
+  }
+
+  /** 暗がりの濃さを目標へ寄せ、拡大・ぼかした濃さの地図として描き直す。 */
+  private paintMemoryShade(deltaMs: number): void {
+    if (this.memoryShadeSettled) return;
+    const step = deltaMs / MEMORY_SHADE_FADE_MS;
+    let settled = true;
+    for (let index = 0; index < this.memoryShade.length; index += 1) {
+      const current = this.memoryShade[index];
+      const target = this.memoryShadeTarget[index];
+      if (current === target) continue;
+      const next = current < target ? Math.min(target, current + step) : Math.max(target, current - step);
+      this.memoryShade[index] = next;
+      if (next !== target) settled = false;
+    }
+    this.memoryShadeSettled = settled;
+    const cells = this.memoryCells.getContext("2d");
+    const canvas = this.memoryCanvas.getContext("2d");
+    if (!cells || !canvas || this.memoryCells.width * this.memoryCells.height !== this.memoryShade.length) return;
+    const image = cells.createImageData(this.memoryCells.width, this.memoryCells.height);
+    const alpha = MEMORY_SHADE_ALPHA * 255;
+    for (let index = 0; index < this.memoryShade.length; index += 1) {
+      const offset = index * 4;
+      image.data[offset] = 7;
+      image.data[offset + 1] = 6;
+      image.data[offset + 2] = 10;
+      // 明るく抜ける側から沈む側へ、なめらかに寄せる。
+      const shade = this.memoryShade[index];
+      image.data[offset + 3] = Math.round(alpha * shade * shade * (3 - 2 * shade));
+    }
+    cells.putImageData(image, 0, 0);
+    canvas.clearRect(0, 0, this.memoryCanvas.width, this.memoryCanvas.height);
+    canvas.imageSmoothingEnabled = true;
+    canvas.imageSmoothingQuality = "high";
+    canvas.filter = `blur(${MEMORY_SHADE_SCALE * 0.45}px)`;
+    canvas.drawImage(this.memoryCells, 0, 0, this.memoryCanvas.width, this.memoryCanvas.height);
+    canvas.filter = "none";
+    this.memoryTexture?.source.update();
   }
 
   /** 1マス分の帯を回転させて置く。回転0で上辺、π/2で右辺、πで下辺、-π/2で左辺に効く。 */
@@ -529,6 +563,7 @@ export class PixiRoguelikeRenderer {
 
   private update(deltaMs: number): void {
     this.clock += deltaMs;
+    this.paintMemoryShade(this.reducedMotion ? MEMORY_SHADE_FADE_MS : deltaMs);
     for (const view of this.views.values()) {
       const progress = view.moveDuration <= 0 ? 1 : clamp((this.clock - view.moveStart) / view.moveDuration, 0, 1);
       const eased = 1 - (1 - progress) ** 3;
@@ -604,26 +639,28 @@ export class PixiRoguelikeRenderer {
     }
 
     this.currentLight += (this.lightStrength - this.currentLight) * (1 - Math.exp(-deltaMs / 400));
-    // 炎の揺らぎ。周期の違う揺れを重ねて、規則的に見えないようにする。
-    const flame = this.reducedMotion ? 0 : Math.sin(this.clock / 170) * 0.5 + Math.sin(this.clock / 53 + 1.3) * 0.25 + Math.sin(this.clock / 311 + 0.4) * 0.25;
+    // 炎の揺らぎ。周期の違うゆっくりした揺れを重ね、規則的にもちらつきにも見えないようにする。
+    const flame = this.reducedMotion ? 0 : Math.sin(this.clock / 610) * 0.5 + Math.sin(this.clock / 1370 + 1.3) * 0.3 + Math.sin(this.clock / 337 + 0.4) * 0.2;
     if (this.lightSprite && playerView) {
       this.lightSprite.x = playerView.root.x + TILE_SIZE / 2 + this.world.x;
       this.lightSprite.y = playerView.root.y + TILE_SIZE / 2 + this.world.y;
-      this.lightSprite.scale.set((0.72 + this.currentLight * 0.4) * (1 + flame * 0.016));
+      this.lightSprite.scale.set((0.72 + this.currentLight * 0.4) * (1 + flame * 0.008));
     }
     if (this.glowSprite && playerView) {
       const atmosphere = BIOME_ATMOSPHERE[this.biome];
       this.glowSprite.tint = atmosphere.glow;
       this.glowSprite.x = playerView.root.x + TILE_SIZE / 2 + this.world.x;
       this.glowSprite.y = playerView.root.y + TILE_SIZE * 0.42 + this.world.y;
-      this.glowSprite.scale.set((0.95 + this.currentLight * 0.55) * (1 + flame * 0.03));
-      this.glowSprite.alpha = (0.2 + this.currentLight * 0.2) * (1 + flame * 0.12);
+      this.glowSprite.scale.set((0.95 + this.currentLight * 0.55) * (1 + flame * 0.012));
+      // 加算光は床を白く飛ばしやすいので控えめにし、揺らぎも明るさの数%に留める。
+      this.glowSprite.alpha = (0.11 + this.currentLight * 0.13) * (1 + flame * 0.04);
     }
     this.updateMotes(deltaMs, playerView);
 
     this.flashOverlay.clear();
     if (this.clock < this.flashUntil) {
-      this.flashOverlay.rect(0, 0, this.viewWidth, this.viewHeight).fill({ color: "#8a1a10", alpha: 0.2 * ((this.flashUntil - this.clock) / 200) });
+      // 被弾の赤み。画面全体が点滅して見えないよう、薄く短くする。
+      this.flashOverlay.rect(0, 0, this.viewWidth, this.viewHeight).fill({ color: "#8a1a10", alpha: 0.11 * ((this.flashUntil - this.clock) / 200) });
     }
     this.fadeOverlay.clear();
     if (this.clock < this.fadeUntil) {
@@ -656,11 +693,11 @@ export class PixiRoguelikeRenderer {
       const distance = Math.hypot(mote.x - cx, mote.y - cy) / radius;
       const lit = clamp(1 - distance, 0, 1);
       const lifeFade = Math.min(1, mote.age / 600, (mote.life - mote.age) / 900);
-      const twinkle = 0.65 + Math.sin(this.clock / 260 + mote.phase * 7) * 0.35;
+      const twinkle = 0.8 + Math.sin(this.clock / 640 + mote.phase * 7) * 0.2;
       mote.sprite.tint = atmosphere.mote;
       mote.sprite.x = mote.x;
       mote.sprite.y = mote.y;
-      mote.sprite.alpha = clamp(lit * lifeFade * twinkle * (0.55 + this.currentLight * 0.45) * atmosphere.brightness * 1.5, 0, 0.95);
+      mote.sprite.alpha = clamp(lit * lifeFade * twinkle * (0.55 + this.currentLight * 0.45) * atmosphere.brightness, 0, 0.6);
     }
   }
 

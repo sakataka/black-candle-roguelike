@@ -14,9 +14,11 @@ const KANJI_DIGITS = ["〇", "一", "二", "三", "四", "五", "六", "七", "�
 
 /**
  * 起動時のタイトル。キーアートの蝋燭に火の粉と揺らぎを重ね、灯を掲げると支度の画面へ溶ける。
+ * 設定やレンダラーの準備より先に出し、遠征録は届いた時点で書き込む。
+ * 灯を掲げても `ready` が済むまでは退場せず、準備途中の下の画面を見せない。
  * 解決するのは退場演出が始まった時点で、下の画面はその間に入場演出を始められる。
  */
-export function showTitle(ledger: TitleLedger): Promise<void> {
+export function showTitle(ledger: Promise<TitleLedger>, ready: Promise<unknown>): Promise<void> {
   const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   const root = document.createElement("section");
   root.className = "title-screen";
@@ -35,7 +37,7 @@ export function showTitle(ledger: TitleLedger): Promise<void> {
     <div class="title-veil" aria-hidden="true"></div>
     <div class="title-pointer-light" aria-hidden="true"></div>
     <div class="title-content">
-      <p class="title-eyebrow"><span>灰灯院遠征記</span><i aria-hidden="true"></i><span>第${toKanji(ledger.cycle)}周期</span></p>
+      <p class="title-eyebrow"><span>灰灯院遠征記</span><i aria-hidden="true"></i><span data-cycle></span></p>
       <h1 id="title-logo" class="title-logo" aria-label="黒燭の迷宮">
         ${[..."黒燭の迷宮"].map((char, index) => `<span class="${char === "の" ? "is-particle" : ""}" style="--i:${index}" aria-hidden="true">${char}</span>`).join("")}
       </h1>
@@ -47,28 +49,43 @@ export function showTitle(ledger: TitleLedger): Promise<void> {
         <span class="title-cta-label">灯を掲げる</span>
         <kbd>Enter</kbd>
       </button>
-      ${ledgerMarkup(ledger)}
+      <div data-ledger hidden></div>
     </div>
-    <p class="title-foot" aria-hidden="true"><span>Press any key</span><span>灰と蝋の記録 · 第${toKanji(ledger.cycle)}周期</span></p>
+    <p class="title-foot" aria-hidden="true"><span>Press any key</span><span data-cycle-foot></span></p>
   `;
   document.body.append(root);
   const button = root.querySelector<HTMLButtonElement>(".title-cta");
   const stopEmbers = reducedMotion ? () => undefined : runEmbers(root);
   const stopPointer = reducedMotion ? () => undefined : trackPointer(root);
   const image = root.querySelector("img");
-  const reveal = () => requestAnimationFrame(() => root.classList.add("is-ready"));
-  if (image && !image.complete) {
-    image.addEventListener("load", reveal, { once: true });
-    image.addEventListener("error", reveal, { once: true });
-  } else {
-    reveal();
-  }
+  const imageLoaded = new Promise<void>((resolve) => {
+    if (image && !image.complete) {
+      image.addEventListener("load", () => resolve(), { once: true });
+      image.addEventListener("error", () => resolve(), { once: true });
+    } else {
+      resolve();
+    }
+  });
+  const ledgerWritten = ledger.then((value) => {
+    const cycle = `第${toKanji(value.cycle)}周期`;
+    root.querySelector("[data-cycle]")!.textContent = cycle;
+    root.querySelector("[data-cycle-foot]")!.textContent = `灰と蝋の記録 · ${cycle}`;
+    root.querySelector("[data-ledger]")!.outerHTML = ledgerMarkup(value);
+  }, () => undefined);
+  // 遠征録を書き込んでから順に現す。途中で文字が差し替わって見えないようにする。
+  void Promise.all([imageLoaded, ledgerWritten]).then(() => requestAnimationFrame(() => root.classList.add("is-ready")));
   requestAnimationFrame(() => button?.focus({ preventScroll: true }));
 
+  let prepared = false;
+  let requested = false;
   return new Promise((resolve) => {
     let leaving = false;
     const leave = () => {
       if (leaving) return;
+      if (!prepared) {
+        requested = true;
+        return;
+      }
       leaving = true;
       window.removeEventListener("keydown", onKey, true);
       root.classList.add("is-leaving");
@@ -94,6 +111,11 @@ export function showTitle(ledger: TitleLedger): Promise<void> {
     };
     window.addEventListener("keydown", onKey, true);
     root.addEventListener("click", leave);
+    const onPrepared = () => {
+      prepared = true;
+      if (requested) leave();
+    };
+    ready.then(onPrepared, onPrepared);
   });
 }
 
