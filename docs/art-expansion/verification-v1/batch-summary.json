@@ -1,0 +1,522 @@
+{
+  "verifiedOn": "2026-10-04",
+  "seeds": "20260504:20260533",
+  "turns": 1600,
+  "jobs": 4,
+  "comparison": "Same final engine and AI; original config vs expansion config. Baseline has 3 roles, expansion has 7.",
+  "records": [
+    {
+      "watcher": "none",
+      "source": "tmp/sim-reports/baseline-vs-expansion-20261004T130114Z.json",
+      "baseline": {
+        "runs": 90,
+        "statusCounts": {
+          "won": 32,
+          "returned": 38,
+          "lost": 20,
+          "playing": 0,
+          "stranded": 0
+        },
+        "averageFloor": 7.97,
+        "missionPercent": 76.67,
+        "medianShards": 30,
+        "averageLowHpTurns": 8.46,
+        "averageStagnantTurns": 53.96,
+        "averageRiskyTrapSteps": 3.24,
+        "averageDiscoveries": 5.01,
+        "averagePickups": 52.29,
+        "averageAttacks": 203.82,
+        "averageDescents": 6.97,
+        "averageUseItem": 27.08,
+        "averageShoot": 0,
+        "averageElapsedMs": 493.97,
+        "averageDisplayMinutes": 3.65,
+        "deathCauses": {
+          "combat": 10,
+          "venom": 4,
+          "unknown": 2,
+          "rangedCombat": 4
+        }
+      },
+      "matchedOldRoles": {
+        "runs": 90,
+        "statusCounts": {
+          "won": 20,
+          "returned": 55,
+          "lost": 15,
+          "playing": 0,
+          "stranded": 0
+        },
+        "averageFloor": 6.37,
+        "missionPercent": 83.33,
+        "medianShards": 31,
+        "averageLowHpTurns": 8.18,
+        "averageStagnantTurns": 52.77,
+        "averageRiskyTrapSteps": 2.18,
+        "averageDiscoveries": 10.44,
+        "averagePickups": 40.42,
+        "averageAttacks": 146.53,
+        "averageDescents": 5.37,
+        "averageUseItem": 20.29,
+        "averageShoot": 0.44,
+        "averageElapsedMs": 372.67,
+        "averageDisplayMinutes": 2.69,
+        "deathCauses": {
+          "combat": 10,
+          "venom": 3,
+          "rangedCombat": 2
+        }
+      },
+      "allRoles": {
+        "runs": 210,
+        "statusCounts": {
+          "won": 48,
+          "returned": 131,
+          "lost": 31,
+          "playing": 0,
+          "stranded": 0
+        },
+        "averageFloor": 6.31,
+        "missionPercent": 85.24,
+        "medianShards": 31,
+        "averageLowHpTurns": 7.26,
+        "averageStagnantTurns": 50.9,
+        "averageRiskyTrapSteps": 2.16,
+        "averageDiscoveries": 10.5,
+        "averagePickups": 40.63,
+        "averageAttacks": 143.99,
+        "averageDescents": 5.31,
+        "averageUseItem": 18.55,
+        "averageShoot": 0.44,
+        "averageElapsedMs": 371.28,
+        "averageDisplayMinutes": 2.66,
+        "deathCauses": {
+          "combat": 21,
+          "venom": 5,
+          "rangedCombat": 3,
+          "unknown": 1,
+          "bleeding": 1
+        }
+      },
+      "byRole": {
+        "role.oathbound": {
+          "statusCounts": {
+            "playing": 0,
+            "won": 10,
+            "lost": 3,
+            "returned": 17,
+            "stranded": 0
+          },
+          "averageFloor": 6.4,
+          "missionCompletionRate": 0.9,
+          "medianShards": 26,
+          "averageDynamics": {
+            "dodges": 7.53,
+            "telegraphs": 12.03,
+            "terrainLures": 0,
+            "awakened": 1.4,
+            "heatHits": 0.17,
+            "lightsPlaced": 0,
+            "borrowed": 0
+          },
+          "averageUnpaidFlameDebt": 0
+        },
+        "role.ash-scout": {
+          "statusCounts": {
+            "playing": 0,
+            "won": 3,
+            "lost": 5,
+            "returned": 22,
+            "stranded": 0
+          },
+          "averageFloor": 5.87,
+          "missionCompletionRate": 0.83,
+          "medianShards": 31,
+          "averageDynamics": {
+            "dodges": 5.5,
+            "telegraphs": 9.4,
+            "terrainLures": 0.03,
+            "awakened": 1.4,
+            "heatHits": 0.07,
+            "lightsPlaced": 0,
+            "borrowed": 0
+          },
+          "averageUnpaidFlameDebt": 0
+        },
+        "role.lantern-priest": {
+          "statusCounts": {
+            "playing": 0,
+            "won": 7,
+            "lost": 7,
+            "returned": 16,
+            "stranded": 0
+          },
+          "averageFloor": 6.83,
+          "missionCompletionRate": 0.77,
+          "medianShards": 31,
+          "averageDynamics": {
+            "dodges": 7.97,
+            "telegraphs": 13.9,
+            "terrainLures": 0,
+            "awakened": 1.8,
+            "heatHits": 0.2,
+            "lightsPlaced": 0,
+            "borrowed": 0
+          },
+          "averageUnpaidFlameDebt": 0
+        },
+        "role.relic-surveyor": {
+          "statusCounts": {
+            "playing": 0,
+            "won": 12,
+            "lost": 3,
+            "returned": 15,
+            "stranded": 0
+          },
+          "averageFloor": 6.93,
+          "missionCompletionRate": 0.9,
+          "medianShards": 32,
+          "averageDynamics": {
+            "dodges": 9,
+            "telegraphs": 13.7,
+            "terrainLures": 0.03,
+            "awakened": 1.5,
+            "heatHits": 0.47,
+            "lightsPlaced": 0,
+            "borrowed": 0
+          },
+          "averageUnpaidFlameDebt": 0
+        },
+        "role.ash-apothecary": {
+          "statusCounts": {
+            "playing": 0,
+            "won": 4,
+            "lost": 5,
+            "returned": 21,
+            "stranded": 0
+          },
+          "averageFloor": 6.33,
+          "missionCompletionRate": 0.83,
+          "medianShards": 31.5,
+          "averageDynamics": {
+            "dodges": 6,
+            "telegraphs": 11.03,
+            "terrainLures": 0.03,
+            "awakened": 1.8,
+            "heatHits": 0.17,
+            "lightsPlaced": 0,
+            "borrowed": 0
+          },
+          "averageUnpaidFlameDebt": 0
+        },
+        "role.iron-oath-vanguard": {
+          "statusCounts": {
+            "playing": 0,
+            "won": 5,
+            "lost": 2,
+            "returned": 23,
+            "stranded": 0
+          },
+          "averageFloor": 5.37,
+          "missionCompletionRate": 0.93,
+          "medianShards": 21,
+          "averageDynamics": {
+            "dodges": 5.2,
+            "telegraphs": 8.63,
+            "terrainLures": 0,
+            "awakened": 1.03,
+            "heatHits": 0.1,
+            "lightsPlaced": 0,
+            "borrowed": 0
+          },
+          "averageUnpaidFlameDebt": 0
+        },
+        "role.keyshadow-rogue": {
+          "statusCounts": {
+            "playing": 0,
+            "won": 7,
+            "lost": 6,
+            "returned": 17,
+            "stranded": 0
+          },
+          "averageFloor": 6.47,
+          "missionCompletionRate": 0.8,
+          "medianShards": 26,
+          "averageDynamics": {
+            "dodges": 7.27,
+            "telegraphs": 11.17,
+            "terrainLures": 0.03,
+            "awakened": 1.57,
+            "heatHits": 0.2,
+            "lightsPlaced": 0,
+            "borrowed": 0
+          },
+          "averageUnpaidFlameDebt": 0
+        }
+      },
+      "averageDynamics": {
+        "dodges": 6.92,
+        "telegraphs": 11.41,
+        "terrainLures": 0.02,
+        "awakened": 1.5,
+        "heatHits": 0.2,
+        "lightsPlaced": 0,
+        "borrowed": 0
+      },
+      "averageUnpaidFlameDebt": 0
+    },
+    {
+      "watcher": "lantern",
+      "source": "tmp/sim-reports/baseline-vs-expansion-20261004T130229Z.json",
+      "baseline": {
+        "runs": 90,
+        "statusCounts": {
+          "won": 44,
+          "returned": 42,
+          "lost": 1,
+          "playing": 3,
+          "stranded": 0
+        },
+        "averageFloor": 8.1,
+        "missionPercent": 93.33,
+        "medianShards": 31,
+        "averageLowHpTurns": 2.76,
+        "averageStagnantTurns": 59.96,
+        "averageRiskyTrapSteps": 3.38,
+        "averageDiscoveries": 5.12,
+        "averagePickups": 53.76,
+        "averageAttacks": 203.51,
+        "averageDescents": 7.1,
+        "averageUseItem": 25.34,
+        "averageShoot": 0,
+        "averageElapsedMs": 515.81,
+        "averageDisplayMinutes": 3.69,
+        "deathCauses": {
+          "combat": 1
+        }
+      },
+      "matchedOldRoles": {
+        "runs": 90,
+        "statusCounts": {
+          "won": 29,
+          "returned": 55,
+          "lost": 6,
+          "playing": 0,
+          "stranded": 0
+        },
+        "averageFloor": 6.62,
+        "missionPercent": 93.33,
+        "medianShards": 32,
+        "averageLowHpTurns": 2.88,
+        "averageStagnantTurns": 53.68,
+        "averageRiskyTrapSteps": 2.26,
+        "averageDiscoveries": 10.81,
+        "averagePickups": 41.88,
+        "averageAttacks": 150.7,
+        "averageDescents": 5.62,
+        "averageUseItem": 19.73,
+        "averageShoot": 0.44,
+        "averageElapsedMs": 396.04,
+        "averageDisplayMinutes": 2.77,
+        "deathCauses": {
+          "combat": 5,
+          "rangedCombat": 1
+        }
+      },
+      "allRoles": {
+        "runs": 210,
+        "statusCounts": {
+          "won": 68,
+          "returned": 131,
+          "lost": 11,
+          "playing": 0,
+          "stranded": 0
+        },
+        "averageFloor": 6.51,
+        "missionPercent": 94.76,
+        "medianShards": 32,
+        "averageLowHpTurns": 2.04,
+        "averageStagnantTurns": 51.53,
+        "averageRiskyTrapSteps": 2.19,
+        "averageDiscoveries": 10.75,
+        "averagePickups": 41.89,
+        "averageAttacks": 147.27,
+        "averageDescents": 5.51,
+        "averageUseItem": 17.87,
+        "averageShoot": 0.44,
+        "averageElapsedMs": 407.55,
+        "averageDisplayMinutes": 2.72,
+        "deathCauses": {
+          "combat": 8,
+          "rangedCombat": 3
+        }
+      },
+      "byRole": {
+        "role.oathbound": {
+          "statusCounts": {
+            "playing": 0,
+            "won": 12,
+            "lost": 1,
+            "returned": 17,
+            "stranded": 0
+          },
+          "averageFloor": 6.53,
+          "missionCompletionRate": 0.97,
+          "medianShards": 31.5,
+          "averageDynamics": {
+            "dodges": 7.93,
+            "telegraphs": 12.63,
+            "terrainLures": 0,
+            "awakened": 1.3,
+            "heatHits": 0.1,
+            "lightsPlaced": 0.57,
+            "borrowed": 0.07
+          },
+          "averageUnpaidFlameDebt": 0.07
+        },
+        "role.ash-scout": {
+          "statusCounts": {
+            "playing": 0,
+            "won": 5,
+            "lost": 3,
+            "returned": 22,
+            "stranded": 0
+          },
+          "averageFloor": 6.07,
+          "missionCompletionRate": 0.9,
+          "medianShards": 32,
+          "averageDynamics": {
+            "dodges": 4.87,
+            "telegraphs": 9.1,
+            "terrainLures": 0.03,
+            "awakened": 1.53,
+            "heatHits": 0.13,
+            "lightsPlaced": 0.33,
+            "borrowed": 0.07
+          },
+          "averageUnpaidFlameDebt": 0.03
+        },
+        "role.lantern-priest": {
+          "statusCounts": {
+            "playing": 0,
+            "won": 12,
+            "lost": 2,
+            "returned": 16,
+            "stranded": 0
+          },
+          "averageFloor": 7.27,
+          "missionCompletionRate": 0.93,
+          "medianShards": 32,
+          "averageDynamics": {
+            "dodges": 8.5,
+            "telegraphs": 14.33,
+            "terrainLures": 0,
+            "awakened": 1.9,
+            "heatHits": 0.23,
+            "lightsPlaced": 0.57,
+            "borrowed": 0.1
+          },
+          "averageUnpaidFlameDebt": 0.1
+        },
+        "role.relic-surveyor": {
+          "statusCounts": {
+            "playing": 0,
+            "won": 14,
+            "lost": 1,
+            "returned": 15,
+            "stranded": 0
+          },
+          "averageFloor": 7,
+          "missionCompletionRate": 0.97,
+          "medianShards": 33,
+          "averageDynamics": {
+            "dodges": 7.93,
+            "telegraphs": 13,
+            "terrainLures": 0.03,
+            "awakened": 1.5,
+            "heatHits": 0.27,
+            "lightsPlaced": 0.4,
+            "borrowed": 0.03
+          },
+          "averageUnpaidFlameDebt": 0.03
+        },
+        "role.ash-apothecary": {
+          "statusCounts": {
+            "playing": 0,
+            "won": 9,
+            "lost": 0,
+            "returned": 21,
+            "stranded": 0
+          },
+          "averageFloor": 6.5,
+          "missionCompletionRate": 1,
+          "medianShards": 32.5,
+          "averageDynamics": {
+            "dodges": 5.8,
+            "telegraphs": 11.2,
+            "terrainLures": 0,
+            "awakened": 1.67,
+            "heatHits": 0.2,
+            "lightsPlaced": 0.2,
+            "borrowed": 0.07
+          },
+          "averageUnpaidFlameDebt": 0.03
+        },
+        "role.iron-oath-vanguard": {
+          "statusCounts": {
+            "playing": 0,
+            "won": 6,
+            "lost": 1,
+            "returned": 23,
+            "stranded": 0
+          },
+          "averageFloor": 5.4,
+          "missionCompletionRate": 0.97,
+          "medianShards": 21,
+          "averageDynamics": {
+            "dodges": 4.7,
+            "telegraphs": 8.2,
+            "terrainLures": 0,
+            "awakened": 1.03,
+            "heatHits": 0.07,
+            "lightsPlaced": 0.2,
+            "borrowed": 0.03
+          },
+          "averageUnpaidFlameDebt": 0.07
+        },
+        "role.keyshadow-rogue": {
+          "statusCounts": {
+            "playing": 0,
+            "won": 10,
+            "lost": 3,
+            "returned": 17,
+            "stranded": 0
+          },
+          "averageFloor": 6.8,
+          "missionCompletionRate": 0.9,
+          "medianShards": 32.5,
+          "averageDynamics": {
+            "dodges": 8.8,
+            "telegraphs": 13.53,
+            "terrainLures": 0.03,
+            "awakened": 1.47,
+            "heatHits": 0.2,
+            "lightsPlaced": 0.3,
+            "borrowed": 0.23
+          },
+          "averageUnpaidFlameDebt": 0.23
+        }
+      },
+      "averageDynamics": {
+        "dodges": 6.93,
+        "telegraphs": 11.71,
+        "terrainLures": 0.01,
+        "awakened": 1.49,
+        "heatHits": 0.17,
+        "lightsPlaced": 0.37,
+        "borrowed": 0.09
+      },
+      "averageUnpaidFlameDebt": 0.08
+    }
+  ]
+}

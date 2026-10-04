@@ -3,7 +3,7 @@ import { contentEntities } from "../content/entities";
 import { hasCondition } from "./conditions";
 import type { Entity, EquipmentConfig } from "../types";
 
-export function equipmentSlot(contentId: string): "weapon" | "shield" | "armor" | null {
+export function equipmentSlot(contentId: string): EquipmentConfig["slot"] | null {
   return getGameConfig().equipment[contentId]?.slot ?? null;
 }
 
@@ -67,7 +67,28 @@ export function equipmentScore(contentId: string): number {
   const equipment = getGameConfig().equipment[contentId];
   const slot = equipmentSlot(contentId);
   const tacticalValue = ((equipment?.rangedDefense ?? 0) * 0.8) + (((equipment?.trapAvoidPercent ?? 0) - (equipment?.trapAvoidPenaltyPercent ?? 0)) / 12);
-  return slot ? equipmentPower(contentId, slot) + tacticalValue : 0;
+  const utility = (equipment?.regen ? 1.5 : 0) + (equipment?.revealRadius ? 0.5 : 0) + (equipment?.conditionResistance?.length ?? 0) + (equipment?.reflectDamage ?? 0) * 0.5 + (equipment?.rangedAttack ? 2 : 0);
+  return slot ? equipmentPower(contentId, slot) + tacticalValue + utility : 0;
+}
+
+export function equippedEffects(player: Entity): EquipmentConfig[] {
+  return (player.inventory ?? []).filter((entry) => entry.equipped).flatMap((entry) => {
+    const equipment = getGameConfig().equipment[entry.contentId];
+    return equipment ? [equipment] : [];
+  });
+}
+
+/** 盾の価値も含め、両手武器との排他を満たす装備の組合せを選ぶ。 */
+export function preferredEquipment(player: Entity): Set<string> {
+  const inventory = player.inventory ?? [];
+  const best = (slot: EquipmentConfig["slot"]) => inventory.filter((entry) => entry.quantity > 0 && equipmentSlot(entry.contentId) === slot).sort((a, b) => equipmentScore(b.contentId) - equipmentScore(a.contentId))[0];
+  const shield = best("shield");
+  const weapons = inventory.filter((entry) => equipmentSlot(entry.contentId) === "weapon" && entry.quantity > 0);
+  const score = (id: string) => equipmentScore(id) + (getGameConfig().equipment[id].twoHanded ? 0 : shield ? equipmentScore(shield.contentId) : 0);
+  const weapon = weapons.sort((a, b) => score(b.contentId) - score(a.contentId))[0];
+  const selected = [weapon, best("armor"), best("ring")];
+  if (!weapon || !getGameConfig().equipment[weapon.contentId].twoHanded) selected.push(shield);
+  return new Set(selected.flatMap((entry) => entry ? [entry.contentId] : []));
 }
 
 export function equippedWeaponSpecialDamage(player: Entity, defenderContentId: string): number {

@@ -1,55 +1,127 @@
 // Bun Snapshot v1, https://bun.sh/docs/test/snapshots
 
-exports[`遠征の既存挙動を維持する: role.oathbound / none 1`] = `
+exports[`拡張v1の遠征を再現する: role.oathbound / none 1`] = `
 {
-  "fingerprint": "f3f67a7b4be1a945543cffcc7732e9183cf232b34b1aed47e5045d61a9bab4e3",
+  "fingerprint": "aef520ddd8e202eca057eac79e23683bbce8f265db47c292a2bb685af8a5bcb2",
   "floor": 10,
   "status": "won",
-  "turn": 885,
+  "turn": 978,
 }
 `;
 
-exports[`遠征の既存挙動を維持する: role.ash-scout / none 1`] = `
+exports[`拡張v1の遠征を再現する: role.ash-scout / none 1`] = `
 {
-  "fingerprint": "92f2d35ee48b9d3024a75ee8dbd876fe0eebda92b79be1cd9807d818f657b5df",
-  "floor": 6,
-  "status": "lost",
-  "turn": 504,
-}
-`;
-
-exports[`遠征の既存挙動を維持する: role.lantern-priest / none 1`] = `
-{
-  "fingerprint": "06cac2f4491795d96ec94e7c548a17b9fc647e5ae4301954f71815bedf58df51",
+  "fingerprint": "93e99e35b1077b4112cd468bf89717ff9a13db717168dc637418375d060cea10",
   "floor": 6,
   "status": "returned",
-  "turn": 524,
+  "turn": 516,
 }
 `;
 
-exports[`遠征の既存挙動を維持する: role.oathbound / lantern 1`] = `
+exports[`拡張v1の遠征を再現する: role.lantern-priest / none 1`] = `
 {
-  "fingerprint": "6debea54ee1e8c0ccbe995b1427328d597dcf616f0a91af74336050a511a1ba7",
+  "fingerprint": "b7d288558f91efc9cdaa8edecded956829947bdfadb5be2b7393f2027630f0e0",
+  "floor": 6,
+  "status": "returned",
+  "turn": 494,
+}
+`;
+
+exports[`拡張v1の遠征を再現する: role.relic-surveyor / none 1`] = `
+{
+  "fingerprint": "cd5cb6664f7d05a9ec6fb69013a7d1fef40cc03c9e98412dfd0ac49eb62cd944",
   "floor": 10,
   "status": "won",
-  "turn": 857,
+  "turn": 870,
 }
 `;
 
-exports[`遠征の既存挙動を維持する: role.ash-scout / lantern 1`] = `
+exports[`拡張v1の遠征を再現する: role.ash-apothecary / none 1`] = `
 {
-  "fingerprint": "486b7d22d526d0bbaf69b1606430e3e8f5031aad7f31d616bfe16d531737fe46",
+  "fingerprint": "acb950c92e04c5a7dac0d1a2629f8b229371e2e1fdb9429420469b2bc07e2676",
   "floor": 6,
   "status": "returned",
-  "turn": 535,
+  "turn": 558,
 }
 `;
 
-exports[`遠征の既存挙動を維持する: role.lantern-priest / lantern 1`] = `
+exports[`拡張v1の遠征を再現する: role.iron-oath-vanguard / none 1`] = `
 {
-  "fingerprint": "b7fb2815a7ddf112170a833675cfc0be31c15e7e491c89006d8e5398ccf83fd1",
+  "fingerprint": "13d7681c530764923d779b409ac040ce84286bfb30ba2030dc5875df19fac75b",
+  "floor": 10,
+  "status": "won",
+  "turn": 1019,
+}
+`;
+
+exports[`拡張v1の遠征を再現する: role.keyshadow-rogue / none 1`] = `
+{
+  "fingerprint": "45a5bef30851e1abc5185e6adc422632d0fd18965997fe4f36324f42bf51d803",
   "floor": 6,
   "status": "returned",
-  "turn": 537,
+  "turn": 556,
+}
+`;
+
+exports[`拡張v1の遠征を再現する: role.oathbound / lantern 1`] = `
+{
+  "fingerprint": "8353aadba60c68e5dc699d43858c201e5e9c0306b72469489b17c4075b8fc042",
+  "floor": 10,
+  "status": "won",
+  "turn": 901,
+}
+`;
+
+exports[`拡張v1の遠征を再現する: role.ash-scout / lantern 1`] = `
+{
+  "fingerprint": "a67c7df517166e0dfd60a46c07e683400f25938e08d84c30a0b87acdfceddd24",
+  "floor": 6,
+  "status": "returned",
+  "turn": 513,
+}
+`;
+
+exports[`拡張v1の遠征を再現する: role.lantern-priest / lantern 1`] = `
+{
+  "fingerprint": "35180be83a6ac22f50591fb6369bd768a234d9e0f368f00a9a6ff026d2fa8aeb",
+  "floor": 6,
+  "status": "returned",
+  "turn": 493,
+}
+`;
+
+exports[`拡張v1の遠征を再現する: role.relic-surveyor / lantern 1`] = `
+{
+  "fingerprint": "8902036076a222246e912a1c36dacc14344ae4f7489b3a40a356d79a45497e75",
+  "floor": 10,
+  "status": "won",
+  "turn": 865,
+}
+`;
+
+exports[`拡張v1の遠征を再現する: role.ash-apothecary / lantern 1`] = `
+{
+  "fingerprint": "da176c5fbb68cd3486f36e390efba09ff506691153b7944f4eb8f37dfa1ffeaf",
+  "floor": 6,
+  "status": "returned",
+  "turn": 555,
+}
+`;
+
+exports[`拡張v1の遠征を再現する: role.iron-oath-vanguard / lantern 1`] = `
+{
+  "fingerprint": "8d04c02fb467fd9a3a4302414df4a6a2b6d1b0f0f8ece511f292d84e914a843d",
+  "floor": 10,
+  "status": "won",
+  "turn": 903,
+}
+`;
+
+exports[`拡張v1の遠征を再現する: role.keyshadow-rogue / lantern 1`] = `
+{
+  "fingerprint": "8b23210f9fb79e85d5d516be34f01397b91db4794ffd23183bb9e9217b188520",
+  "floor": 6,
+  "status": "returned",
+  "turn": 551,
 }
 `;

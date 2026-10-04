@@ -7,11 +7,11 @@ import { analyzeRun, createRunLog, recordTurn } from "./runLog";
 
 await loadBunGameConfig();
 
-// 9bde721（リファクタリング前）に採取した行動・公開観測・全状態・表示意図・遠征録の指紋。
+// 拡張v1の行動・公開観測・全状態・表示意図・遠征録の指紋。
 // 勝率だけでは見逃す判断順、乱数消費、FOV、メッセージの変化を検出する。
 for (const watcher of ["none", "lantern"] as WatcherPolicy[]) {
-  for (const roleId of ["role.oathbound", "role.ash-scout", "role.lantern-priest"]) {
-    test(`遠征の既存挙動を維持する: ${roleId} / ${watcher}`, () => {
+  for (const roleId of ["role.oathbound", "role.ash-scout", "role.lantern-priest", "role.relic-surveyor", "role.ash-apothecary", "role.iron-oath-vanguard", "role.keyshadow-rogue"]) {
+    test(`拡張v1の遠征を再現する: ${roleId} / ${watcher}`, () => {
       resetAutoplayState();
       let state = createInitialGame(20260507, roleId);
       const log = createRunLog(state.seed, roleId, { maxEntries: 40 }, state.runIdentity);

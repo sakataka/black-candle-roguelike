@@ -3,16 +3,20 @@ import { assetForContent } from "../game/content/assets";
 import { getContentName } from "../game/content/entities";
 import type { Entity } from "../game/types";
 import { escapeHtml, requireElement, setText } from "./dom";
-import { equipmentSlotLabel } from "./labels";
+import { equipmentDetail, equipmentSlotLabel } from "./labels";
 import { applySprite } from "./sprites";
 
 export function renderInventory(inventory: NonNullable<Entity["inventory"]>, observerShell: HTMLElement): void {
   const config = getGameConfig();
   setText("#inventory-count", `${inventory.length}/${config.rules.inventorySlotLimit}`);
-  requireElement<HTMLDivElement>("#equipment-list").innerHTML = (["weapon", "armor", "shield"] as const).map((slot) => {
+  requireElement<HTMLDivElement>("#equipment-list").innerHTML = (["weapon", "armor", "shield", "ring"] as const).map((slot) => {
     const entry = inventory.find((item) => item.equipped && config.equipment[item.contentId]?.slot === slot);
-    return `<div class="equipment-slot${entry ? "" : " is-empty"}"><span>${equipmentSlotLabel(slot)}</span><strong>${entry ? escapeHtml(getContentName(entry.contentId)) : "なし"}</strong></div>`;
+    return `<div class="equipment-slot${entry ? "" : " is-empty"}"${entry ? ` title="${escapeHtml(equipmentDetail(config.equipment[entry.contentId]))}"` : ""}><span>${equipmentSlotLabel(slot)}</span><i class="equipment-icon" data-equipped-slot="${slot}" aria-hidden="true"></i><strong>${entry ? escapeHtml(getContentName(entry.contentId)) : "なし"}</strong></div>`;
   }).join("");
+  for (const icon of document.querySelectorAll<HTMLElement>("[data-equipped-slot]")) {
+    const entry = inventory.find((item) => item.equipped && config.equipment[item.contentId]?.slot === icon.dataset.equippedSlot);
+    if (entry) applySprite(icon, assetForContent(entry.contentId), 28);
+  }
   const list = requireElement<HTMLUListElement>("#inventory-list");
   const carried = inventory.filter((entry) => !entry.equipped);
   const signature = carried.map((entry) => `${entry.contentId}:${entry.quantity}`).join("|");
@@ -30,7 +34,8 @@ export function renderInventory(inventory: NonNullable<Entity["inventory"]>, obs
   }
   list.replaceChildren(...carried.map((entry) => {
     const item = document.createElement("li");
-    const label = `${getContentName(entry.contentId)} ×${entry.quantity}`;
+    const equipment = config.equipment[entry.contentId];
+    const label = `${getContentName(entry.contentId)} ×${entry.quantity}${equipment ? ` / ${equipmentDetail(equipment)}` : ""}`;
     const button = document.createElement("button");
     button.type = "button";
     button.className = "inventory-slot";

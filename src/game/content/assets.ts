@@ -1,6 +1,7 @@
+import { expansionAssets } from "./expansionAssets";
 import type { AssetDefinition } from "../types";
 
-export const assetCatalog: Record<string, AssetDefinition> = {
+const originalAssets: Record<string, AssetDefinition> = {
   "rite.place": { contentId: "rite.place", path: "/assets/sprites/realtime-rites-sheet.png", sheet: { columns: 2, rows: 2, index: 0 } },
   "rite.borrow": { contentId: "rite.borrow", path: "/assets/sprites/realtime-rites-sheet.png", sheet: { columns: 2, rows: 2, index: 1 } },
   "effect.echo": { contentId: "effect.echo", path: "/assets/sprites/realtime-rites-sheet.png", sheet: { columns: 2, rows: 2, index: 2 } },
@@ -124,6 +125,13 @@ export const assetCatalog: Record<string, AssetDefinition> = {
   "monster.fallen-keeper": { contentId: "monster.fallen-keeper", path: "/assets/sprites/dungeon-journey-guardians.png", sheet: { columns: 2, rows: 2, index: 3 } },
   "icon.ui.heat": { contentId: "ui.heat", path: "/assets/sprites/legacy-sheet.png", sheet: { columns: 2, rows: 2, index: 2 } },
   "icon.ui.shard": { contentId: "ui.shard", path: "/assets/sprites/legacy-sheet.png", sheet: { columns: 2, rows: 2, index: 3 } },
+};
+
+// 新素材のcontentは旧共有セルから外し、残る旧素材はそのまま使う。
+const replacedContents = new Set(Object.values(expansionAssets).map((asset) => asset.contentId));
+export const assetCatalog: Record<string, AssetDefinition> = {
+  ...Object.fromEntries(Object.entries(originalAssets).filter(([, asset]) => !replacedContents.has(asset.contentId))),
+  ...expansionAssets,
 };
 
 export function assetIdForContent(contentId: string): string {

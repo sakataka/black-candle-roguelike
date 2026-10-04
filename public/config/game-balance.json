@@ -207,27 +207,66 @@
   "roles": [
     {
       "id": "role.oathbound",
-      "stats": { "hp": 36, "maxHp": 36, "attack": 8, "defense": 1 },
-      "inventory": [{ "contentId": "item.rusted-sword", "quantity": 1, "equipped": true }],
+      "stats": {
+        "hp": 36,
+        "maxHp": 36,
+        "attack": 8,
+        "defense": 1
+      },
+      "inventory": [
+        {
+          "contentId": "item.rusted-sword",
+          "quantity": 1,
+          "equipped": true
+        }
+      ],
       "traits": {
         "focus": "守り手撃破と安定した近接戦",
-        "strengths": ["HPと攻撃が高く、初回プレイ向き", "ボス撃破ごとに追加報酬を得る"],
-        "traitLabels": ["ボス撃破: 追加報酬", "近接安定"],
+        "strengths": [
+          "HPと攻撃が高く、初回プレイ向き",
+          "ボス撃破ごとに追加報酬を得る"
+        ],
+        "traitLabels": [
+          "ボス撃破: 追加報酬",
+          "近接安定"
+        ],
         "bossReward": "item.guardian-draught"
       }
     },
     {
       "id": "role.ash-scout",
-      "stats": { "hp": 34, "maxHp": 34, "attack": 7, "defense": 0 },
+      "stats": {
+        "hp": 34,
+        "maxHp": 34,
+        "attack": 7,
+        "defense": 0
+      },
       "inventory": [
-        { "contentId": "item.hunter-spear", "quantity": 1, "equipped": true },
-        { "contentId": "item.ember-dart", "quantity": 2 },
-        { "contentId": "item.glim-map", "quantity": 1 }
+        {
+          "contentId": "item.hunter-spear",
+          "quantity": 1,
+          "equipped": true
+        },
+        {
+          "contentId": "item.ember-dart",
+          "quantity": 2
+        },
+        {
+          "contentId": "item.glim-map",
+          "quantity": 1
+        }
       ],
       "traits": {
         "focus": "地図利用、罠回避、遠隔圧への対応",
-        "strengths": ["地図使用で追加探索と投げ針補充", "職業特性で罠回避と遠隔防御が少し高い"],
-        "traitLabels": ["地図使用: 探索+投げ針", "罠回避 +10%", "遠隔防御 +1"],
+        "strengths": [
+          "地図使用で追加探索と投げ針補充",
+          "職業特性で罠回避と遠隔防御が少し高い"
+        ],
+        "traitLabels": [
+          "地図使用: 探索+投げ針",
+          "罠回避 +10%",
+          "遠隔防御 +1"
+        ],
         "trapAvoidPercent": 10,
         "rangedDefense": 1,
         "scoutRevealRadius": 4,
@@ -236,18 +275,197 @@
     },
     {
       "id": "role.lantern-priest",
-      "stats": { "hp": 36, "maxHp": 36, "attack": 6, "defense": 1 },
+      "stats": {
+        "hp": 36,
+        "maxHp": 36,
+        "attack": 6,
+        "defense": 1
+      },
       "inventory": [
-        { "contentId": "item.oath-knife", "quantity": 1, "equipped": true },
-        { "contentId": "item.ember-tonic", "quantity": 1 },
-        { "contentId": "item.guardian-draught", "quantity": 1 },
-        { "contentId": "item.mapping-scroll", "quantity": 1 }
+        {
+          "contentId": "item.oath-knife",
+          "quantity": 1,
+          "equipped": true
+        },
+        {
+          "contentId": "item.ember-tonic",
+          "quantity": 1
+        },
+        {
+          "contentId": "item.guardian-draught",
+          "quantity": 1
+        },
+        {
+          "contentId": "item.mapping-scroll",
+          "quantity": 1
+        }
       ],
       "traits": {
         "focus": "浄化、状態異常対策、防御的な粘り",
-        "strengths": ["浄化や治療を護りに変える", "攻撃力は低いが危険状態から立て直しやすい"],
-        "traitLabels": ["浄化: 護り8手", "状態異常対策"],
+        "strengths": [
+          "浄化や治療を護りに変える",
+          "攻撃力は低いが危険状態から立て直しやすい"
+        ],
+        "traitLabels": [
+          "浄化: 護り8手",
+          "状態異常対策"
+        ],
         "priestGuardedTurns": 8
+      }
+    },
+    {
+      "id": "role.relic-surveyor",
+      "stats": {
+        "hp": 35,
+        "maxHp": 35,
+        "attack": 9,
+        "defense": 1
+      },
+      "inventory": [
+        {
+          "contentId": "item.sacred-pick",
+          "quantity": 1,
+          "equipped": true
+        },
+        {
+          "contentId": "item.glim-map",
+          "quantity": 1
+        },
+        {
+          "contentId": "item.lockpick-bundle",
+          "quantity": 1
+        }
+      ],
+      "traits": {
+        "focus": "寄り道部屋の調査と遺物回収",
+        "strengths": [
+          "部屋へ入ると周辺の地図を読む",
+          "構造物に強いつるはしと解錠具を持つ"
+        ],
+        "traitLabels": [
+          "部屋調査: 周囲5マス",
+          "構造物特効"
+        ],
+        "roomRevealRadius": 5,
+        "trapAvoidPercent": 8,
+        "truthId": "furnace-map"
+      }
+    },
+    {
+      "id": "role.ash-apothecary",
+      "stats": {
+        "hp": 34,
+        "maxHp": 34,
+        "attack": 9,
+        "defense": 1
+      },
+      "inventory": [
+        {
+          "contentId": "item.oath-knife",
+          "quantity": 1,
+          "equipped": true
+        },
+        {
+          "contentId": "item.bloodmoss-salve",
+          "quantity": 2
+        },
+        {
+          "contentId": "item.ember-tonic",
+          "quantity": 2
+        }
+      ],
+      "traits": {
+        "focus": "薬の効率と解毒後の立て直し",
+        "strengths": [
+          "薬による回復量が30%増える",
+          "浄化後にHPを3回復する"
+        ],
+        "traitLabels": [
+          "薬効 +30%",
+          "浄化: HP+3"
+        ],
+        "healPercent": 30,
+        "cleansingHeal": 3,
+        "truthId": "purified-flame"
+      }
+    },
+    {
+      "id": "role.iron-oath-vanguard",
+      "stats": {
+        "hp": 42,
+        "maxHp": 42,
+        "attack": 13,
+        "defense": 4
+      },
+      "inventory": [
+        {
+          "contentId": "item.ironbreaker-greataxe",
+          "quantity": 1,
+          "equipped": true
+        },
+        {
+          "contentId": "item.chain-mail",
+          "quantity": 1,
+          "equipped": true
+        },
+        {
+          "contentId": "item.ember-tonic",
+          "quantity": 1
+        }
+      ],
+      "traits": {
+        "focus": "盾を捨てた重装の突破役",
+        "strengths": [
+          "両手斧で高い威力と構造物特効",
+          "重い鎧で守るが罠を避けにくい"
+        ],
+        "traitLabels": [
+          "両手斧・盾併用不可",
+          "罠回避 -8%"
+        ],
+        "trapAvoidPercent": -8,
+        "bossReward": "item.guardian-draught",
+        "truthId": "shared-oath"
+      }
+    },
+    {
+      "id": "role.keyshadow-rogue",
+      "stats": {
+        "hp": 32,
+        "maxHp": 32,
+        "attack": 9,
+        "defense": 2
+      },
+      "inventory": [
+        {
+          "contentId": "item.oath-knife",
+          "quantity": 1,
+          "equipped": true
+        },
+        {
+          "contentId": "item.light-throwing-blade",
+          "quantity": 3
+        },
+        {
+          "contentId": "item.trapweave-cloak",
+          "quantity": 1,
+          "equipped": true
+        }
+      ],
+      "traits": {
+        "focus": "罠を避け、封じた箱から追加の古銭を得る",
+        "strengths": [
+          "解錠具なしで小箱と聖櫃を開ける",
+          "解錠で追加古銭を得る"
+        ],
+        "traitLabels": [
+          "解錠具不要",
+          "解錠: 古銭+12",
+          "罠回避 +15%"
+        ],
+        "trapAvoidPercent": 15,
+        "lockpickBonusGold": 12,
+        "truthId": "furnace-map"
       }
     }
   ],
@@ -286,15 +504,183 @@
     "monster.crypt-priest": { "hp": 24, "attack": 5, "defense": 2, "hpPerDanger": 2 },
     "monster.blackstone-colossus": { "hp": 38, "attack": 7, "defense": 5, "hpPerDanger": 2 },
     "monster.black-candle-warden": { "hp": 54, "attack": 9, "defense": 5, "hpPerDanger": 2 },
-    "monster.fallen-keeper": { "hp": 72, "attack": 11, "defense": 6, "hpPerDanger": 2 }
+    "monster.fallen-keeper": { "hp": 72, "attack": 11, "defense": 6, "hpPerDanger": 2 },
+    "monster.ash-claw": {
+      "hp": 5,
+      "attack": 1,
+      "defense": 0
+    },
+    "monster.rust-footman": {
+      "hp": 8,
+      "attack": 2,
+      "defense": 1
+    },
+    "monster.blackstone-hexer": {
+      "hp": 9,
+      "attack": 3,
+      "defense": 0
+    },
+    "monster.vein-gnawer": {
+      "hp": 14,
+      "attack": 3,
+      "defense": 2
+    },
+    "monster.venom-swarm": {
+      "hp": 7,
+      "attack": 2,
+      "defense": 0
+    },
+    "monster.acid-ooze": {
+      "hp": 14,
+      "attack": 3,
+      "defense": 1
+    },
+    "monster.grave-bloodling": {
+      "hp": 10,
+      "attack": 3,
+      "defense": 1
+    },
+    "monster.coffer-maw": {
+      "hp": 16,
+      "attack": 4,
+      "defense": 2
+    },
+    "monster.core-ant": {
+      "hp": 11,
+      "attack": 4,
+      "defense": 1
+    },
+    "monster.ember-hound": {
+      "hp": 14,
+      "attack": 4,
+      "defense": 1
+    },
+    "monster.threefold-gatehound": {
+      "hp": 22,
+      "attack": 5,
+      "defense": 3
+    },
+    "monster.candle-root-knight": {
+      "hp": 24,
+      "attack": 5,
+      "defense": 4
+    }
   },
   "itemPools": [
-    { "floor": 1, "items": ["item.ember-tonic", "item.ember-tonic", "item.coin-pouch", "item.mapping-scroll", "item.glim-map", "item.leather-armor", "item.trapweave-cloak", "item.oath-knife", "item.ember-dart", "item.guardian-draught", "item.unmarked-vial"] },
-    { "minFloor": 2, "maxFloor": 3, "items": ["item.ember-tonic", "item.greater-tonic", "item.coin-pouch", "item.coin-pouch", "item.mapping-scroll", "item.iron-axe", "item.ward-shield", "item.tower-kite-shield", "item.hunter-spear", "item.oath-knife", "item.ember-dart", "item.ember-dart", "item.guardian-draught", "item.repulsion-scroll", "item.bloodmoss-salve", "item.unmarked-vial", "item.sealed-prayer-strip"] },
-    { "biomes": ["crypt"], "items": ["item.greater-tonic", "item.coin-pouch", "item.bloodmoss-salve", "item.bloodmoss-salve", "item.repulsion-scroll", "item.chain-mail", "item.trapweave-cloak", "item.ward-shield", "item.tower-kite-shield", "item.silvered-mace", "item.ember-dart", "item.mapping-scroll", "item.sealed-prayer-strip"] },
-    { "biomes": ["furnace", "black-candle"], "items": ["item.greater-tonic", "item.greater-tonic", "item.coin-pouch", "item.void-prism", "item.repulsion-scroll", "item.sun-sigil-blade", "item.moonlit-mail", "item.tower-kite-shield", "item.guardian-draught", "item.ember-dart", "item.sealed-prayer-strip"] },
-    { "minFloor": 4, "items": ["item.greater-tonic", "item.greater-tonic", "item.coin-pouch", "item.coin-pouch", "item.chain-mail", "item.trapweave-cloak", "item.ward-shield", "item.tower-kite-shield", "item.silvered-mace", "item.ember-dart", "item.ember-dart", "item.mapping-scroll", "item.guardian-draught", "item.repulsion-scroll", "item.bloodmoss-salve", "item.sealed-prayer-strip"] },
-    { "minFloor": 5, "items": ["item.sun-sigil-blade", "item.moonlit-mail", "item.void-prism", "item.silvered-mace"] }
+    {
+      "floor": 1,
+      "items": [
+        "item.ember-tonic",
+        "item.ember-tonic",
+        "item.coin-pouch",
+        "item.mapping-scroll",
+        "item.glim-map",
+        "item.leather-armor",
+        "item.trapweave-cloak",
+        "item.oath-knife",
+        "item.ember-dart",
+        "item.guardian-draught",
+        "item.unmarked-vial"
+      ]
+    },
+    {
+      "minFloor": 2,
+      "maxFloor": 3,
+      "items": [
+        "item.ember-tonic",
+        "item.greater-tonic",
+        "item.coin-pouch",
+        "item.coin-pouch",
+        "item.mapping-scroll",
+        "item.iron-axe",
+        "item.ward-shield",
+        "item.tower-kite-shield",
+        "item.hunter-spear",
+        "item.oath-knife",
+        "item.ember-dart",
+        "item.ember-dart",
+        "item.guardian-draught",
+        "item.repulsion-scroll",
+        "item.bloodmoss-salve",
+        "item.unmarked-vial",
+        "item.sealed-prayer-strip",
+        "item.light-throwing-blade",
+        "item.lockpick-bundle"
+      ]
+    },
+    {
+      "biomes": [
+        "crypt"
+      ],
+      "items": [
+        "item.greater-tonic",
+        "item.coin-pouch",
+        "item.bloodmoss-salve",
+        "item.bloodmoss-salve",
+        "item.repulsion-scroll",
+        "item.chain-mail",
+        "item.trapweave-cloak",
+        "item.ward-shield",
+        "item.tower-kite-shield",
+        "item.silvered-mace",
+        "item.ember-dart",
+        "item.mapping-scroll",
+        "item.sealed-prayer-strip",
+        "item.scrying-crystal",
+        "item.venomguard-cloak"
+      ]
+    },
+    {
+      "biomes": [
+        "furnace",
+        "black-candle"
+      ],
+      "items": [
+        "item.greater-tonic",
+        "item.greater-tonic",
+        "item.coin-pouch",
+        "item.void-prism",
+        "item.repulsion-scroll",
+        "item.sun-sigil-blade",
+        "item.moonlit-mail",
+        "item.tower-kite-shield",
+        "item.guardian-draught",
+        "item.ember-dart",
+        "item.sealed-prayer-strip",
+        "item.reflecting-shield",
+        "item.regrowth-ring"
+      ]
+    },
+    {
+      "minFloor": 4,
+      "items": [
+        "item.greater-tonic",
+        "item.greater-tonic",
+        "item.coin-pouch",
+        "item.coin-pouch",
+        "item.chain-mail",
+        "item.trapweave-cloak",
+        "item.ward-shield",
+        "item.tower-kite-shield",
+        "item.silvered-mace",
+        "item.ember-dart",
+        "item.ember-dart",
+        "item.mapping-scroll",
+        "item.guardian-draught",
+        "item.repulsion-scroll",
+        "item.bloodmoss-salve",
+        "item.sealed-prayer-strip"
+      ]
+    },
+    {
+      "minFloor": 5,
+      "items": [
+        "item.sun-sigil-blade",
+        "item.moonlit-mail",
+        "item.void-prism",
+        "item.silvered-mace"
+      ]
+    }
   ],
   "guaranteedItems": [
     { "floor": 1, "items": ["item.ember-tonic", "item.coin-pouch", "item.glim-map"] },
@@ -337,7 +723,81 @@
     "item.trapweave-cloak": { "slot": "armor", "power": 1, "trapAvoidPercent": 22 },
     "item.tower-kite-shield": { "slot": "shield", "power": 1, "rangedDefense": 3, "trapAvoidPenaltyPercent": 8 },
     "item.silvered-mace": { "slot": "weapon", "power": 3, "specialDamage": { "amount": 3, "families": ["undead", "demon"] } },
-    "item.moonlit-mail": { "slot": "armor", "power": 4, "rangedDefense": 1, "trapAvoidPenaltyPercent": 5 }
+    "item.moonlit-mail": { "slot": "armor", "power": 4, "rangedDefense": 1, "trapAvoidPenaltyPercent": 5 },
+    "item.hunter-longbow": {
+      "slot": "weapon",
+      "power": 2,
+      "twoHanded": true,
+      "rangedAttack": {
+        "damage": 5,
+        "range": 5
+      }
+    },
+    "item.ironbreaker-greataxe": {
+      "slot": "weapon",
+      "power": 6,
+      "twoHanded": true,
+      "trapAvoidPenaltyPercent": 8,
+      "specialDamage": {
+        "amount": 2,
+        "families": [
+          "construct"
+        ]
+      }
+    },
+    "item.silver-banishing-saber": {
+      "slot": "weapon",
+      "power": 3,
+      "specialDamage": {
+        "amount": 4,
+        "families": [
+          "undead",
+          "demon"
+        ]
+      }
+    },
+    "item.sacred-pick": {
+      "slot": "weapon",
+      "power": 2,
+      "specialDamage": {
+        "amount": 3,
+        "families": [
+          "construct"
+        ]
+      }
+    },
+    "item.witchward-cloak": {
+      "slot": "armor",
+      "power": 2,
+      "rangedDefense": 3
+    },
+    "item.venomguard-cloak": {
+      "slot": "armor",
+      "power": 2,
+      "conditionResistance": [
+        "venomed"
+      ]
+    },
+    "item.reflecting-shield": {
+      "slot": "shield",
+      "power": 1,
+      "rangedDefense": 2,
+      "reflectDamage": 2
+    },
+    "item.regrowth-ring": {
+      "slot": "ring",
+      "power": 0,
+      "regen": {
+        "everyTurns": 12,
+        "amount": 1
+      }
+    },
+    "item.searcher-ring": {
+      "slot": "ring",
+      "power": 0,
+      "revealRadius": 2,
+      "trapAvoidPercent": 8
+    }
   },
   "consumables": {
     "item.ember-tonic": { "heal": 10 },
@@ -353,7 +813,17 @@
     "item.black-candle-core": { "heal": 20, "revealRadius": 14, "pushVisibleMonsters": true },
     "item.ember-dart": { "rangedDamage": 7 },
     "item.unmarked-vial": { "heal": 8, "mysteryEffects": ["heal", "guard", "bleed", "venom"] },
-    "item.sealed-prayer-strip": { "heal": 6, "mysteryEffects": ["guard", "reveal", "push", "bleed"] }
+    "item.sealed-prayer-strip": { "heal": 6, "mysteryEffects": ["guard", "reveal", "push", "bleed"] },
+    "item.light-throwing-blade": {
+      "rangedDamage": 6,
+      "range": 4
+    },
+    "item.scrying-crystal": {
+      "revealRadius": 10
+    },
+    "item.lockpick-bundle": {
+      "unlockCache": true
+    }
   },
   "events": {
     "event.blood-inscription": { "xp": 6 },
@@ -366,7 +836,56 @@
     "event.broken-armory": { "loot": ["item.oath-knife"], "reward": "item.ember-dart" },
     "event.sealed-room": { "encounters": ["monster.cinder-cultist", "monster.bone-thrall"], "highFloorGuard": { "minFloor": 7, "contentId": "monster.blackstone-sentinel" }, "reward": "item.guardian-draught", "highFloorReward": { "minFloor": 5, "contentId": "item.void-prism" }, "revealRadius": 4 },
     "event.dead-feast": { "encounters": ["monster.bone-thrall", "monster.grave-leech", "monster.hollow-archer"], "loot": ["item.bloodmoss-salve", "item.coin-pouch"], "revealRadius": 4 },
-    "event.treasure-vault": { "guard": "monster.blackshield-grub", "highFloorGuard": { "minFloor": 7, "contentId": "monster.iron-reliquary-guard" }, "loot": ["item.coin-pouch"], "reward": "item.greater-tonic", "highFloorReward": { "minFloor": 5, "contentId": "item.sun-sigil-blade" }, "trap": "trap.blood-needle", "highFloorTrap": { "minFloor": 7, "contentId": "trap.crumbling-floor" }, "revealRadius": 4 }
+    "event.treasure-vault": { "guard": "monster.blackshield-grub", "highFloorGuard": { "minFloor": 7, "contentId": "monster.iron-reliquary-guard" }, "loot": ["item.coin-pouch"], "reward": "item.greater-tonic", "highFloorReward": { "minFloor": 5, "contentId": "item.sun-sigil-blade" }, "trap": "trap.blood-needle", "highFloorTrap": { "minFloor": 7, "contentId": "trap.crumbling-floor" }, "revealRadius": 4 },
+    "prop.ore-mine.ore-cluster": {
+      "goldBase": 12,
+      "goldPerFloor": 2,
+      "xp": 3
+    },
+    "prop.ore-mine.locked-cache": {
+      "locked": true,
+      "goldBase": 18,
+      "loot": [
+        "item.sacred-pick",
+        "item.hunter-longbow",
+        "item.ironbreaker-greataxe",
+        "item.light-throwing-blade",
+        "item.lockpick-bundle"
+      ]
+    },
+    "prop.sunken-archive.sealed-book": {
+      "xp": 10,
+      "revealRadius": 5,
+      "loot": [
+        "item.scrying-crystal",
+        "item.searcher-ring",
+        "item.witchward-cloak",
+        "item.silver-banishing-saber"
+      ]
+    },
+    "prop.sunken-archive.memory-vessel": {
+      "heal": 12,
+      "cureConditions": [
+        "venomed",
+        "bleeding"
+      ]
+    },
+    "prop.thorn-chapel.thorn-altar": {
+      "heal": 16,
+      "cureConditions": [
+        "venomed",
+        "bleeding"
+      ]
+    },
+    "prop.thorn-chapel.seed-reliquary": {
+      "locked": true,
+      "loot": [
+        "item.regrowth-ring",
+        "item.venomguard-cloak",
+        "item.reflecting-shield",
+        "item.ironbreaker-greataxe"
+      ]
+    }
   },
   "merchantOffers": [
     { "serviceId": "heal", "cost": 34, "heal": 24, "requireHpRatioAtMost": 0.72 },
@@ -381,11 +900,27 @@
     { "serviceId": "map", "contentId": "item.glim-map", "cost": 26 },
     { "serviceId": "map", "contentId": "item.mapping-scroll", "cost": 56, "minFloor": 3 }
   ],
-  "rangedMonsters": ["monster.hollow-archer", "monster.cinder-cultist", "monster.ash-warlock"],
+  "rangedMonsters": [
+    "monster.hollow-archer",
+    "monster.cinder-cultist",
+    "monster.ash-warlock",
+    "monster.blackstone-hexer",
+    "monster.ember-hound"
+  ],
   "monsterAttackEffects": {
     "monster.grave-leech": { "condition": "bleeding", "turns": 6, "message": "墓蛭の牙が裂け目を残し、出血が始まった。" },
     "monster.venom-bat": { "condition": "venomed", "turns": 5, "message": "毒羽の棘が刺さり、毒が回り始めた。" },
-    "monster.ash-warlock": { "condition": "venomed", "turns": 4, "message": "灰の呪いが肺に入り、毒が残った。" }
+    "monster.ash-warlock": { "condition": "venomed", "turns": 4, "message": "灰の呪いが肺に入り、毒が残った。" },
+    "monster.venom-swarm": {
+      "condition": "venomed",
+      "turns": 3,
+      "message": "群虫の毒牙が肌に残った。"
+    },
+    "monster.acid-ooze": {
+      "condition": "bleeding",
+      "turns": 3,
+      "message": "酸が皮膚を焼き、血が滲んだ。"
+    }
   },
   "trapEffects": {
     "trap.blood-needle": { "damage": 4, "damagePerFloorDivisor": 2, "condition": "bleeding", "turns": 5 },
@@ -444,6 +979,30 @@
         "recovery": 2,
         "range": 2,
         "damageScale": 1.3
+      },
+      "monster.ember-hound": {
+        "kind": "shot",
+        "windup": 2,
+        "recovery": 2,
+        "cooldown": 4,
+        "range": 5,
+        "damageScale": 1.1
+      },
+      "monster.threefold-gatehound": {
+        "kind": "sweep",
+        "windup": 2,
+        "recovery": 2,
+        "cooldown": 4,
+        "range": 2,
+        "damageScale": 1.2
+      },
+      "monster.candle-root-knight": {
+        "kind": "sweep",
+        "windup": 2,
+        "recovery": 2,
+        "cooldown": 4,
+        "range": 2,
+        "damageScale": 1.2
       }
     },
     "ai": {
@@ -494,5 +1053,94 @@
       "holdMs": 2500,
       "minMs": 2200
     }
+  },
+  "expansion": {
+    "enabled": true,
+    "roomChancePercent": 70,
+    "roomMonsterCount": 1,
+    "rooms": [
+      {
+        "theme": "ore-mine",
+        "nameJa": "黒石鉱脈",
+        "minFloor": 1,
+        "maxFloor": 3,
+        "monsters": [
+          "monster.ash-claw",
+          "monster.rust-footman",
+          "monster.blackstone-hexer",
+          "monster.vein-gnawer"
+        ],
+        "events": [
+          "prop.ore-mine.ore-cluster",
+          "prop.ore-mine.locked-cache"
+        ],
+        "covers": [
+          "prop.ore-mine.cover-pillar",
+          "prop.ore-mine.cover-cart"
+        ]
+      },
+      {
+        "theme": "sunken-archive",
+        "nameJa": "浸水書庫",
+        "minFloor": 4,
+        "maxFloor": 6,
+        "monsters": [
+          "monster.venom-swarm",
+          "monster.acid-ooze",
+          "monster.grave-bloodling",
+          "monster.coffer-maw"
+        ],
+        "events": [
+          "prop.sunken-archive.sealed-book",
+          "prop.sunken-archive.memory-vessel"
+        ],
+        "covers": [
+          "prop.sunken-archive.cover-books",
+          "prop.sunken-archive.cover-statue"
+        ]
+      },
+      {
+        "theme": "thorn-chapel",
+        "nameJa": "茨の礼拝堂",
+        "minFloor": 7,
+        "maxFloor": 10,
+        "monsters": [
+          "monster.core-ant",
+          "monster.ember-hound",
+          "monster.threefold-gatehound",
+          "monster.candle-root-knight"
+        ],
+        "events": [
+          "prop.thorn-chapel.thorn-altar",
+          "prop.thorn-chapel.seed-reliquary"
+        ],
+        "covers": [
+          "prop.thorn-chapel.cover-root",
+          "prop.thorn-chapel.cover-pillar"
+        ]
+      }
+    ],
+    "monsterTraits": {
+      "monster.grave-bloodling": {
+        "lifeDrain": 2
+      },
+      "monster.blackstone-hexer": {
+        "keepDistance": true,
+        "minFloor": 3
+      },
+      "monster.ember-hound": {
+        "keepDistance": true
+      },
+      "monster.vein-gnawer": {
+        "minFloor": 2
+      },
+      "monster.threefold-gatehound": {
+        "minFloor": 9
+      },
+      "monster.candle-root-knight": {
+        "minFloor": 8
+      }
+    },
+    "forcedLockDamage": 3
   }
 }

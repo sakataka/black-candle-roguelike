@@ -2,6 +2,7 @@ import { isKnownWalkable, isVisibleBlockerAt, observationIndex, walkKnownPaths, 
 import { DIRECTION_DELTAS, chebyshev as distance, isWalkable, linePoints, pointKey, samePoint } from "../core/spatial";
 import { getGameConfig, runRules } from "../content/config";
 import { contentEntities } from "../content/entities";
+import { preferredEquipment } from "../core/inventory";
 import { realtimeConfig } from "../content/realtime";
 import { visibleDangerTiles } from "../core/realtime";
 import type { AutoplayPolicyValues, Direction, GameAction, GameObservation, Point, PolicyModifier } from "../types";
@@ -85,18 +86,9 @@ export function chooseAutoplayAction(observation: GameObservation): GameAction {
     return { type: "useItem", contentId: potion.contentId };
   }
 
-  const currentWeapon = observation.player.inventory?.find((entry) => entry.equipped && weaponValue(entry.contentId) > 0)?.contentId;
-  const betterWeapon = [...(observation.player.inventory ?? [])]
-    .filter((entry) => !entry.equipped && entry.quantity > 0 && weaponValue(entry.contentId) > weaponValue(currentWeapon))
-    .sort((a, b) => weaponValue(b.contentId) - weaponValue(a.contentId))[0];
-  if (betterWeapon) {
-    return { type: "equip", contentId: betterWeapon.contentId };
-  }
-
-  const shield = observation.player.inventory?.find((entry) => entry.contentId === "item.ward-shield" && !entry.equipped && entry.quantity > 0);
-  if (shield) {
-    return { type: "equip", contentId: "item.ward-shield" };
-  }
+  const preferred = preferredEquipment(observation.player);
+  const upgrade = observation.player.inventory?.find((entry) => !entry.equipped && entry.quantity > 0 && preferred.has(entry.contentId));
+  if (upgrade) return { type: "equip", contentId: upgrade.contentId };
 
   const merchantChoice = chooseMerchantService(observation, hpRatio, hasDamageCondition);
   if (merchantChoice) {
@@ -174,13 +166,20 @@ export function chooseAutoplayAction(observation: GameObservation): GameAction {
     if (gateSearch) return gateSearch;
   }
 
-  const dart = observation.player.inventory?.find((entry) => entry.contentId === "item.ember-dart" && entry.quantity > 0);
-  const dartCandidates = visibleHostiles.filter((entity) => distance(entity.pos, observation.player.pos) <= policy.dartRange);
+  const bow = observation.player.inventory?.filter((entry) => entry.equipped).map((entry) => getGameConfig().equipment[entry.contentId]?.rangedAttack).find(Boolean);
+  const clearShot = (pos: Point) => linePoints(observation.player.pos, pos).every((point) => observation.knownTiles.some((tile) => samePoint(tile, point) && tile.kind !== "wall" && tile.kind !== "cover"));
+  if (bow) {
+    const target = nearest(visibleHostiles.filter((enemy) => distance(enemy.pos, observation.player.pos) > 1 && distance(enemy.pos, observation.player.pos) <= bow.range && clearShot(enemy.pos)), observation.player.pos);
+    if (target) return { type: "shoot", targetId: target.id };
+  }
+  const dart = observation.player.inventory?.find((entry) => getGameConfig().consumables[entry.contentId]?.rangedDamage && entry.quantity > 0);
+  const dartRange = dart ? Math.min(policy.dartRange, getGameConfig().consumables[dart.contentId].range ?? policy.dartRange) : policy.dartRange;
+  const dartCandidates = visibleHostiles.filter((entity) => distance(entity.pos, observation.player.pos) <= dartRange && clearShot(entity.pos));
   const rangedTarget = policy.rangedPriority
     ? nearest(dartCandidates.filter((entity) => isRangedThreat(entity.contentId)), observation.player.pos)
     : nearest(dartCandidates, observation.player.pos);
   if (dart && rangedTarget && hpRatio > policy.dartMinHp) {
-    return { type: "useItem", contentId: "item.ember-dart", ...(policy.rangedPriority ? { targetId: rangedTarget.id } : {}) };
+    return { type: "useItem", contentId: dart.contentId, targetId: rangedTarget.id };
   }
 
   if (visibleRangedThreat && policy.rangedPriority && hpRatio > 0.25) {
@@ -213,6 +212,8 @@ export function chooseAutoplayAction(observation: GameObservation): GameAction {
 
   const scroll = observation.player.inventory?.find((entry) => entry.contentId === "item.mapping-scroll" && entry.quantity > 0);
   const safeToUseUtility = !combatPressure || hpRatio > 0.45;
+  const crystal = observation.player.inventory?.find((entry) => entry.quantity > 0 && entry.contentId !== "item.glim-map" && getGameConfig().consumables[entry.contentId]?.revealRadius && !getGameConfig().consumables[entry.contentId]?.pushVisibleMonsters);
+  if (crystal && safeToUseUtility && observation.knownTiles.length < observation.width * observation.height * 0.3) return { type: "useItem", contentId: crystal.contentId };
   if (scroll && safeToUseUtility && observation.knownTiles.length < observation.width * observation.height * 0.35) {
     return { type: "useItem", contentId: "item.mapping-scroll" };
   }
@@ -247,7 +248,7 @@ export function chooseAutoplayAction(observation: GameObservation): GameAction {
     return survivalPickupStep;
   }
 
-  if (policy.discoveryDetour && !combatPressure) {
+  if (policy.discoveryDetour && !combatPressure && progress.stagnantTurns < LOOP_ESCAPE_TURNS) {
     const discoveryTarget = nearest(
       observation.visibleEntities.filter((entity) => isAutoplayTargetEntity(entity, observation)),
       observation.player.pos,
@@ -1124,6 +1125,7 @@ export type AutoplayIntent = {
  * 判断そのものには使わず、吹き出しやログ表示に使う。
  */
 export function describeAutoplayIntent(observation: GameObservation, action: GameAction): AutoplayIntent | null {
+  if (action.type === "shoot") return { text: "射線を確かめ、矢を放つ", tone: "combat" };
   const tactical = tacticalIntents.get(observation);
   if (tactical === "dodge") return { text: "構えの外へ抜ける", tone: "survival", topic: "dodge" };
   if (tactical === "lure") return { text: "罠の向こうへ誘い込む", tone: "combat", topic: "lure" };

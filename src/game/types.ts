@@ -8,6 +8,8 @@ export type Direction = "north" | "south" | "west" | "east" | "northwest" | "nor
 export type TileKind = "void" | "floor" | "wall" | "cover" | "stairsDown";
 
 export type BiomeTheme = "blackstone" | "crypt" | "furnace" | "black-candle";
+export type RoomTheme = "ore-mine" | "sunken-archive" | "thorn-chapel";
+export type TerrainTheme = BiomeTheme | RoomTheme;
 
 type EntityKind = "player" | "monster" | "item" | "event" | "trap";
 
@@ -288,6 +290,7 @@ export type ContentEntity = {
   economyValue?: number;
   xpReward?: number;
   family?: EnemyFamily;
+  encounterRole?: string;
 };
 
 export type AssetDefinition = {
@@ -304,6 +307,8 @@ export type Tile = {
   kind: TileKind;
   explored: boolean;
   visible: boolean;
+  roomTheme?: RoomTheme;
+  coverAsset?: string;
 };
 
 export type Stats = {
@@ -336,6 +341,11 @@ type RoleTraits = {
   scoutBonusItem?: string;
   priestGuardedTurns?: number;
   bossReward?: string;
+  truthId?: RoleTruthId;
+  healPercent?: number;
+  cleansingHeal?: number;
+  roomRevealRadius?: number;
+  lockpickBonusGold?: number;
 };
 
 type RoleDefinition = {
@@ -364,11 +374,17 @@ type MonsterStatsConfig = {
 };
 
 export type EquipmentConfig = {
-  slot: "weapon" | "shield" | "armor";
+  slot: "weapon" | "shield" | "armor" | "ring";
   power: number;
   rangedDefense?: number;
   trapAvoidPercent?: number;
   trapAvoidPenaltyPercent?: number;
+  twoHanded?: boolean;
+  rangedAttack?: { damage: number; range: number };
+  conditionResistance?: ConditionKind[];
+  regen?: { everyTurns: number; amount: number };
+  revealRadius?: number;
+  reflectDamage?: number;
   specialDamage?: {
     amount: number;
     families: EnemyFamily[];
@@ -383,6 +399,8 @@ type ConsumableConfig = {
   revealFloor?: boolean;
   pushVisibleMonsters?: boolean;
   rangedDamage?: number;
+  range?: number;
+  unlockCache?: boolean;
   mysteryEffects?: Array<"heal" | "guard" | "reveal" | "push" | "bleed" | "venom">;
 };
 
@@ -405,6 +423,7 @@ type EventConfig = {
   revealTraps?: number;
   weakenLateEnemies?: boolean;
   bossRewardBonus?: number;
+  locked?: boolean;
 };
 
 export type RunObjectiveFlags = {
@@ -415,6 +434,14 @@ export type RunObjectiveFlags = {
 };
 
 export type GameConfig = {
+  expansion?: {
+    enabled: boolean;
+    roomChancePercent: number;
+    roomMonsterCount: number;
+    forcedLockDamage: number;
+    rooms: Array<FloorRule & { theme: RoomTheme; nameJa: string; monsters: string[]; events: string[]; covers: string[] }>;
+    monsterTraits: Record<string, { lifeDrain?: number; keepDistance?: boolean; minFloor?: number }>;
+  };
   realtime?: RealtimeConfig;
   rules: {
     mapWidth: number;
@@ -647,6 +674,7 @@ export type GameAction =
   | { type: "equip"; contentId: string }
   | { type: "dropItem"; contentId: string }
   | { type: "useItem"; contentId: string; targetId?: string }
+  | { type: "shoot"; targetId: string }
   | { type: "merchantService"; serviceId: MerchantServiceId }
   | { type: "descend" }
   | { type: "resolveDecision"; optionId: string; tactics?: string[] }

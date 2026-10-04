@@ -18,7 +18,7 @@ describe("遠征の振り返り", () => {
     const identity = createRunIdentity(seed, roleId);
     let state = createInitialGame(seed, roleId, { identity });
     const log = createRunLog(seed, roleId, {}, identity);
-    for (let step = 0; step < 2000 && state.status === "playing"; step += 1) {
+    for (let step = 0; step < 40 && state.status === "playing"; step += 1) {
       const observation = observeGame(state);
       const action = observation.pendingDecision ? chooseDecisionAction(observation, "temperament") : chooseAutoplayAction(observation);
       const debug = getAutoplayDebugState(observation);
@@ -26,6 +26,15 @@ describe("遠征の振り返り", () => {
       state = applyAction(state, action);
       recordTurn({ log, before, action, after: state, actor: "ai", aiDebug: debug });
     }
+    // 特定seedが敗北するバランスへ依存せず、死の記録をルール処理から作る。
+    state.entities = state.entities.filter((entity) => entity.id === state.playerId);
+    const player = state.entities[0];
+    player.stats!.hp = 1;
+    player.conditions = [{ kind: "bleeding", turns: 2 }];
+    state.pendingDecision = null;
+    const beforeDeath = state;
+    state = applyAction(state, { type: "wait" });
+    recordTurn({ log, before: beforeDeath, action: { type: "wait" }, after: state, actor: "ai" });
     expect(state.status).toBe("lost");
     const review = analyzeRun(log, state);
     const insights = buildRunInsights(log, state, review.deathCause, createCampaignState());

@@ -202,6 +202,8 @@ export function defaultDirectiveForTemperament(temperament: TemperamentId): Dire
 export const ROLE_TRUTH_IDS: RoleTruthId[] = ["shared-oath", "furnace-map", "purified-flame"];
 
 export function roleTruthFor(roleId: string): RoleTruthId {
+  const configured = getGameConfig().roles.find((role) => role.id === roleId)?.traits.truthId;
+  if (configured) return configured;
   if (roleId === "role.ash-scout") return "furnace-map";
   if (roleId === "role.lantern-priest") return "purified-flame";
   return "shared-oath";

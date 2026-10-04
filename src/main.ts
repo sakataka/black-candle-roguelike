@@ -583,7 +583,7 @@ function renderCandidateSelection(): void {
       name: escapeHtml(identity.name),
       meta: getContentName(role.id),
       temperament: identity.temperament,
-      extra: `<small>${temperamentDescription(identity.temperament)}</small>`,
+      extra: `<small>${temperamentDescription(identity.temperament)}</small><small class="role-focus">${escapeHtml(role.traits.focus)}</small>`,
       stats: { hp: role.stats.maxHp, attack: role.stats.attack, defense: role.stats.defense },
     });
   }));

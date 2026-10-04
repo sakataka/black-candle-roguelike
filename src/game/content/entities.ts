@@ -1,6 +1,8 @@
+import { expansionEntities } from "./expansionEntities";
 import type { ContentEntity } from "../types";
 
 export const contentEntities: Record<string, ContentEntity> = {
+  ...expansionEntities,
   "role.oathbound": { name: "誓約の探索者", tier: "early" },
   "role.ash-scout": { name: "灰弓の斥候", tier: "early" },
   "role.lantern-priest": { name: "灯火の祈祷者", tier: "early" },

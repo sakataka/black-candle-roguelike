@@ -283,9 +283,11 @@ export class PixiRoguelikeRenderer {
           continue;
         }
         if (tile.kind === "cover" || tile.kind === "stairsDown") {
-          this.addTileSprite(`floor:${state.biome}`, x, y);
+          this.addTileSprite(assetIdForContent(`terrain.floor.${tile.roomTheme ?? state.biome}`), x, y);
         }
-        this.addTileSprite(tileTextureKey(tile.kind, state.biome), x, y);
+        const theme = tile.roomTheme ?? state.biome;
+        const texture = tile.kind === "cover" && tile.coverAsset ? tile.coverAsset : tile.roomTheme && (tile.kind === "floor" || tile.kind === "wall") ? assetIdForContent(`terrain.${tile.kind}.${theme}`) : tileTextureKey(tile.kind, state.biome);
+        this.addTileSprite(texture, x, y);
         if (tile.kind === "wall") {
           this.drawWallEdges(edges, state, x, y);
         } else {
@@ -411,7 +413,7 @@ export class PixiRoguelikeRenderer {
       const shouldDraw = remembered ? tile.explored || tile.visible : tile.visible;
       if (!shouldDraw) continue;
       seen.add(entity.id);
-      const key = entity.kind === "player" ? this.playerTextureKey(entity) : entity.kind === "trap" ? "trap.risk-panel" : assetIdForContent(entity.contentId);
+      const key = entity.kind === "player" ? this.playerTextureKey(entity) : assetIdForContent(entity.contentId);
       let view = this.views.get(entity.id);
       if (!view) {
         view = this.createView(entity, key);
@@ -494,12 +496,22 @@ export class PixiRoguelikeRenderer {
 
   private playEvents(state: GameState, events: VisualEvent[]): void {
     for (const event of events) {
+      if (event.kind === "statusFx") {
+        if (state.tiles[event.pos.y * state.width + event.pos.x]?.visible) this.spawnSheetEffect(event.effect, event.pos);
+        continue;
+      }
       if (event.kind === "strike") {
         const attacker = this.views.get(event.attackerId);
         const dx = Math.sign(event.to.x - event.from.x);
         const dy = Math.sign(event.to.y - event.from.y);
         if (event.ranged) {
-          this.spawnProjectile(event.from, event.to, event.attackerId === state.playerId);
+          const content = state.entities.find((entity) => entity.id === event.attackerId)?.contentId;
+          const fire = content && ["monster.blackstone-hexer", "monster.ember-hound", "monster.cinder-cultist", "monster.ash-warlock"].includes(content);
+          const from = state.tiles[event.from.y * state.width + event.from.x]?.visible ? event.from : event.to;
+          if (state.tiles[event.to.y * state.width + event.to.x]?.visible) {
+            if (fire) this.spawnSheetEffect("ember-bolt", from, event.to);
+            else this.spawnProjectile(from, event.to, event.attackerId === state.playerId);
+          }
         } else if (attacker) {
           attacker.lunge = { dx, dy, start: this.clock };
           this.spawnSlash(event.from, event.to, event.attackerId === state.playerId);
@@ -516,6 +528,7 @@ export class PixiRoguelikeRenderer {
       } else if (event.kind === "heal") {
         this.spawnFloatingText(`+${event.amount}`, event.pos, "#8fd6a0", event.isPlayer ? 26 : 20);
         this.spawnRisingLight(event.pos, 0x8fe0a8);
+        if (state.tiles[event.pos.y * state.width + event.pos.x]?.visible) this.spawnSheetEffect("mending-light", event.pos);
       } else if (event.kind === "levelUp") {
         this.spawnFloatingText(`Lv ${event.level}`, event.pos, "#f0cc7b", 30, 1200);
         this.spawnRing(event.pos, "#f0cc7b");
@@ -526,6 +539,24 @@ export class PixiRoguelikeRenderer {
         this.spawnAsh(event.pos);
       }
     }
+  }
+
+  /** 全フレーム共通の倍率、80ms/フレーム。描画時計だけを使いゲームの手番を待たせない。 */
+  private spawnSheetEffect(effect: string, from: Point, to = from): void {
+    const frames = Array.from({ length: 4 }, (_, frame) => this.textures.get(`effect.${effect}.frame-${frame}`));
+    if (frames.some((texture) => !texture)) return;
+    const sprite = new Sprite(frames[0]!);
+    sprite.anchor.set(0.5);
+    sprite.width = sprite.height = TILE_SIZE * 0.9;
+    sprite.position.set((from.x + 0.5) * TILE_SIZE, (from.y + 0.5) * TILE_SIZE);
+    if (effect === "ember-bolt") sprite.rotation = Math.atan2(to.y - from.y, to.x - from.x);
+    this.effectLayer.addChild(sprite);
+    this.effects.push({ node: sprite, age: 0, life: 320, update: (_effect, progress) => {
+      sprite.texture = frames[this.reducedMotion ? 2 : Math.min(3, Math.floor(progress * 4))]!;
+      const travel = this.reducedMotion ? 1 : progress;
+      sprite.position.set((from.x + 0.5 + (to.x - from.x) * travel) * TILE_SIZE, (from.y + 0.5 + (to.y - from.y) * travel) * TILE_SIZE);
+      if (this.reducedMotion) sprite.alpha = 1 - progress;
+    } });
   }
 
   private drawSignals(state: GameState): void {

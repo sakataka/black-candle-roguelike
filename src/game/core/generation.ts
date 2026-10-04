@@ -4,6 +4,7 @@ import { biomeThemeForFloor, bossForFloor } from "../content/floors";
 import type { GameConfig, Point, Tile, TileKind } from "../types";
 import { cardinalDeltas, isWalkable, manhattan, pointKey, samePoint, tileAt } from "./spatial";
 import { Rng } from "./rng";
+import { applyRoomTheme } from "./themedRooms";
 
 type FloorPlan = {
   guaranteedLootPoints: Point[];
@@ -74,7 +75,9 @@ export function generateFloorMap(seed: number, floor: number, rules: GameConfig[
     floorWalkable.splice(0, floorWalkable.length, ...connectedWalkablePoints(tiles, rules.mapWidth, rules.mapHeight, start));
   }
 
-  return { biome, tiles, roomCenters, start, stairs, floorWalkable };
+  const rooms = generatedDungeon ? dungeon.getRooms().map((room) => ({ left: room.getLeft(), right: room.getRight(), top: room.getTop(), bottom: room.getBottom() })) : [];
+  const themedRoom = applyRoomTheme(seed, floor, biome, tiles, rules.mapWidth, rooms, start, stairs);
+  return { biome, tiles, roomCenters, start, stairs, floorWalkable, themedRoom };
 }
 
 export function rngForFloor(seed: number, floor: number): Rng {
@@ -91,7 +94,7 @@ export function bossPointNearStairs(points: Point[], stairs: Point, rng: Rng): P
   return point;
 }
 
-export function chooseCoverPoints(walkable: Point[], start: Point, stairs: Point, rng: Rng): Point[] {
+export function chooseCoverPoints(walkable: Point[], start: Point, stairs: Point, rng: Rng, preferred: Point[] = []): Point[] {
   const { rules } = getGameConfig();
   const count = Math.min(rules.coverCountBase + Math.floor(rng.int(0, Math.max(1, rules.coverCountFloorDivisor * 4)) / rules.coverCountFloorDivisor), rules.coverCountMax);
   const candidates = walkable.filter((point) => {
@@ -102,7 +105,8 @@ export function chooseCoverPoints(walkable: Point[], start: Point, stairs: Point
   });
   const cover: Point[] = [];
   while (cover.length < count && candidates.length > 0) {
-    const index = rng.int(0, candidates.length - 1);
+    const preferredIndex = cover.length < 2 ? candidates.findIndex((point) => preferred.some((candidate) => samePoint(candidate, point))) : -1;
+    const index = preferredIndex >= 0 ? preferredIndex : rng.int(0, candidates.length - 1);
     const [point] = candidates.splice(index, 1);
     if (!point || cover.some((coverPoint) => manhattan(coverPoint, point) < 3)) {
       continue;

@@ -1,5 +1,5 @@
 import { clearCondition, clearConditions, hasCondition, upsertCondition } from "./conditions";
-import { equipmentSlot, weaponBonus, defenseBonus, shouldAutoEquip, equippedSlotScore, canReceiveInventory, addInventoryItem, equipmentScore, equippedWeaponSpecialDamage } from "./inventory";
+import { equippedEffects, preferredEquipment, equipmentSlot, weaponBonus, defenseBonus, shouldAutoEquip, equippedSlotScore, canReceiveInventory, addInventoryItem, equipmentScore, equippedWeaponSpecialDamage } from "./inventory";
 import { biomeThemeForFloor, biomeThemeName, bossForFloor, eventPoolForFloor, guaranteedItemsForFloor, itemPoolForFloor, monsterPoolForFloor, trapPoolForFloor } from "../content/floors";
 export { biomeThemeName } from "../content/floors";
 import { bossPointNearStairs, buildFloorPlan, chooseCoverPoints, createPointTaker, generateFloorMap, rngForFloor, setTileKind } from "./generation";
@@ -136,7 +136,7 @@ function createFloorState(
     story: createRunStoryState(defaultMissionForTemperament(fallbackIdentity.temperament)),
   };
   const rules = runRules(run.modifiers);
-  const { biome, tiles, roomCenters, start, stairs, floorWalkable } = generateFloorMap(seed, floor, rules);
+  const { biome, tiles, roomCenters, start, stairs, floorWalkable, themedRoom } = generateFloorMap(seed, floor, rules);
 
   const roles = playableRoles();
   const role = roles.find((candidate) => candidate.id === roleId) ?? roles[0];
@@ -160,9 +160,12 @@ function createFloorState(
 
   const dangerBoost = floor - 1;
   const rng = rngForFloor(seed, floor);
-  const coverPoints = chooseCoverPoints(floorWalkable, start, stairs, rng);
-  for (const point of coverPoints) {
+  const coverPoints = chooseCoverPoints(floorWalkable, start, stairs, rng, themedRoom?.points);
+  for (const [index, point] of coverPoints.entries()) {
     setTileKind(tiles, rules.mapWidth, point.x, point.y, "cover");
+    if (themedRoom && tiles[point.y * rules.mapWidth + point.x].roomTheme === themedRoom.definition.theme) {
+      tiles[point.y * rules.mapWidth + point.x].coverAsset = themedRoom.definition.covers[index % themedRoom.definition.covers.length];
+    }
   }
 
   const spawnPoints = floorWalkable.filter((point) => !samePoint(point, start) && !samePoint(point, stairs) && !coverPoints.some((coverPoint) => samePoint(coverPoint, point)) && manhattan(point, start) > 7);
@@ -181,8 +184,10 @@ function createFloorState(
   const monsterPool = monsterPoolForFloor(floor);
   const itemPool = itemPoolForFloor(floor);
   const spawnedMonsters = Array.from({ length: bossId ? Math.ceil((rules.monsterCountBase + Math.min(floor, rules.monsterCountFloorCap)) / 2) : rules.monsterCountBase + Math.min(floor, rules.monsterCountFloorCap) }, (_, index) => {
-    const contentId = rng.pick(monsterPool);
-    return monster(`${contentId}.${floor}.${index}`, contentId, takePoint(floorPlan.monsterPoints), statsForMonster(contentId, dangerBoost, floor, carriedRunObjectives, rules));
+    const inRoom = themedRoom && index < (config.expansion?.roomMonsterCount ?? 0);
+    const roomPool = inRoom ? themedRoom.definition.monsters.filter((id) => floor >= (config.expansion?.monsterTraits[id]?.minFloor ?? 1)) : [];
+    const contentId = rng.pick(roomPool.length ? roomPool : monsterPool);
+    return monster(`${contentId}.${floor}.${index}`, contentId, takePoint(inRoom ? themedRoom.points : floorPlan.monsterPoints), statsForMonster(contentId, dangerBoost, floor, carriedRunObjectives, rules));
   });
   const guaranteedItems = guaranteedItemsForFloor(floor);
   const randomItems = Array.from({ length: rules.itemCountBase + Math.floor(Math.min(floor, rules.itemCountFloorCap) / rules.itemCountFloorDivisor) }, () => rng.pick(itemPool));
@@ -192,6 +197,12 @@ function createFloorState(
     const contentId = rng.pick(eventPool);
     return event(`${contentId}.${floor}.${index}`, contentId, takePoint(floorPlan.eventPoints));
   });
+  if (themedRoom) {
+    for (const contentId of themedRoom.definition.events) {
+      const point = themedRoom.points.find((p) => spawnPoints.some((available) => samePoint(p, available)));
+      if (point) spawnedEvents.push(event(`${contentId}.${floor}`, contentId, takePoint([point])));
+    }
+  }
   // 過去の遠征で倒れた探索者の墓標。倒れた階と同じ階に1つだけ置く。
   const grave = run.modifiers.graves?.find((candidate) => candidate.floor === floor);
   if (grave) {
@@ -282,6 +293,12 @@ export function applyAction(state: GameState, action: GameAction): GameState {
     return state;
   }
 
+  if (action.type === "shoot" && !canShoot(state, action.targetId)) return state;
+  if (action.type === "useItem" && action.targetId && getGameConfig().consumables[action.contentId]?.rangedDamage) {
+    const target = state.entities.find((entity) => entity.id === action.targetId);
+    const range = getGameConfig().consumables[action.contentId].range ?? Infinity;
+    if (!target || target.kind !== "monster" || !target.hostile || !tileAt(state, target.pos).visible || chebyshev(getPlayer(state).pos, target.pos) > range || !hasLineOfSight(state, getPlayer(state).pos, target.pos)) return state;
+  }
   let next = cloneState(state);
   if (action.type === "resolveDecision") {
     if (action.tactics && next.pendingDecision?.kind === "checkpoint") {
@@ -311,6 +328,9 @@ export function applyAction(state: GameState, action: GameAction): GameState {
       break;
     case "useItem":
       next = useItem(next, action.contentId, action.targetId);
+      break;
+    case "shoot":
+      next = shootBow(next, action.targetId);
       break;
     case "merchantService":
       next = buyMerchantService(next, action.serviceId);
@@ -722,7 +742,7 @@ export function observeGame(state: GameState): GameObservation {
   const observedEntity = ({ id, kind, contentId, pos, stats, hostile, blocksMovement, goldAmount, conditions, telegraph, recoveryTurns, awakened }: Entity) => ({
     id,
     kind,
-    contentId: kind === "trap" ? "trap.risk-panel" : contentId,
+    contentId,
     pos,
     stats,
     hostile,
@@ -906,6 +926,19 @@ function moveActor(state: GameState, actorId: string, delta: Point): GameState {
     }
   }
   if (actor.kind === "player") {
+    const roomTheme = tileAt(state, target).roomTheme;
+    const roomKey = roomTheme ? `room.${roomTheme}.${state.floor}` : null;
+    if (roomKey && !state.story.discoveries.includes(roomKey)) {
+      state.story.discoveries.push(roomKey);
+      const roomName = getGameConfig().expansion?.rooms.find((room) => room.theme === roomTheme)?.nameJa ?? roomTheme;
+      state.messages = pushMessage(state, `${roomName}の寄り道部屋を見つけた。`, "explore");
+      const radius = roleTraits(actor.contentId)?.roomRevealRadius;
+      if (radius) {
+        revealAround(state, target, radius);
+        state.runObjectives.roleGoalProgress += 1;
+        state.messages = pushMessage(state, "遺物調査員が周囲の構造を読み、道筋を記録した。", "explore");
+      }
+    }
     const floorEvent = state.entities.find((entity) => entity.kind === "event" && samePoint(entity.pos, target));
     if (floorEvent) {
       state = triggerEvent(state, floorEvent);
@@ -1065,6 +1098,7 @@ function triggerEvent(state: GameState, eventEntity: Entity): GameState {
 
 function resolveEvent(state: GameState, eventEntity: Entity): GameState {
   const eventConfig = getGameConfig().events[eventEntity.contentId];
+  if (eventEntity.contentId.startsWith("prop.") && eventConfig) return resolveRoomReward(state, eventEntity, eventConfig);
   if (eventEntity.contentId === "event.grave-marker") {
     return mournAtGrave(state, eventEntity);
   }
@@ -1494,7 +1528,7 @@ function dropBonusBossRewards(state: GameState, defeatedPos: Point): GameState {
 
 function applyRoleBossGoal(state: GameState, defeatedContentId: string, defeatedPos: Point): GameState {
   const player = getPlayer(state);
-  if (player.contentId !== "role.oathbound" || contentEntities[defeatedContentId]?.tier !== "boss") {
+  if (!roleTraits(player.contentId)?.bossReward || contentEntities[defeatedContentId]?.tier !== "boss") {
     return state;
   }
   const reward = state.floor >= 6 ? (roleTraits(player.contentId)?.bossReward ?? "item.guardian-draught") : "item.greater-tonic";
@@ -1527,6 +1561,13 @@ function applyScoutMappingGoal(state: GameState): GameState {
 
 function applyPriestCleansingGoal(state: GameState): GameState {
   const player = getPlayer(state);
+  if (roleTraits(player.contentId)?.cleansingHeal && player.stats) {
+    const healed = Math.min(roleTraits(player.contentId)!.cleansingHeal!, player.stats.maxHp - player.stats.hp);
+    player.stats.hp += healed;
+    state.runObjectives.roleGoalProgress += 1;
+    state.messages = pushMessage(state, `灰薬師は薬の残り香を整え、HPが${healed}回復した。`, "loot");
+    return state;
+  }
   if (player.contentId !== "role.lantern-priest" || !player.stats) {
     return state;
   }
@@ -1644,7 +1685,7 @@ function useItem(state: GameState, contentId: string, targetId?: string): GameSt
   }
 
   if (consumable?.heal && !consumable.cureConditions && !consumable.revealRadius && !consumable.pushVisibleMonsters && !consumable.guardedTurns && !consumable.rangedDamage) {
-    const healAmount = Math.round(consumable.heal * (100 + tacticPerk(state, "healPercent")) / 100);
+    const healAmount = Math.round(consumable.heal * (100 + tacticPerk(state, "healPercent") + (roleTraits(player.contentId)?.healPercent ?? 0)) / 100);
     const healed = Math.min(healAmount, player.stats.maxHp - player.stats.hp);
     player.stats.hp += healed;
     entry.quantity -= 1;
@@ -1664,7 +1705,7 @@ function useItem(state: GameState, contentId: string, targetId?: string): GameSt
   }
 
   if (contentId === "item.bloodmoss-salve") {
-    const healed = Math.min(consumable?.heal ?? 22, player.stats.maxHp - player.stats.hp);
+    const healed = Math.min(Math.round((consumable?.heal ?? 22) * (100 + (roleTraits(player.contentId)?.healPercent ?? 0)) / 100), player.stats.maxHp - player.stats.hp);
     player.stats.hp += healed;
     player.conditions = clearConditions(player.conditions, consumable?.cureConditions ?? ["bleeding", "venomed"]);
     consumeInventoryEntry(player, entry);
@@ -1688,7 +1729,7 @@ function useItem(state: GameState, contentId: string, targetId?: string): GameSt
     return state;
   }
 
-  if (contentId === "item.glim-map") {
+  if (contentId === "item.glim-map" || (consumable?.revealRadius && !consumable.heal && !consumable.pushVisibleMonsters && !consumable.guardedTurns)) {
     revealAround(state, player.pos, consumable?.revealRadius ?? 8);
     consumeInventoryEntry(player, entry);
     state.messages = pushMessage(state, "微光の小地図が開き、近くの部屋と通路が浮かび上がった。", "loot");
@@ -1744,8 +1785,14 @@ function useItem(state: GameState, contentId: string, targetId?: string): GameSt
     return state;
   }
 
+  if (consumable?.unlockCache) {
+    const cache = state.entities.find((entity) => entity.kind === "event" && getGameConfig().events[entity.contentId]?.locked && tileAt(state, entity.pos).visible && chebyshev(entity.pos, player.pos) <= 1);
+    if (cache) return triggerEvent(state, cache);
+    state.messages = pushMessage(state, "解錠できる箱が近くに見当たらない。", "explore");
+    return state;
+  }
   if (consumable?.rangedDamage) {
-    const target = targetId === undefined ? nearestVisibleMonster(state) : state.entities.find((entity) => entity.id === targetId);
+    const target = targetId === undefined ? nearestVisibleMonster(state, consumable.range) : state.entities.find((entity) => entity.id === targetId);
     if (!target?.stats) {
       state.messages = pushMessage(state, "投げ針を投げる相手が見えない。", "explore");
       return state;
@@ -1767,6 +1814,67 @@ function useItem(state: GameState, contentId: string, targetId?: string): GameSt
 
   state.messages = pushMessage(state, "まだ効果が定義されていない。", "explore");
   return state;
+}
+
+function bowFor(player: Entity) {
+  return equippedEffects(player).find((equipment) => equipment.rangedAttack)?.rangedAttack;
+}
+
+function canShoot(state: GameState, targetId: string): boolean {
+  const player = getPlayer(state);
+  const bow = bowFor(player);
+  const target = state.entities.find((entity) => entity.id === targetId);
+  return !!bow && !!target?.stats && target.kind === "monster" && !!target.hostile && tileAt(state, target.pos).visible
+    && chebyshev(player.pos, target.pos) > 1 && chebyshev(player.pos, target.pos) <= bow.range && hasLineOfSight(state, player.pos, target.pos);
+}
+
+function shootBow(state: GameState, targetId: string): GameState {
+  const player = getPlayer(state);
+  const target = state.entities.find((entity) => entity.id === targetId)!;
+  const bow = bowFor(player)!;
+  const damage = Math.max(1, bow.damage + Math.floor((state.playerProgress.level - 1) / 2) - (target.stats?.defense ?? 0));
+  target.stats!.hp -= damage;
+  recordStrike(state, player, target, true);
+  state.messages = pushMessage(state, `${getContentName(target.contentId)}へ矢を放ち、${damage}ダメージを与えた。`, "combat");
+  return target.stats!.hp <= 0 ? defeatMonster(state, target) : state;
+}
+
+function resolveRoomReward(state: GameState, source: Entity, config: GameConfig["events"][string]): GameState {
+  const player = getPlayer(state);
+  const traits = roleTraits(player.contentId);
+  const tool = player.inventory?.find((entry) => getGameConfig().consumables[entry.contentId]?.unlockCache && entry.quantity > 0);
+  const unlocked = !config.locked || !!traits?.lockpickBonusGold || !!tool;
+  // 解錠具がなくても遠征を止めない。こじ開けると少し傷つく。
+  if (config.locked && !unlocked && player.stats) {
+    const damage = getGameConfig().expansion?.forcedLockDamage ?? 3;
+    player.stats.hp -= damage;
+    state.messages = pushMessage(state, `封をこじ開け、HPを${damage}失った。`, "danger");
+    if (player.stats.hp <= 0) {
+      state.status = "lost";
+      state.story.killedBy = { cause: "item", contentId: source.contentId };
+      return state;
+    }
+  }
+  if (config.locked && tool && !traits?.lockpickBonusGold) consumeInventoryEntry(player, tool);
+  const gold = (config.goldBase ?? 0) + state.floor * (config.goldPerFloor ?? 0) + (config.locked ? traits?.lockpickBonusGold ?? 0 : 0);
+  if (gold > 0) state.playerProgress.gold += gold;
+  if (config.locked && traits?.lockpickBonusGold) state.runObjectives.roleGoalProgress += 1;
+  if (config.xp) state.playerProgress.xp += config.xp;
+  if (config.heal && player.stats) player.stats.hp = Math.min(player.stats.maxHp, player.stats.hp + config.heal);
+  if (config.cureConditions) {
+    player.conditions = clearConditions(player.conditions, config.cureConditions);
+    state = applyPriestCleansingGoal(state);
+  }
+  if (config.revealRadius) revealAround(state, source.pos, config.revealRadius);
+  if (config.loot?.length) {
+    const rng = new Rng(state.seed + state.floor * 101 + state.turn * 31);
+    const loot = rng.pick(config.loot);
+    // 床へ置くので、持ち物が満杯でも報酬を失わない。
+    state.entities.push(item(`${source.id}.reward`, loot, { ...source.pos }, state.floor, rng));
+  }
+  state.entities = state.entities.filter((entity) => entity.id !== source.id);
+  state.messages = pushMessage(state, `${getContentName(source.contentId)}を調べ、残された遺物を回収した。${gold ? `古銭+${gold}。` : ""}`, "loot");
+  return applyLevelUps(state);
 }
 
 function useMysteryConsumable(
@@ -1846,6 +1954,11 @@ function equipItem(state: GameState, contentId: string): GameState {
     }
   }
   entry.equipped = true;
+  for (const other of player.inventory ?? []) {
+    const equipment = getGameConfig().equipment[other.contentId];
+    if (slot === "weapon" && getGameConfig().equipment[contentId].twoHanded && equipment?.slot === "shield") other.equipped = false;
+    if (slot === "shield" && equipment?.twoHanded) other.equipped = false;
+  }
   if (player.stats) {
     player.stats.attack = baseAttack(state.playerProgress, state.modifiers.rank, state.modifiers.foundationRank) + weaponBonus(player);
     player.stats.defense = baseDefense(state.playerProgress) + defenseBonus(player);
@@ -1999,20 +2112,12 @@ function reevaluateEquipment(state: GameState): GameState {
   if (!player.inventory || !player.stats) {
     return state;
   }
-  for (const slot of ["weapon", "armor", "shield"] as const) {
-    const best = [...player.inventory]
-      .filter((entry) => equipmentSlot(entry.contentId) === slot)
-      .sort((a, b) => equipmentScore(b.contentId) - equipmentScore(a.contentId))[0];
-    if (!best || best.equipped) {
-      continue;
-    }
-    for (const entry of player.inventory) {
-      if (equipmentSlot(entry.contentId) === slot) {
-        entry.equipped = false;
-      }
-    }
-    best.equipped = true;
-    state.messages = pushMessage(state, `${getContentName(best.contentId)}の方が有用だと判断して装備した。`, "loot");
+  const selected = preferredEquipment(player);
+  for (const entry of player.inventory) {
+    if (!equipmentSlot(entry.contentId)) continue;
+    const equip = selected.has(entry.contentId);
+    if (equip && !entry.equipped) state.messages = pushMessage(state, `${getContentName(entry.contentId)}の方が有用だと判断して装備した。`, "loot");
+    entry.equipped = equip;
   }
   player.stats.attack = baseAttack(state.playerProgress, state.modifiers.rank, state.modifiers.foundationRank) + weaponBonus(player);
   player.stats.defense = baseDefense(state.playerProgress) + defenseBonus(player);
@@ -2049,9 +2154,9 @@ function baseDefense(progress: PlayerProgress): number {
   return rules.baseDefense + Math.floor(Math.max(0, progress.level - 1) / rules.defenseLevelsPerPoint);
 }
 
-function nearestVisibleMonster(state: GameState): Entity | null {
+function nearestVisibleMonster(state: GameState, range = Infinity): Entity | null {
   const player = getPlayer(state);
-  const visibleMonsters = state.entities.filter((entity) => entity.kind === "monster" && entity.hostile && tileAt(state, entity.pos).visible);
+  const visibleMonsters = state.entities.filter((entity) => entity.kind === "monster" && entity.hostile && tileAt(state, entity.pos).visible && chebyshev(entity.pos, player.pos) <= range && hasLineOfSight(state, player.pos, entity.pos));
   return visibleMonsters.sort((a, b) => chebyshev(a.pos, player.pos) - chebyshev(b.pos, player.pos))[0] ?? null;
 }
 
@@ -2059,11 +2164,12 @@ function applyAttackSideEffect(state: GameState, attacker: Entity, defender: Ent
   if (defender.kind !== "player" || defender.stats?.hp === undefined || defender.stats.hp <= 0) {
     return state;
   }
-  if (attacker.contentId === "monster.grave-leech" && attacker.stats) {
-    const healed = Math.min(2, attacker.stats.maxHp - attacker.stats.hp);
+  const drain = getGameConfig().expansion?.monsterTraits[attacker.contentId]?.lifeDrain ?? (attacker.contentId === "monster.grave-leech" ? 2 : 0);
+  if (drain && attacker.stats) {
+    const healed = Math.min(drain, attacker.stats.maxHp - attacker.stats.hp);
     if (healed > 0) {
       attacker.stats.hp += healed;
-      state.messages = pushMessage(state, "墓蛭が傷口に吸いつき、体を少し膨らませた。", "combat");
+      state.messages = pushMessage(state, `${getContentName(attacker.contentId)}が傷口から命を吸い、少し回復した。`, "combat");
     }
   }
   const effect = getGameConfig().monsterAttackEffects[attacker.contentId];
@@ -2091,6 +2197,19 @@ function rangedAttack(state: GameState, attacker: Entity, defender: Entity): Gam
     state.status = "lost";
     state.story.killedBy = { cause: "rangedCombat", contentId: attacker.contentId };
     state.messages = pushMessage(state, "迷宮の暗闇に倒れた。", "danger");
+  }
+  return reflectRangedStrike(state, attacker, defender);
+}
+
+function reflectRangedStrike(state: GameState, attacker: Entity, defender: Entity): GameState {
+  if (attacker.stats && (defender.stats?.hp ?? 0) > 0 && tileAt(state, attacker.pos).visible) {
+    const reflected = equippedEffects(defender).reduce((sum, equipment) => sum + (equipment.reflectDamage ?? 0), 0);
+    if (reflected > 0) {
+      attacker.stats.hp -= reflected;
+      recordStrike(state, defender, attacker, true);
+      state.messages = pushMessage(state, `反射の盾が光を返し、${getContentName(attacker.contentId)}へ${reflected}ダメージを与えた。`, "combat");
+      if (attacker.stats.hp <= 0) state = defeatMonster(state, attacker);
+    }
   }
   return state;
 }
@@ -2133,6 +2252,7 @@ function runMonsterTurn(state: GameState): GameState {
             state.status = "lost";
             state.story.killedBy = { cause: special.kind === "sweep" ? "combat" : "rangedCombat", contentId: monsterEntity.contentId };
           }
+          if (special.kind === "shot") state = reflectRangedStrike(state, monsterEntity, player);
         } else {
           if (state.expedition) state.expedition.stats.dodges += 1;
           if (tileAt(state, monsterEntity.pos).visible) state.messages = pushMessage(state, "予告された一撃が外れた。敵の構えに隙が生まれた。", "combat");
@@ -2204,6 +2324,7 @@ function runMonsterTurn(state: GameState): GameState {
 }
 
 function shouldKeepDistance(contentId: string): boolean {
+  if (getGameConfig().expansion?.monsterTraits[contentId]?.keepDistance) return true;
   return contentId === "monster.hollow-archer" || contentId === "monster.cinder-cultist" || contentId === "monster.ash-warlock" || contentId === "monster.shadow-imp";
 }
 
@@ -2252,6 +2373,11 @@ function tickPlayerConditions(state: GameState): GameState {
     return state;
   }
   const { rules } = getGameConfig();
+  for (const equipment of equippedEffects(player)) {
+    if (equipment.conditionResistance) player.conditions = clearConditions(player.conditions, equipment.conditionResistance);
+    if (equipment.regen && state.runTurn > 0 && state.runTurn % equipment.regen.everyTurns === 0) player.stats.hp = Math.min(player.stats.maxHp, player.stats.hp + equipment.regen.amount);
+    if (equipment.revealRadius) revealAround(state, player.pos, equipment.revealRadius);
+  }
   if (player.inventory?.some((entry) => entry.equipped && entry.contentId === "item.moonlit-mail") && state.turn > 0 && state.turn % rules.moonlitMailRegenEveryTurns === 0) {
     const healed = Math.min(rules.moonlitMailRegenAmount, player.stats.maxHp - player.stats.hp);
     if (healed > 0) {
