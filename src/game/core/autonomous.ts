@@ -743,7 +743,10 @@ export function campaignProgress(campaign: CampaignState): CampaignProgress {
   const completedMissionIds = unique(campaign.expeditions.filter((record) => record.missionCompleted).map((record) => record.missionId));
   const endingIds = unique(campaign.expeditions.flatMap((record) => record.endingId ? [record.endingId] : []));
   const missingTruths = ROLE_TRUTH_IDS.filter((truth) => !campaign.roleTruths.includes(truth));
-  const firstRoute = highestFloor >= 4 || campaign.expeditions.some((record) => record.decisions.some((decision) => decision.id === "checkpoint-3"));
+  // 遠征録は最新100件だけ。累計踏破と結末で進んだ周期が示す章は失わせない。
+  const hasEnding = endingIds.length > 0 || campaign.cycle.number > 1;
+  const hasVictory = completedRuns > 0 || journeyTotals(campaign).victories > 0 || hasEnding;
+  const firstRoute = hasVictory || highestFloor >= 4 || campaign.expeditions.some((record) => record.decisions.some((decision) => decision.id === "checkpoint-3"));
   const roadmap: RoadmapChapter[] = [
     { id: "first-route", label: "第一の帰還路を開く", hint: "第三階の守り手を倒すと、灰灯院へ戻る灯路が開く。", done: firstRoute },
     { id: "first-truth", label: "真相を一つ持ち帰る", hint: "第六階の守り手を倒して現れる真相を抱え、生きて帰る。任務「真相を持ち帰る」が近道。", done: campaign.roleTruths.length > 0 },
@@ -755,8 +758,8 @@ export function campaignProgress(campaign: CampaignState): CampaignProgress {
         : "三つの真相が揃った。",
       done: missingTruths.length === 0,
     },
-    { id: "black-core", label: "黒燭核を討つ", hint: "第十層の番人を倒す。帰還路では帰らず進み続ける必要がある。", done: completedRuns > 0 },
-    { id: "ending", label: "黒燭の行方を決める", hint: "三つの真相を揃えた上で第十層の番人を倒すと、結末を選べる。結末は次の周期の迷宮を変える。", done: endingIds.length > 0 },
+    { id: "black-core", label: "黒燭核を討つ", hint: "第十層の番人を倒す。帰還路では帰らず進み続ける必要がある。", done: hasVictory },
+    { id: "ending", label: "黒燭の行方を決める", hint: "三つの真相を揃えた上で第十層の番人を倒すと、結末を選べる。結末は次の周期の迷宮を変える。", done: hasEnding },
   ];
   return {
     highestFloor,

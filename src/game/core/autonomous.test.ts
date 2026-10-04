@@ -201,6 +201,40 @@ describe("自律遠征", () => {
     expect(progress.nextChapter?.id).toBe("first-truth");
   });
 
+  test("遠征録の上限を超えても、累計踏破と周期が示す黒燭への道は失われない", () => {
+    for (const endingId of [undefined, "divide-flame"] as const) {
+      const victory = createInitialGame(20260504, "role.oathbound", { missionId: "black-core" });
+      victory.status = "won";
+      victory.floor = victory.story.maxFloorReached = 10;
+      victory.story.endingId = endingId;
+      let campaign = createCampaignState();
+      if (endingId) campaign.roleTruths = ["shared-oath", "furnace-map", "purified-flame"];
+      campaign = recordCampaignResult(campaign, victory, null);
+      const completed = campaignProgress(campaign).roadmap;
+
+      const lost = createInitialGame(20260505, "role.oathbound");
+      lost.status = "lost";
+      for (let index = 0; index < 100; index += 1) {
+        lost.seed = 20260505 + index;
+        campaign = recordCampaignResult(campaign, lost, "combat");
+      }
+      campaign = normalizeCampaignState(JSON.parse(JSON.stringify(campaign)));
+      expect(campaign.expeditions).toHaveLength(100);
+      expect(campaign.expeditions.every((record) => record.status === "lost")).toBe(true);
+      expect(campaign.journey?.victories).toBe(1);
+      expect(campaignProgress(campaign).roadmap).toEqual(completed);
+      expect(campaignProgress(campaign).nextChapter?.id ?? null).toBe(endingId ? null : "first-truth");
+    }
+  });
+
+  test("累計のない旧記録でも周期が示す結末を保ち、新規記録には章を足さない", () => {
+    const legacy = normalizeCampaignState({ version: 3, expeditions: [], cycle: { number: 2, aftermath: "divide-flame" } });
+    expect(legacy.journey?.victories).toBe(0);
+    const completed = campaignProgress(legacy).roadmap.filter((chapter) => chapter.done).map((chapter) => chapter.id);
+    expect(completed).toEqual(["first-route", "black-core", "ending"]);
+    expect(campaignProgress(createCampaignState()).roadmap.some((chapter) => chapter.done)).toBe(false);
+  });
+
   test("version 1の遠征録は失わず現行versionへ移行する", () => {
     const state = createInitialGame(20260504, "role.ash-scout");
     state.status = "returned";
