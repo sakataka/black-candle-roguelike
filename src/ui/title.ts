@@ -80,9 +80,9 @@ export function showTitle(ledger: Promise<TitleLedger>, ready: Promise<unknown>,
         <kbd>Enter</kbd>
       </button>
       <div data-ledger hidden></div>
-      <button type="button" class="title-saves-toggle" data-saves-toggle hidden></button>
+      <button type="button" class="title-saves-toggle" data-saves-toggle aria-controls="title-saves" aria-expanded="false" hidden></button>
     </div>
-    <section class="title-saves" data-saves hidden aria-label="記録を選ぶ"></section>
+    <section id="title-saves" class="title-saves" data-saves hidden aria-label="記録を選ぶ"></section>
     <p class="title-foot" aria-hidden="true"><span>Press any key</span><span data-cycle-foot></span></p>
   `;
   document.body.append(root);
@@ -110,6 +110,8 @@ export function showTitle(ledger: Promise<TitleLedger>, ready: Promise<unknown>,
   }, () => undefined);
   let savedLedger: TitleLedger | null = null;
   const savesPanel = root.querySelector<HTMLElement>("[data-saves]")!;
+  const savesToggle = root.querySelector<HTMLButtonElement>("[data-saves-toggle]")!;
+  const titleContent = root.querySelector<HTMLElement>(".title-content")!;
   let confirmingDelete: string | null = null;
   const renderSaves = () => {
     if (!savedLedger) return;
@@ -119,9 +121,11 @@ export function showTitle(ledger: Promise<TitleLedger>, ready: Promise<unknown>,
     confirmingDelete = null;
     renderSaves();
     savesPanel.hidden = !open;
+    titleContent.inert = open;
+    savesToggle.setAttribute("aria-expanded", String(open));
     root.classList.toggle("is-choosing", open);
     if (open) savesPanel.querySelector<HTMLButtonElement>("button")?.focus({ preventScroll: true });
-    else button?.focus({ preventScroll: true });
+    else savesToggle.focus({ preventScroll: true });
   };
   savesPanel.addEventListener("click", (event) => {
     event.stopPropagation();
@@ -158,9 +162,11 @@ export function showTitle(ledger: Promise<TitleLedger>, ready: Promise<unknown>,
       if (leaving) return;
       if (!prepared) {
         requested = true;
+        button?.setAttribute("aria-busy", "true");
         return;
       }
       leaving = true;
+      root.inert = true;
       window.removeEventListener("keydown", onKey, true);
       root.classList.add("is-leaving");
       resolve();
@@ -173,23 +179,32 @@ export function showTitle(ledger: Promise<TitleLedger>, ready: Promise<unknown>,
     // タイトルの間は下の画面のキー操作（番号キーやEnterでの出発）に届かせない。
     const onKey = (event: KeyboardEvent) => {
       if (event.metaKey || event.ctrlKey || event.altKey) return;
+      event.stopImmediatePropagation();
+      // タイトルと記録一覧のそれぞれで、表示中の操作だけを巡回する。
+      if (event.key === "Tab") {
+        const scope = savesPanel.hidden ? titleContent : savesPanel;
+        const buttons = [...scope.querySelectorAll<HTMLButtonElement>("button:not(:disabled)")]
+          .filter((element) => element.getClientRects().length > 0);
+        const index = buttons.indexOf(document.activeElement as HTMLButtonElement);
+        event.preventDefault();
+        buttons[(index + (event.shiftKey ? -1 : 1) + buttons.length) % buttons.length]?.focus();
+        return;
+      }
       // 記録の一覧を開いている間は、通常のボタン操作に任せる。Escで閉じる。
       if (!savesPanel.hidden) {
-        event.stopImmediatePropagation();
         if (event.key === "Escape") {
           event.preventDefault();
           openSaves(false);
         }
         return;
       }
-      if (event.key === "Tab") {
-        event.preventDefault();
-        button?.focus();
+      // Enter/Space はフォーカス中のボタンを作動させる。記録選択もキーボードで開ける。
+      if (event.target instanceof HTMLButtonElement && (event.key === "Enter" || event.key === " ")) {
+        if (event.repeat) event.preventDefault();
         return;
       }
       event.preventDefault();
-      event.stopImmediatePropagation();
-      if (event.key === "Escape" || event.key === "Shift") return;
+      if (["Escape", "Shift", "Control", "Alt", "Meta"].includes(event.key)) return;
       leave();
     };
     window.addEventListener("keydown", onKey, true);

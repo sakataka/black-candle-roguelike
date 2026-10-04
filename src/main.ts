@@ -7,6 +7,7 @@ import "@fontsource/cormorant-garamond/500-italic.css";
 import "@fontsource/cormorant-garamond/600.css";
 import "./styles.css";
 import { showTitle, type SaveSlotSummary, type TitleLedger } from "./ui/title";
+import "./ui/interface.css";
 import {
   activateSaveSlot,
   campaignStorageKey,
@@ -251,7 +252,7 @@ app.innerHTML = `
         <div class="panel-heading"><h2>装備と携行品</h2><span id="inventory-count">0</span></div>
         <div id="equipment-list" class="equipment-list"></div>
         <ul id="inventory-list" class="inventory-grid"></ul>
-        <p id="inventory-caption" class="inventory-caption" aria-live="polite"></p>
+        <p id="inventory-caption" class="inventory-caption"></p>
       </section>
       <section class="panel log-card" aria-label="道中記">
         <div class="panel-heading"><h2>道中記</h2><span>新しい順</span></div>
@@ -260,7 +261,7 @@ app.innerHTML = `
     </div>
   </main>
 
-  <section id="candidate-dialog" class="modal-layer prepare-layer" aria-live="polite">
+  <section id="candidate-dialog" class="modal-layer prepare-layer">
     <div class="prepare-screen" role="dialog" aria-modal="true" aria-labelledby="candidate-title">
       <header class="prepare-header">
         <div>
@@ -339,7 +340,7 @@ app.innerHTML = `
     </div>
   </section>
 
-  <section id="end-dialog" class="modal-layer" hidden aria-live="assertive">
+  <section id="end-dialog" class="modal-layer" hidden>
     <div class="modal-panel result-panel" role="dialog" aria-modal="true" aria-labelledby="end-title">
       <p id="end-kicker" class="eyebrow">遠征終了</p>
       <h2 id="end-title">遠征記録</h2>
@@ -378,6 +379,8 @@ const decisionTacticList = requireElement<HTMLDivElement>("#decision-tactic-list
 const decisionDialog = requireElement<HTMLElement>("#decision-dialog");
 const lanternDock = requireElement<HTMLElement>(".lantern-dock");
 new ResizeObserver(() => document.documentElement.style.setProperty("--lantern-dock-height", `${lanternDock.getBoundingClientRect().height}px`)).observe(lanternDock);
+const prepareFooter = requireElement<HTMLElement>(".prepare-footer");
+new ResizeObserver(() => document.documentElement.style.setProperty("--prepare-footer-height", `${prepareFooter.getBoundingClientRect().height + 20}px`)).observe(prepareFooter);
 const decisionTitle = requireElement<HTMLHeadingElement>("#decision-title");
 const decisionBody = requireElement<HTMLParagraphElement>("#decision-body");
 const decisionContext = requireElement<HTMLElement>("#decision-context");
@@ -548,7 +551,14 @@ function installEvents(): void {
   };
   inventoryList.addEventListener("pointerover", showInventoryName);
   inventoryList.addEventListener("click", showInventoryName);
-  inventoryList.addEventListener("pointerleave", () => setText("#inventory-caption", ""));
+  inventoryList.addEventListener("focusin", showInventoryName);
+  inventoryList.addEventListener("focusout", (event) => {
+    if (!inventoryList.contains(event.relatedTarget as Node | null)) setText("#inventory-caption", "");
+  });
+  inventoryList.addEventListener("pointerleave", () => {
+    const active = document.activeElement;
+    setText("#inventory-caption", active instanceof HTMLElement && inventoryList.contains(active) ? active.dataset.itemLabel ?? "" : "");
+  });
   instituteFacilities.addEventListener("click", (event) => {
     const button = (event.target as HTMLElement).closest<HTMLButtonElement>("button[data-facility-id]");
     if (!button || button.disabled) return;
@@ -611,15 +621,13 @@ function installEvents(): void {
       const focusable = [...focusedModal.querySelectorAll<HTMLElement>("button:not(:disabled), summary")]
         .filter((element) => element.getClientRects().length > 0);
       if (focusable.length === 0) return;
-      const first = focusable[0];
-      const last = focusable[focusable.length - 1];
-      if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault();
-        first.focus();
-      }
+      // Safari の標準Tab設定でもボタンを飛ばさず、表示中の操作を同じ順序で巡回する。
+      const index = focusable.indexOf(document.activeElement as HTMLElement);
+      const next = event.shiftKey
+        ? index <= 0 ? focusable.at(-1) : focusable[index - 1]
+        : focusable[(index + 1) % focusable.length];
+      event.preventDefault();
+      next?.focus();
       return;
     }
     if (!focusedModal && !event.metaKey && !event.ctrlKey && !event.altKey) {
@@ -1504,30 +1512,45 @@ function renderInventory(inventory: NonNullable<GameState["entities"][number]["i
   const carried = inventory.filter((entry) => !entry.equipped);
   const signature = carried.map((entry) => `${entry.contentId}:${entry.quantity}`).join("|");
   if (list.dataset.signature === signature) return;
+  const active = document.activeElement;
+  const focusedItem = active instanceof HTMLElement && list.contains(active) ? active.dataset.itemId : null;
   list.dataset.signature = signature;
   if (carried.length === 0) {
     list.innerHTML = '<li class="empty-state">携行品なし</li>';
+    if (focusedItem) {
+      setText("#inventory-caption", "");
+      observerShell.focus({ preventScroll: true });
+    }
     return;
   }
   list.replaceChildren(...carried.map((entry) => {
     const item = document.createElement("li");
     const label = `${getContentName(entry.contentId)} ×${entry.quantity}`;
-    item.className = "inventory-slot";
-    item.dataset.itemLabel = label;
-    item.title = label;
-    item.setAttribute("aria-label", label);
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "inventory-slot";
+    button.dataset.itemId = entry.contentId;
+    button.dataset.itemLabel = label;
+    button.title = label;
+    button.setAttribute("aria-label", label);
     const icon = document.createElement("span");
     icon.className = "inventory-icon";
     icon.setAttribute("aria-hidden", "true");
     applySprite(icon, assetForContent(entry.contentId), 36);
-    item.append(icon);
+    button.append(icon);
     if (entry.quantity > 1) {
       const quantity = document.createElement("b");
       quantity.textContent = String(entry.quantity);
-      item.append(quantity);
+      button.append(quantity);
     }
+    item.append(button);
     return item;
   }));
+  // 遠征が進んで携行品が増減しても、読んでいた品からフォーカスを失わない。
+  if (focusedItem) {
+    const next = list.querySelector<HTMLButtonElement>(`[data-item-id="${CSS.escape(focusedItem)}"]`) ?? list.querySelector<HTMLButtonElement>("button");
+    next?.focus({ preventScroll: true });
+  }
 }
 
 /** 「黒燭への道」。大目標を章で並べ、次の章だけ詳しく書く。 */

@@ -1,0 +1,316 @@
+/* 既存の美術と情報順を保ちながら、読む・選ぶ・観る操作を整える。 */
+:root {
+  --fs-2xs: 0.75rem;
+  --fs-xs: 0.8125rem;
+  --fs-sm: 0.875rem;
+  --faint: #a29783;
+  --line-soft: rgba(232, 215, 181, 0.1);
+}
+
+::selection { color: #fff2d2; background: #695030; }
+button:disabled { cursor: not-allowed; }
+button, summary { scroll-margin-block: 24px; }
+button:focus-visible, summary:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 4px;
+  box-shadow: 0 0 0 6px #0c0b0a;
+}
+.secondary-button { min-height: 44px; }
+.secondary-button:disabled { color: var(--muted); border-color: var(--line-soft); background: #ffffff03; }
+.secondary-button:disabled:hover { color: var(--muted); border-color: var(--line-soft); background: #ffffff03; }
+.secondary-button:disabled:active { transform: none; }
+
+/* 支度: セクション間の余白は広く、ひとつの札の中はまとまりを作る。 */
+.prepare-screen { width: min(1440px, 100%); }
+.prepare-header { padding: 28px 32px 22px; align-items: center; }
+.prepare-header h2 { font-size: clamp(1.7rem, 3vw, 2.5rem); letter-spacing: 0.07em; line-height: 1.45; text-wrap: balance; }
+.prepare-header .eyebrow { letter-spacing: 0.2em; }
+.prepare-header::after { inset-inline: 32px; }
+.prepare-header-actions { flex-wrap: wrap; gap: 10px; }
+.progress-overview { margin: 20px 32px 0; gap: 14px 24px; }
+.candle-road, .growth-board { padding: 18px 20px; border-color: rgba(212, 173, 98, 0.32); }
+.candle-road { grid-template-columns: 66px minmax(0, 1fr); }
+.candle-chapters strong, .trial-path strong { font-size: 12px; }
+.candle-chapters li { color: var(--muted); }
+.truth-socket { padding: 8px; font-size: 12px; line-height: 1.5; }
+.truth-socket small, .growth-caption small, .trial-path small { font-size: 11px; }
+.progress-help summary { min-height: 44px; display: flex; align-items: center; gap: 8px; }
+.progress-help summary::before { content: '›'; color: var(--gold); font-size: 18px; transition: transform 160ms ease; }
+.progress-help[open] summary::before { transform: rotate(90deg); }
+.progress-help p { max-width: 80ch; }
+.prepare-body { padding: 24px 32px 36px; gap: 28px; grid-template-columns: minmax(0, 1fr) 340px; }
+.prepare-main { gap: 32px; }
+.prepare-step { gap: 14px; }
+.step-heading { gap: 8px 12px; }
+.step-heading small { padding-left: 38px; line-height: 1.75; letter-spacing: 0; }
+.candidate-group { gap: 6px 12px; margin-top: 0; }
+.candidate-body { gap: 6px; }
+.candidate-body > strong { line-height: 1.5; }
+.candidate-body > small { color: var(--ink-soft); line-height: 1.7; }
+.candidate-body > em { line-height: 1.6; }
+.temperament-tag { padding: 2px 9px; }
+.mini-stats { gap: 6px 12px; margin-top: 6px; }
+.truth-tag { line-height: 1.5; }
+
+/* 推奨と選択の印が本文に重ならず、名前の長さが変わっても揃う。 */
+.mission-list { gap: 12px; }
+.mission-option { padding: 18px 16px 14px; gap: 8px; }
+.mission-option strong { line-height: 1.6; font-size: 16px; }
+.mission-option small { line-height: 1.7; }
+.mission-option em { line-height: 1.6; }
+.mission-reward { align-self: end; padding-top: 8px; border-top: 1px solid var(--line-soft); line-height: 1.6; }
+.mission-badge { right: 12px; top: -10px; padding: 2px 9px; font-size: 11px; }
+.tactic-list { gap: 12px; }
+.tactic-card { min-height: 84px; padding: 14px; gap: 6px 12px; }
+.tactic-card small { font-size: 12px; line-height: 1.65; }
+.tactic-card:disabled { opacity: 0.7; }
+.mission-option.is-selected, .tactic-card.is-selected, .candidate-card.is-selected, .heat-option.is-selected {
+  border-color: var(--gold-bright);
+  background-color: rgba(212, 173, 98, 0.09);
+}
+.tactic-card.is-selected strong::before, .mission-option.is-selected strong::before {
+  content: '◆'; margin-right: 7px; font-size: 10px; vertical-align: 2px;
+}
+.facility-card { gap: 5px 10px; padding: 12px 10px; border-radius: 4px; }
+.facility-card strong, .facility-card small { line-height: 1.6; }
+.facility-card > span:last-child { padding: 5px 8px; font-size: 11px; }
+.side-heading small { line-height: 1.7; }
+.archive-list .empty-state { display: block; padding: 14px 0; line-height: 1.7; }
+.campaign-summary div { padding: 9px 7px; }
+.progress-conditions summary { gap: 10px; min-height: 48px; }
+.progress-conditions summary::before { content: '›'; color: var(--gold); transition: transform 160ms ease; }
+.progress-conditions summary span { margin-left: auto; }
+.progress-conditions[open] summary::before { transform: rotate(90deg); }
+
+.prepare-footer { gap: 18px; padding: 14px 32px calc(14px + env(safe-area-inset-bottom)); background: #15110df5; }
+.depart-summary { gap: 8px 14px; }
+.depart-who strong { font-size: 20px; }
+.depart-plan { gap: 6px 16px; line-height: 1.65; }
+.depart-plan > span > small { margin-left: 5px; }
+.prepare-footer .primary-button { min-height: 52px; min-width: 224px; font-size: 16px; letter-spacing: 0.1em; }
+.prepare-layer { scroll-padding-block: 24px var(--prepare-footer-height, 150px); }
+
+@media (min-width: 701px) {
+  .prepare-step-delver .candidate-card { padding-bottom: 18px; grid-template-rows: 132px minmax(0, 1fr); }
+  .prepare-step-delver .candidate-portrait { height: 132px; }
+  .prepare-step-delver .candidate-body { display: flex; flex-direction: column; align-items: center; align-self: stretch; padding-inline: 16px; }
+  .prepare-step-delver .candidate-body > strong { font-size: 22px; }
+  .prepare-step-delver .candidate-body > small { text-wrap: pretty; }
+  .prepare-step-delver .mini-stats { margin-top: auto; padding-top: 6px; }
+}
+@media (min-width: 1100px) {
+  /* 古参なしの空欄は短い注記にし、志願者を比較する横幅を確保する。 */
+  .prepare-step-delver:has(#veteran-list > .empty-state) {
+    grid-template-columns: 120px minmax(0, 1fr);
+    grid-template-areas: 'head head' 'vlabel rlabel' 'vlist rlist';
+    column-gap: 20px;
+  }
+  .prepare-step-delver:has(#veteran-list > .empty-state) #veteran-list { grid-template-columns: minmax(0, 1fr); align-self: start; }
+  .prepare-step-delver:has(#veteran-list > .empty-state) #veteran-list .empty-state {
+    width: auto; height: auto; padding: 12px; border-radius: 4px; background: #ffffff02; line-height: 1.7;
+  }
+  .prepare-step-delver:has(#veteran-list > .empty-state) #candidate-list { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
+/* 観戦: 数字が増減しても位置を保ち、操作と状況を二段で読み取る。 */
+.topbar { grid-template-columns: minmax(0, 1fr) auto; gap: 12px 24px; padding: 14px 18px; }
+.topbar-brand { grid-column: 1; grid-row: 1; }
+.topbar-controls { grid-column: 2; grid-row: 1; }
+.topbar-run { grid-column: 1 / -1; grid-row: 2; display: grid; grid-template-columns: auto minmax(160px, 1.5fr) minmax(190px, 1fr) auto minmax(130px, .6fr); gap: 20px; border-top: 1px solid var(--line-soft); padding-top: 12px; }
+.route-track { max-width: none; width: 100%; }
+.live-progress { min-width: 0; }
+.turn-meter { min-width: 0; }
+.speed-selector { padding: 3px; border-radius: 5px; }
+.speed-selector button { min-height: 40px; min-width: 46px; font-size: 13px; }
+.speed-selector button.is-active { border-radius: 3px; }
+.depth-chip strong { font-size: 17px; }
+.shard-forecast strong, .turn-meter-label strong { font-variant-numeric: tabular-nums; }
+.lantern-dock { grid-template-columns: 150px minmax(0, 1fr); gap: 12px 16px; padding: 16px; }
+.lantern-rites { gap: 10px; }
+.lantern-rite { padding: 12px 10px; gap: 5px 8px; border-radius: 4px; }
+.lantern-rite strong { font-size: 15px; }
+.lantern-rite small { white-space: normal; text-wrap: pretty; line-height: 1.6; font-size: 12px; }
+.lantern-rite:disabled { opacity: 0.7; border-color: var(--line-soft); background: #ffffff03; }
+.lantern-rite:disabled strong { color: var(--muted); }
+.lantern-rite:disabled .rite-icon { filter: grayscale(.65); opacity: .65; }
+.extra-rites { gap: 10px; }
+.extra-rites button { border-radius: 4px; padding: 10px 12px; }
+.expedition-note { line-height: 1.6; }
+.expedition-note:empty { display: none; }
+.sidebar .panel-label { letter-spacing: 0.12em; }
+.sidebar .panel-heading h2 { letter-spacing: 0.12em; }
+.message-list li:nth-child(n) { opacity: 1; }
+.message-list li:nth-child(n + 4) p { color: var(--muted); }
+.inventory-grid { grid-template-columns: repeat(auto-fill, minmax(44px, 1fr)); gap: 6px; }
+.inventory-slot { width: 100%; min-height: 44px; cursor: pointer; padding: 0; }
+.inventory-slot:focus-visible { border-color: var(--gold-bright); }
+.equipment-slot strong { white-space: normal; overflow-wrap: anywhere; }
+.sidebar { scroll-padding-block: 20px; }
+
+/* 伝言と結果: 開閉状態の手掛かり、長文、スクロール終端を整える。 */
+.stage { position: relative; }
+.realtime-choice {
+  position: absolute;
+  z-index: 20;
+  inset-inline: 0;
+  bottom: var(--lantern-dock-height, 230px);
+  max-height: min(55%, 440px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scroll-padding-block: 16px;
+  padding: 16px;
+  border-top-color: var(--line-strong);
+  box-shadow: 0 -12px 30px #0008;
+}
+.realtime-choice h2 { margin: 6px 0; font-size: 20px; line-height: 1.5; }
+.realtime-choice .modal-lead { font-size: 13px; line-height: 1.7; }
+.realtime-choice .decision-options { gap: 10px; }
+.realtime-choice .decision-option { padding: 12px; gap: 6px; }
+.realtime-choice .decision-option strong { font-size: 14px; line-height: 1.6; }
+.realtime-choice .decision-option small { font-size: 12px; line-height: 1.65; }
+.decision-details summary { min-height: 48px; line-height: 1.65; }
+.modal-panel { border-radius: 6px; }
+.modal-layer:not(.prepare-layer) { scroll-padding-block: 24px 90px; }
+.modal-footer { border-radius: 0 0 6px 6px; padding-block: 16px; }
+.result-section-heading { gap: 8px 20px; flex-wrap: wrap; }
+.end-stats strong { font-variant-numeric: tabular-nums; }
+.run-comparison p, .run-advice li, .decision-history p { line-height: 1.7; }
+
+@media (min-width: 701px) and (max-width: 1099px) {
+  .prepare-body { grid-template-columns: minmax(0, 1fr); }
+  .prepare-side { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+  .prepare-side .side-section { padding: 16px; border: 1px solid var(--line); background: var(--panel); }
+  .prepare-side .side-section::before, .prepare-side .side-section::after { display: none; }
+  .topbar-run { grid-template-columns: auto minmax(0, 1fr) auto; gap: 14px; }
+  .live-progress { grid-column: 1 / 3; grid-row: 2; flex-basis: auto; }
+  .turn-meter { grid-column: 3; grid-row: 2; }
+  .lantern-dock { grid-template-columns: minmax(0, 1fr); }
+  .lantern-embers { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+  .extra-rites { grid-column: 1; }
+}
+
+@media (max-width: 700px) {
+  .prepare-header { padding: calc(16px + env(safe-area-inset-top)) 16px 12px; gap: 10px; }
+  .prepare-header h2 { font-size: 25px; letter-spacing: .035em; }
+  .prepare-header .eyebrow { font-size: 11px; }
+  .prepare-header::after { inset-inline: 16px; }
+  .prepare-header-actions { width: 100%; justify-content: space-between; }
+  .progress-overview { margin: 12px 16px 0; gap: 10px; }
+  .candle-road { grid-template-columns: 38px minmax(0, 1fr); padding: 10px; gap: 10px; }
+  .black-candle { width: 36px; padding-top: 18px; }
+  .candle-flame { left: 13px; width: 10px; height: 16px; }
+  .candle-wax { height: 100px; }
+  .candle-seals i { font-size: 11px; line-height: 19px; }
+  .candle-chapters { margin-block: 8px; }
+  .candle-chapters strong { font-size: 10px; letter-spacing: -.025em; }
+  .candle-chapters li { gap: 5px; }
+  .truth-sockets { gap: 5px; }
+  .truth-socket { gap: 4px; padding: 6px 3px; font-size: 11px; }
+  .truth-socket > i { display: none; }
+  .truth-socket small { font-size: 10px; }
+  .progress-next { margin-top: 8px; }
+  .growth-board { padding: 10px; gap: 10px; grid-template-columns: minmax(0, .85fr) minmax(0, 1.15fr); }
+  .power-line { margin-block: 6px; }
+  .power-line > strong { font-size: 30px; }
+  .growth-caption { font-size: 11px; margin-top: 6px; }
+  .trial-path strong { font-size: 10px; }
+  .trial-path small { font-size: 10px; }
+  .progress-help { margin-top: -5px; }
+  .prepare-body { padding: 6px 16px 28px; gap: 28px; grid-template-columns: minmax(0, 1fr); }
+  .prepare-main { gap: 28px; }
+  .prepare-step { gap: 10px; }
+  .step-heading small { padding-left: 0; font-size: 12px; line-height: 1.65; }
+  .candidate-list { gap: 12px; }
+  .candidate-card { padding: 14px; grid-template-columns: 76px minmax(0, 1fr); gap: 14px; }
+  .candidate-portrait { margin-top: 4px; }
+  .candidate-body > strong { font-size: 20px; padding-right: 18px; }
+  .candidate-body { gap: 4px; }
+  .candidate-index { right: 10px; top: 10px; }
+  .truth-tag { justify-self: start; font-size: 11px; }
+  .mini-stats { gap: 4px 12px; }
+  .mission-list, .tactic-list { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  .mission-option:not(.is-selected) small { display: block; }
+  .mission-option { padding: 16px; }
+  .tactic-card { min-height: 78px; }
+  .prepare-side { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  .prepare-footer { display: grid; grid-template-columns: minmax(0, 1fr) 158px; padding: 10px 16px calc(10px + env(safe-area-inset-bottom)); gap: 6px 12px; }
+  .depart-summary { display: contents; }
+  .depart-portrait { grid-column: 1; grid-row: 1; }
+  .depart-who { grid-column: 1; grid-row: 1; margin-left: 52px; }
+  .depart-who strong { font-size: 18px; }
+  .depart-who small { font-size: 11px; }
+  .depart-plan { grid-column: 1 / -1; font-size: 11px; gap: 3px 12px; padding-left: 0; }
+  .depart-plan b { font-size: 11px; }
+  .depart-plan > span > small { font-size: 10px; }
+  .depart-note { grid-column: 1 / -1; }
+  .prepare-footer .primary-button { grid-column: 2; grid-row: 1; min-width: 0; min-height: 48px; padding-inline: 10px; font-size: 14px; letter-spacing: 0.04em; }
+  .topbar { display: flex; gap: 6px 10px; padding: 8px 12px; }
+  .topbar-run, .topbar-controls { display: contents; }
+  .live-progress { gap: 12px; padding-block: 4px; }
+  .live-mission { column-gap: 8px; row-gap: 3px; }
+  .depth-chip { line-height: 1.3; }
+  .depth-chip span { font-size: 11px; }
+  .route-track-label { line-height: 1.4; }
+  .live-mission > small, .live-power small { font-size: 10px; }
+  .shard-forecast { gap: 2px 8px; }
+  .shard-forecast > span { font-size: 11px; }
+  .shard-forecast small { font-size: 10px; }
+  .shard-forecast b { font-size: 20px; }
+  .shard-forecast .is-loss b { font-size: 16px; }
+  .turn-meter { min-width: 72px; flex-basis: 72px; }
+  .turn-meter-label strong { font-size: 14px !important; }
+  .speed-selector button { min-width: 40px; min-height: 44px; font-size: 12px; }
+  #new-expedition { min-height: 44px; padding-inline: 10px; font-size: 13px; }
+  .route-track-label strong { font-size: 12px; }
+  .map-stage { height: clamp(280px, 34svh, 360px); min-height: 280px; }
+  .lantern-dock { grid-template-columns: minmax(0, 1fr); gap: 7px; padding: 8px 10px calc(8px + env(safe-area-inset-bottom)); }
+  .lantern-embers { grid-template-columns: auto minmax(0, 1fr); gap: 6px 10px; }
+  .lantern-pips { justify-self: end; }
+  .lantern-embers > small { grid-column: 1 / -1; white-space: normal; line-height: 1.5; font-size: 11px; }
+  .lantern-rites { gap: 6px; }
+  .lantern-rite { grid-template-columns: 20px minmax(0, 1fr); grid-template-rows: auto 1fr; min-height: 80px; padding: 6px 4px; gap: 4px; justify-items: stretch; }
+  .rite-icon { grid-column: 1; grid-row: 1; width: 40px; height: 40px; margin: -10px; transform: scale(.55); }
+  .lantern-rite strong { grid-column: 2; grid-row: 1; flex-direction: row; justify-content: center; gap: 3px; font-size: 12px; white-space: nowrap; }
+  .lantern-rite strong em { font-size: 10px; }
+  .lantern-rite small { grid-column: 1 / -1; grid-row: 2; display: block; font-size: 10px; line-height: 1.45; }
+  .extra-rites { grid-column: 1; gap: 8px; }
+  .extra-rites button { padding: 6px 8px; }
+  .extra-rites small { font-size: 10px; white-space: normal; line-height: 1.45; }
+  .expedition-note { font-size: 11px; }
+  .realtime-choice { position: fixed; z-index: 51; padding: 12px; max-height: min(40svh, 360px); }
+  .realtime-choice .modal-lead { display: block; font-size: 12px; }
+  .realtime-choice .decision-options { gap: 8px; }
+  .realtime-choice .decision-option { padding: 10px; }
+  .realtime-choice .decision-option strong { font-size: 13px; }
+  .realtime-choice .decision-option small { font-size: 11px; }
+  .realtime-choice .modal-hint { font-size: 12px; line-height: 1.6; }
+  .sidebar .panel { padding: 14px 16px; }
+  .vitals-heading { grid-template-columns: 58px minmax(0, 1fr) auto; }
+  .result-panel .end-milestone { padding-inline: 8px; }
+  .result-section-heading small { line-height: 1.6; }
+  .modal-footer { padding-bottom: calc(12px + env(safe-area-inset-bottom)); }
+}
+
+/* タイトルと記録一覧の操作を本文と同じ寸法・フォーカス表現で揃える。 */
+.title-ledger.is-first, .title-ledger dt { color: var(--muted); }
+.title-saves-toggle { min-height: 44px; flex-wrap: wrap; gap: 4px 10px; letter-spacing: .06em; }
+.title-saves-toggle:focus-visible, .title-cta:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 5px; }
+.title-saves { padding: 22px; gap: 16px; overscroll-behavior: contain; scroll-padding-block: 22px; }
+.title-saves-close { width: 44px; height: 44px; font-size: 22px; }
+.title-saves-head { gap: 6px 12px; }
+.title-saves-head small { line-height: 1.7; }
+.title-save { padding: 16px; gap: 10px; }
+.title-save-head { flex-wrap: wrap; gap: 6px 10px; }
+.title-save-head small { color: var(--muted); }
+.title-save-road { flex-wrap: wrap; gap: 8px 10px; }
+.title-save-actions button, .title-save-new { min-height: 44px; line-height: 1.65; }
+.title-save-new { padding: 12px; }
+@media (max-width: 700px) {
+  .title-saves { padding: 16px; }
+  .title-saves-head h2 { letter-spacing: .12em; }
+  .title-cta kbd { display: none; }
+  .title-cta { min-height: 60px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .progress-help summary::before, .progress-conditions summary::before { transition: none; }
+}
