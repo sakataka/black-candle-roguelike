@@ -182,5 +182,6 @@ presetは用途で使い分けます。`smoke`は機能追加直後の短時間�
 - [目的と進捗の設計](docs/goals-and-progress-design.md)
 - [踏破の先の覚醒と灰灯院の鍛錬](docs/journey-level-design.md)
 - [スプライトと地形素材の制作記録](docs/sprite-refresh-prompts.md)
+- [拡張用画像素材の準備計画・Dotsへの制作依頼](docs/art-expansion/README.md)
 
 旧NetHackビルド、Tauriアプリ、xterm表示、JSON bridge の復旧は現在の方針外です。
