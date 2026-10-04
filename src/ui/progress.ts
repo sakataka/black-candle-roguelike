@@ -63,7 +63,7 @@ export function growthMarkup(campaign: CampaignState, before?: CampaignState | n
         const current = Math.min(span, Math.max(0, journey.victories - previousThreshold));
         return `<li class="${cleared ? "is-cleared" : active ? "is-next" : ""}${active && journey.trial ? " is-challenge" : ""}"><span class="trial-sigil" aria-hidden="true">${bossPortrait()}<b>${cleared ? "◆" : i + 1}</b></span><strong>${escape(trial.label)}</strong><div class="trial-pips" role="img" aria-label="${escape(trial.label)}: ${cleared ? "突破済み" : active && journey.trial ? "挑戦中" : `踏破 ${current}/${span}`}">${Array.from({ length: span }, (_, n) => `<i class="${cleared || n < current ? "is-filled" : ""}"></i>`).join("")}</div><small>${cleared ? "突破" : active && journey.trial ? "挑戦中" : `踏破 ${trial.victories}回で覚醒`}</small></li>`;
       }).join("")}</ol>
-      <p class="growth-caption">${journey.trial ? "第6・10階の守り手が覚醒。第10層の勝利で突破。" : journey.nextTrial ? `あと <b>${journey.victoriesToTrial}</b> 回の踏破で${escape(journey.nextTrial.label)}` : "すべての覚醒を突破した"}</p>
+      <p class="growth-caption">${journey.trial ? "第6階・第10層の守り手が覚醒。第10層の踏破で突破。" : journey.nextTrial ? `あと <b>${journey.victoriesToTrial}</b> 回の踏破で${escape(journey.nextTrial.label)}` : "すべての覚醒を突破した"}</p>
     </div>
   </section>`;
 }

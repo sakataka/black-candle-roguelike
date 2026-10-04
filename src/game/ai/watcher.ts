@@ -48,7 +48,7 @@ export function suggestLanternAction(observation: GameObservation): WatcherSugge
   if (realtimeConfig().enabled && dynamics) {
     if (!dynamics.borrowed && !dynamics.debt && embers === 0 && hpRatio <= realtimeConfig().loan.watcherHpRatio) return crisis({ type: "borrowFlame" }, `灯火が尽き、${hpLabel}`);
     const predictedDanger = visibleDangerTiles(observation).some((p) => p.x === observation.player.pos.x && p.y === observation.player.pos.y);
-    if (predictedDanger && adjacent.length >= 2 && affordable("flare")) return crisis({ type: "invokeLantern", rite: "flare" }, `予告の一撃の中で${adjacent.length}体に囲まれている`);
+    if (predictedDanger && adjacent.length >= 2 && affordable("flare")) return crisis({ type: "invokeLantern", rite: "flare" }, `予告の危険範囲で${adjacent.length}体に囲まれている`);
     const lureable = hostiles.filter((e) => ["beast", "undead"].includes(contentEntities[e.contentId]?.family ?? "") && contentEntities[e.contentId]?.tier !== "boss" && distance(e.pos, observation.player.pos) > 1);
     if (embers >= realtimeConfig().light.cost + realtimeConfig().light.watcherReserve && dynamics.lights.length < realtimeConfig().light.maxActive && lureable.length >= realtimeConfig().light.watcherHostiles && hpRatio < watcher.wardHpRatio) {
       return crisis({ type: "placeLantern" }, `獣や亡者${lureable.length}体が迫っている。退路の灯で引きつけられる`);
@@ -56,7 +56,7 @@ export function suggestLanternAction(observation: GameObservation): WatcherSugge
   }
 
   if (affordable("mend") && (hpRatio <= watcher.mendHpRatio || (afflicted && hpRatio <= watcher.mendAfflictedHpRatio))) {
-    return crisis({ type: "invokeLantern", rite: "mend" }, afflicted ? `${hpLabel}、血と毒が回っている` : `${hpLabel}まで削られた`);
+    return crisis({ type: "invokeLantern", rite: "mend" }, afflicted ? `${hpLabel}、出血や毒に苦しんでいる` : `${hpLabel}まで削られた`);
   }
   if (affordable("flare") && (adjacent.length >= watcher.flareAdjacentHostiles || (bossNear && hpRatio <= watcher.flareBossHpRatio))) {
     return crisis({ type: "invokeLantern", rite: "flare" }, bossNear && adjacent.length < watcher.flareAdjacentHostiles ? `守り手の間合いで${hpLabel}` : `${adjacent.length}体に囲まれている`);

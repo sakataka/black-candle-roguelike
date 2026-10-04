@@ -272,13 +272,13 @@ function buildKeyFindings(log: RunLog, finalState: GameState, deathCause: DeathC
   if (finalState.status === "lost" || finalState.status === "stranded") {
     findings.push(`敗因分類: ${deathCauseLabel(deathCause)}。`);
   } else if (finalState.status === "won") {
-    findings.push("第十層を踏破して run は成功しました。");
+    findings.push("第十層を踏破し、遠征は成功しました。");
   } else if (finalState.status === "returned") {
     findings.push(`第${finalState.floor}階から帰還し、戦果を確定しました。`);
   } else {
-    findings.push("run は終了ターン上限まで継続中です。");
+    findings.push("シミュレーションの終了手数まで遠征は継続中です。");
   }
-  findings.push(`累計被ダメージ ${log.totals.damageTaken}、累計回復 ${log.totals.healingReceived}、低HPターン ${log.totals.lowHpTurns}。`);
+  findings.push(`累計被ダメージ ${log.totals.damageTaken}、累計回復 ${log.totals.healingReceived}、低HPだった手数 ${log.totals.lowHpTurns}。`);
   const usableHealing = player.inventory?.filter((entry) => (getGameConfig().consumables[entry.contentId]?.heal ?? 0) > 0 && entry.quantity > 0) ?? [];
   const defensiveItems = player.inventory?.filter((entry) => getGameConfig().consumables[entry.contentId]?.guardedTurns && entry.quantity > 0) ?? [];
   if (finalState.status === "lost" && usableHealing.length > 0) {
@@ -308,35 +308,35 @@ function buildAiImprovementHints(log: RunLog, finalState: GameState, deathCause:
     hints.push("遠隔敵が見えた時の接近/遮蔽優先度を上げる余地があります。");
   }
   if (deathCause === "trap" || log.totals.riskyTrapSteps > 0) {
-    hints.push("探索停滞時でも既知罠を踏む条件をさらに厳しくすると死亡率を下げられます。");
+    hints.push("探索停滞時に既知の罠を踏む条件をさらに厳しくすると、死亡率を下げられる可能性があります。");
   }
   if (finalState.status === "lost" && log.totals.lowHpTurns > 0) {
-    hints.push("低HPが続いた run なので、回復・防御アイテム使用の閾値を早める候補です。");
+    hints.push("低HPが続いた遠征なので、回復・防御アイテムを使い始めるタイミングを早める調整が候補です。");
   }
   if (log.totals.stagnantTurns >= 24) {
-    hints.push(`最大停滞 ${log.totals.stagnantTurns} ターン。探索ループ脱出の候補地点選びを見直す価値があります。`);
+    hints.push(`最大停滞 ${log.totals.stagnantTurns} 手。探索ループ脱出の候補地点選びを見直す価値があります。`);
   }
   const recentLoops = aiEntries.slice(-20).filter((entry) => (entry.aiDebug?.visitsAtPlayer ?? 0) >= 4).length;
   if (recentLoops > 0) {
     hints.push(`直近に同じ地点への再訪が多い手が ${recentLoops} 回あります。移動評価の訪問ペナルティ調整候補です。`);
   }
-  return hints.length > 0 ? hints : ["この run ではAI固有の明確な問題は検出されませんでした。"];
+  return hints.length > 0 ? hints : ["この遠征ではAI固有の明確な問題は検出されませんでした。"];
 }
 
 function summaryFor(status: GameState["status"], deathCause: DeathCause | null, stats: RunReview["stats"]): string {
   if (status === "won") {
-    return `${stats.turns}ターンで第${stats.floor}階まで踏破しました。`;
+    return `${stats.turns}手で第${stats.floor}階まで踏破しました。`;
   }
   if (status === "playing") {
-    return `${stats.turns}ターン時点で探索継続中です。第${stats.floor}階、HP ${stats.finalHp ?? "-"}/${stats.maxHp ?? "-"}。`;
+    return `${stats.turns}手時点で探索継続中です。第${stats.floor}階、HP ${stats.finalHp ?? "-"}/${stats.maxHp ?? "-"}。`;
   }
   if (status === "returned") {
-    return `${stats.turns}ターン、第${stats.floor}階から生還しました。`;
+    return `${stats.turns}手、第${stats.floor}階から生還しました。`;
   }
   if (status === "stranded") {
-    return `${stats.turns}ターン、第${stats.floor}階で灯路が断絶し、未帰還となりました。`;
+    return `${stats.turns}手、第${stats.floor}階で灯芯が尽き、未帰還となりました。`;
   }
-  return `${stats.turns}ターン、第${stats.floor}階で敗北しました。主因は${deathCauseLabel(deathCause)}と推定されます。`;
+  return `${stats.turns}手、第${stats.floor}階で敗北しました。主因は${deathCauseLabel(deathCause)}と推定されます。`;
 }
 
 function deathCauseLabel(cause: DeathCause | null): string {

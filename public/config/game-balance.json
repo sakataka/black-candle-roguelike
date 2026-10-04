@@ -86,7 +86,7 @@
       "tactic.archer-hunt": { "label": "射手狩り", "description": "遠隔の敵を最優先で追い詰め、投げ針も射手へ向ける。", "set": { "rangedPriority": true, "chaseRanged": true } },
       "tactic.cover-dance": { "locked": true, "label": "遮蔽を渡る", "description": "盾を掲げ、壁や遮蔽の陰を伝って射手へ詰め寄る。遠隔防御+2。", "set": { "coverApproach": true, "chaseRanged": true }, "perks": { "rangedDefense": 2 } },
       "tactic.straight-path": { "label": "最短路", "description": "寄り道をせず、階段が見えたらすぐ降りる。", "set": { "discoveryDetour": false, "exploreBeforeStairs": 0 } },
-      "tactic.thorough": { "locked": true, "label": "隅々まで", "description": "階の七割を歩き、遺物と碑文を拾ってから降りる。", "set": { "discoveryDetour": true, "exploreBeforeStairs": 0.7 } },
+      "tactic.thorough": { "locked": true, "label": "隅々まで", "description": "階の七割を探索し、遺物と碑文を調べてから降りる。", "set": { "discoveryDetour": true, "exploreBeforeStairs": 0.7 } },
       "tactic.duelist": { "locked": true, "label": "果敢に挑む", "description": "手負いでも敵と守り手へ斬り込み、経験を稼ぐ。", "add": { "combatHp": -0.12, "bossEngageHp": -0.12 }, "set": { "huntWeakEnemies": true } },
       "tactic.trap-reader": { "locked": true, "label": "罠を読む", "description": "運命の標に手を出さず、既知の罠は長く行き詰まるまで踏まない。罠回避+15%。", "set": { "avoidRiskPanels": true, "trapPatience": 45 }, "perks": { "trapAvoidPercent": 15 } },
       "tactic.dart-volley": { "locked": true, "label": "投げ針を惜しまない", "description": "燠火の投げ針を5本余分に携え、見えた敵へ遠くからでも放つ。", "add": { "dartMinHp": -0.2, "dartRange": 2 }, "grantItems": [{ "contentId": "item.ember-dart", "quantity": 5 }] }
@@ -97,7 +97,7 @@
       { "label": "煤けた灯", "description": "敵の体力が階層ごとに一段と増す。", "ruleDeltas": { "monsterHpScale": 0.15 }, "shardBonusPercent": 15 },
       { "label": "細る灯火", "description": "遠征開始時の灯火が1つ減る。", "lanternStartDelta": -1, "shardBonusPercent": 15 },
       { "label": "鋭い闇", "description": "敵の攻撃が階層ごとに一段と鋭くなる。", "ruleDeltas": { "monsterAttackPerFloor": 0.15 }, "shardBonusPercent": 20 },
-      { "label": "短い灯路", "description": "観測の限界が200手早まる。", "ruleDeltas": { "runTurnLimit": -200, "runTurnWarning": -200 }, "shardBonusPercent": 20 },
+      { "label": "短い灯路", "description": "灯芯が尽きるまでの手数が200手短くなる。", "ruleDeltas": { "runTurnLimit": -200, "runTurnWarning": -200 }, "shardBonusPercent": 20 },
       { "label": "群がる影", "description": "各階の敵が2体、罠が1つ増える。", "ruleDeltas": { "monsterCountBase": 2, "trapCountBase": 1 }, "shardBonusPercent": 30 }
     ]
   },
@@ -246,7 +246,7 @@
       "traits": {
         "focus": "浄化、状態異常対策、防御的な粘り",
         "strengths": ["浄化や治療を護りに変える", "攻撃力は低いが危険状態から立て直しやすい"],
-        "traitLabels": ["浄化: 護り8ターン", "状態異常対策"],
+        "traitLabels": ["浄化: 護り8手", "状態異常対策"],
         "priestGuardedTurns": 8
       }
     }

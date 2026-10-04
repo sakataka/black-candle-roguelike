@@ -69,7 +69,7 @@ export const expeditionMissions: MissionDefinition[] = [
   {
     id: "swift-route",
     label: "灯路の先駆け",
-    description: "700手以内に第六階へ到達し、短い帰還路を確立する。",
+    description: "700手以内に第六階へ到達し、帰還路への早い到達を目指す。",
     targetLabel: "700手以内に第六階へ到達し、生きて帰る",
   },
 ];
@@ -284,7 +284,7 @@ function woundedCrisis(state: GameState, act: 1 | 2): PendingDecision {
   return crisisBase(state, "wounded", "薄れる命火", "黒燭に映る探索者の命火が細い。先を急げば真相へ近づくが、次の戦闘に耐えられる保証はない。", [
     { id: "wounded-rest", label: "安全な陰で休ませる", description: "12HPを回復し、生還を優先する。", outcome: "continue", directive: "survival", effect: { heal: 12 } },
     { id: "wounded-bargain", label: "血を灯へ変える", description: "最大HPを4失う代わりに20HPを回復し、探索を続ける。", outcome: "continue", directive: "discovery", effect: { maxHpCost: 4, heal: 20 } },
-    { id: "wounded-revelation", label: "啓示で傷を封じる", description: "啓示を使い、18HP回復と12ターンの護りを得る。", outcome: "continue", directive: act === 1 ? "discovery" : "conquest", requiresRevelation: true, effect: { heal: 18, guardedTurns: 12 } },
+    { id: "wounded-revelation", label: "啓示で傷を封じる", description: "啓示を使い、18HP回復と12手の護りを得る。", outcome: "continue", directive: act === 1 ? "discovery" : "conquest", requiresRevelation: true, effect: { heal: 18, guardedTurns: 12 } },
   ]);
 }
 
@@ -292,13 +292,13 @@ function afflictionCrisis(state: GameState, act: 1 | 2): PendingDecision {
   return crisisBase(state, "affliction", "血と毒の残響", "出血か毒が黒燭の像を濁らせている。痛みを道標に進むか、清めの灯を届けるか。伝言がなければ本人の判断で進む。", [
     { id: "affliction-cure", label: "傷を清める", description: "状態異常を除き、8HPを回復する。", outcome: "continue", directive: "survival", effect: { cureConditions: true, heal: 8 } },
     { id: "affliction-map", label: "痛みを道標にする", description: "周囲12マスを記録し、探究を続ける。", outcome: "continue", directive: "discovery", effect: { revealRadius: 12 } },
-    { id: "affliction-revelation", label: "啓示で穢れを焼く", description: "啓示を使い、状態異常を除いて16ターン護る。", outcome: "continue", directive: act === 1 ? "discovery" : "conquest", requiresRevelation: true, effect: { cureConditions: true, guardedTurns: 16 } },
+    { id: "affliction-revelation", label: "啓示で穢れを焼く", description: "啓示を使い、状態異常を除いて16手護る。", outcome: "continue", directive: act === 1 ? "discovery" : "conquest", requiresRevelation: true, effect: { cureConditions: true, guardedTurns: 16 } },
   ]);
 }
 
 function rangedCrisis(state: GameState, act: 1 | 2): PendingDecision {
   return crisisBase(state, "ranged", "射線の向こうの火", "複数の遠隔攻撃者が通路の先を押さえている。黒燭には、遮蔽へ潜る道と敵陣を崩す瞬間が同時に映った。", [
-    { id: "ranged-cover", label: "遮蔽を渡らせる", description: "12ターンの護りを得て、安全な進路を優先する。", outcome: "continue", directive: "survival", effect: { guardedTurns: 12 } },
+    { id: "ranged-cover", label: "遮蔽を渡らせる", description: "12手の護りを得て、安全な進路を優先する。", outcome: "continue", directive: "survival", effect: { guardedTurns: 12 } },
     { id: "ranged-survey", label: "射手の位置を記す", description: "周囲10マスを記録し、探索経路を組み直す。", outcome: "continue", directive: "discovery", effect: { revealRadius: 10 } },
     { id: "ranged-revelation", label: "啓示で射線を砕く", description: "啓示を使って見えている敵を押し戻し、征圧へ転じる。", outcome: "continue", directive: act === 1 ? "conquest" : defaultDirectiveForTemperament(state.runIdentity.temperament), requiresRevelation: true, effect: { pushVisibleMonsters: true, guardedTurns: 8 } },
   ]);
@@ -307,7 +307,7 @@ function rangedCrisis(state: GameState, act: 1 | 2): PendingDecision {
 function burdenCrisis(state: GameState, act: 1 | 2): PendingDecision {
   const offering = Math.min(40, state.playerProgress.gold);
   return crisisBase(state, "burden", "持ち帰るものの重さ", "遺物と古銭が足取りを鈍らせる。戦果を守るか、一部を灯路へ捧げて先を急ぐか。", [
-    { id: "burden-guard", label: "戦果を抱えて進む", description: "生還を優先し、10ターンの護りを得る。", outcome: "continue", directive: "survival", effect: { guardedTurns: 10 } },
+    { id: "burden-guard", label: "戦果を抱えて進む", description: "生還を優先し、10手の護りを得る。", outcome: "continue", directive: "survival", effect: { guardedTurns: 10 } },
     { id: "burden-offer", label: `${offering}Gを灯路へ捧げる`, description: "古銭を失う代わりに周囲14マスを記録する。", outcome: "continue", directive: "discovery", effect: { goldCost: offering, revealRadius: 14 } },
     { id: "burden-revelation", label: "啓示で荷を軽くする", description: "啓示を使って敵を退け、征圧の速度を保つ。", outcome: "continue", directive: act === 1 ? "conquest" : defaultDirectiveForTemperament(state.runIdentity.temperament), requiresRevelation: true, effect: { pushVisibleMonsters: true, guardedTurns: 8 } },
   ]);
@@ -315,7 +315,7 @@ function burdenCrisis(state: GameState, act: 1 | 2): PendingDecision {
 
 function fadingRouteCrisis(state: GameState): PendingDecision {
   return crisisBase(state, "fading-route", "途切れかけた灯路", "長い遠征で地上との像が揺らいでいる。このままでは黒燭との接続そのものが切れる。", [
-    { id: "route-stabilize", label: "灯路を安定させる", description: "16ターンの護りを得て、生還可能性を優先する。", outcome: "continue", directive: "survival", effect: { guardedTurns: 16 } },
+    { id: "route-stabilize", label: "灯路を安定させる", description: "16手の護りを得て、生還を優先する。", outcome: "continue", directive: "survival", effect: { guardedTurns: 16 } },
     { id: "route-chart", label: "残像を地図へ焼く", description: "周囲16マスを記録し、階段への道を探す。", outcome: "continue", directive: "discovery", effect: { revealRadius: 16 } },
     { id: "route-revelation", label: "啓示で像を引き寄せる", description: "啓示を使い、敵を退けて18HP回復する。", outcome: "continue", directive: "conquest", requiresRevelation: true, effect: { heal: 18, pushVisibleMonsters: true } },
   ]);
@@ -331,7 +331,7 @@ function memoryCrisis(state: GameState): PendingDecision {
 
 function furnaceCrisis(state: GameState): PendingDecision {
   return crisisBase(state, "furnace", "炉脈を走る黒い火", "炉脈が探索者の装備と傷を照らした。火を守りへ回すか、地図へ焼くか、敵陣へ放つか。", [
-    { id: "furnace-ward", label: "火を鎧へ移す", description: "14ターンの護りを得て、生還を優先する。", outcome: "continue", directive: "survival", effect: { guardedTurns: 14 } },
+    { id: "furnace-ward", label: "火を鎧へ移す", description: "14手の護りを得て、生還を優先する。", outcome: "continue", directive: "survival", effect: { guardedTurns: 14 } },
     { id: "furnace-map", label: "炉脈を地図へ焼く", description: "周囲14マスを記録し、深部の発見を優先する。", outcome: "continue", directive: "discovery", effect: { revealRadius: 14 } },
     { id: "furnace-revelation", label: "啓示で黒火を放つ", description: "啓示を使い、敵を退けて10HP回復する。", outcome: "continue", directive: "conquest", requiresRevelation: true, effect: { pushVisibleMonsters: true, heal: 10 } },
   ]);

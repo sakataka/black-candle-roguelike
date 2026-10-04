@@ -534,7 +534,7 @@ function applyDecisionEffect(state: GameState, effect: NonNullable<NonNullable<G
   if (effect.guardedTurns) {
     player.conditions = upsertCondition(player.conditions, "guarded", effect.guardedTurns);
     if (player.stats) player.stats.defense = baseDefense(state.playerProgress) + defenseBonus(player);
-    applied.push(`護り${effect.guardedTurns}T`);
+    applied.push(`護り${effect.guardedTurns}手`);
   }
   if (effect.revealRadius) {
     revealAround(state, player.pos, effect.revealRadius);
@@ -1491,7 +1491,7 @@ function resolveEvent(state: GameState, eventEntity: Entity): GameState {
   if (eventEntity.contentId === "event.warning-brazier") {
     revealAround(state, eventEntity.pos, eventConfig?.revealRadius ?? 7);
     state.entities = state.entities.filter((entity) => entity.id !== eventEntity.id);
-    state.messages = pushMessage(state, "警告灯が燃え上がり、周囲の通路と敵影が頭に刻まれた。", "explore");
+    state.messages = pushMessage(state, "警告の火皿が燃え上がり、周囲の通路が頭に刻まれた。", "explore");
     return state;
   }
   if (eventEntity.contentId === "event.dread-altar") {
@@ -1510,7 +1510,7 @@ function resolveEvent(state: GameState, eventEntity: Entity): GameState {
     state.runObjectives = { ...state.runObjectives, lateEnemiesWeakened: true };
     weakenLateEnemies(state);
     state.entities = state.entities.filter((entity) => entity.id !== eventEntity.id);
-    state.messages = pushMessage(state, "炉心制御碑を砕いた。終盤階層の守り手たちの火勢が弱まった。", "danger");
+    state.messages = pushMessage(state, "炉心制御碑を砕いた。終盤階層の通常敵の火勢が弱まった。", "danger");
     return state;
   }
   if (eventEntity.contentId === "event.seal-key") {
@@ -1547,7 +1547,7 @@ function resolveEvent(state: GameState, eventEntity: Entity): GameState {
     return triggerLanternFont(state, eventEntity);
   }
   if (eventEntity.contentId === "event.wayfarer-merchant") {
-    state.messages = pushMessage(state, "旅商人が灯を掲げた。必要なサービスを選べる。", "explore");
+    state.messages = pushMessage(state, "旅商人が灯を掲げた。探索者は必要なサービスを選ぶ。", "explore");
     return state;
   }
   if (eventEntity.contentId === "event.sealed-room") {
@@ -1952,7 +1952,7 @@ function pickupAtPlayer(state: GameState): GameState {
   player.inventory ??= [];
   const existing = player.inventory.find((entry) => entry.contentId === itemEntity.contentId);
   if (!existing && player.inventory.length >= getGameConfig().rules.inventorySlotLimit) {
-    state.messages = pushMessage(state, `所持品がいっぱいで${getContentName(itemEntity.contentId)}を拾えない。不要なものを選んで捨てられる。`, "danger");
+    state.messages = pushMessage(state, `所持品がいっぱいで${getContentName(itemEntity.contentId)}を拾えない。所持枠に空きが必要だ。`, "danger");
     return state;
   }
   let pickedEntry = existing;
@@ -2608,7 +2608,7 @@ function runMonsterTurn(state: GameState): GameState {
           const damage = Math.max(1, Math.ceil((monsterEntity.stats!.attack - (player.stats?.defense ?? 0) - (special.kind === "shot" ? rangedDefenseBonus(state, player) : 0)) * special.damageScale));
           if (player.stats) player.stats.hp -= damage;
           recordStrike(state, monsterEntity, player, special.kind !== "sweep");
-          state.messages = pushMessage(state, `${getContentName(monsterEntity.contentId)}の構えが放たれ、${damage}ダメージを受けた。`, "combat");
+          state.messages = pushMessage(state, `${getContentName(monsterEntity.contentId)}が予告の一撃を放ち、${damage}ダメージを受けた。`, "combat");
           if ((player.stats?.hp ?? 1) <= 0) {
             state.status = "lost";
             state.story.killedBy = { cause: special.kind === "sweep" ? "combat" : "rangedCombat", contentId: monsterEntity.contentId };

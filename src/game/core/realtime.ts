@@ -54,7 +54,7 @@ export function recordLastMoment(state: GameState, action: GameAction): void {
   if (!state.expedition || isInstantIntervention(action)) return;
   const player = state.entities.find((e) => e.id === state.playerId);
   if (!player) return;
-  const labels: Partial<Record<GameAction["type"], string>> = { move: state.strikes?.some((s) => s.attackerId === state.playerId) ? "敵へ踏み込んだ" : "進路を選んだ", useItem: "道具を使った", wait: "踏みとどまった", pickup: "遺品を拾った", descend: "次の階へ向かった", equip: "装備を持ち替えた" };
+  const labels: Partial<Record<GameAction["type"], string>> = { move: state.strikes?.some((s) => s.attackerId === state.playerId) ? "敵へ踏み込んだ" : "進路を選んだ", useItem: "道具を使った", wait: "踏みとどまった", pickup: "品を拾った", descend: "次の階へ向かった", equip: "装備を持ち替えた" };
   state.expedition.trail = [...state.expedition.trail, { action: labels[action.type] ?? "遠征を続けた", hp: Math.max(0, player.stats?.hp ?? 0), pos: { ...player.pos } }].slice(-3);
 }
 

@@ -361,7 +361,7 @@ export function chooseAutoplayAction(observation: GameObservation): GameAction {
 }
 
 /**
- * 基準値 → 気質 → 方針 → 作戦カードの順に調整値を重ねる。
+ * 基準値 → 気質 → 方針 → 作戦カード → 古傷 → 継承した教訓の順に調整値を重ねる。
  * 方針は気質の傾向を上書きし、作戦カードはさらにその上から癖を足す。
  */
 export function resolveAutoplayPolicy(observation: Pick<GameObservation, "runIdentity" | "directive" | "tactics"> & { modifiers?: GameObservation["modifiers"] }): AutoplayPolicyValues {

@@ -55,7 +55,7 @@ export type AutoplayPolicyValues = {
   avoidRiskPanels: boolean;
   /** 既知の罠を踏んででも進むまでに待つ停滞手数。 */
   trapPatience: number;
-  /** 灯路断絶まで残りこの手数になったら、寄り道をやめて階段を急ぐ。 */
+  /** 灯芯が尽きるまで残りこの手数になったら、寄り道をやめて階段を急ぐ。 */
   urgencyTurnsLeft: number;
 };
 
@@ -225,7 +225,7 @@ export type RunStoryState = {
   killedBy?: { cause: "combat" | "rangedCombat" | "trap" | "bleeding" | "venom" | "item"; contentId?: string };
 };
 
-/** 遠征で灰灯院へ持ち帰る灯片の内訳。倒れた場合は到達・守り手・発見の一部だけが残る。 */
+/** 遠征で灰灯院へ持ち帰る灯片の内訳。倒れた場合は到達・守り手・発見・弔いの一部だけが残る。 */
 export type ShardBreakdown = {
   depth: number;
   guardians: number;
@@ -483,7 +483,7 @@ export type GameConfig = {
       attackPerRank: number;
       trials: Array<{ label: string; victories: number; hpScale: number; attack: number; defense: number }>;
     };
-    /** 遠征の灯片。到達・守り手・発見は倒れても keepPercentOnLoss だけ残り、それ以外は生還時のみ。 */
+    /** 遠征の灯片。到達・守り手・発見・弔いは倒れても keepPercentOnLoss の割合だけ残り、それ以外は生還時のみ。 */
     shards: {
       perFloor: number;
       perGuardian: number;

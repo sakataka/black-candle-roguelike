@@ -1245,7 +1245,7 @@ function toKanjiNumber(value: number): string {
   return String(value);
 }
 
-/** 灯火の残りと灯路の残り時間で、探索者を照らす光の強さを決める。 */
+/** 灯火の残りと灯芯の残り手数で、探索者を照らす光の強さを決める。 */
 function lightStrengthFor(current: GameState): number {
   const rules = runRules(current.modifiers);
   const emberRatio = current.lantern.maxEmbers > 0 ? current.lantern.embers / current.lantern.maxEmbers : 1;
@@ -1565,7 +1565,7 @@ function renderArchive(): void {
   ].map(([label, value]) => `<div><span>${label}</span><strong>${value}</strong></div>`).join("");
   const list = requireElement<HTMLOListElement>("#archive-list");
   if (campaign.expeditions.length === 0) {
-    list.innerHTML = '<li class="empty-state">まだ帰還記録はありません。</li>';
+    list.innerHTML = '<li class="empty-state">まだ遠征記録はありません。</li>';
     return;
   }
   list.replaceChildren(...campaign.expeditions.slice(0, 6).map((record) => {
@@ -1601,7 +1601,7 @@ function renderDecision(observation: ReturnType<typeof observeGame>): void {
   decisionHint.textContent = decision.kind === "context"
     ? "各案はこの場で効果を発揮します。番号キーでも選べます。"
     : decision.kind === "checkpoint"
-      ? "伝言がなければ、探索者は任務に沿って選ぶ。本人の意思に反する指示には啓示を使う。番号キーでも選べます。"
+      ? "伝言がなければ、探索者は任務に沿って選びます。本人の判断に反して続行させる指示には啓示を使います。番号キーでも選べます。"
       : "番号キーでも選べます。";
   decisionOptions.replaceChildren(...decision.options.map((option, index) => {
     const button = document.createElement("button");
@@ -2225,9 +2225,9 @@ function objectiveLabel(objective: ReturnType<typeof observeGame>["exploration"]
 }
 
 function objectiveDetail(observation: ReturnType<typeof observeGame>): string {
-  if (observation.pendingDecision) return "伝言がなければ探索者の方針で進みます。遠征は止まりません。";
+  if (observation.pendingDecision) return "伝言がなければ探索者が自ら判断します。遠征は止まりません。";
   if (observation.exploration.reachableStairs) return "到達可能な階段へ向かっています。";
-  if (observation.bossAlive) return "この階層の守り手が帰還路を封じています。";
+  if (observation.bossAlive) return "この階層の守り手が階段を封じています。";
   return `${observation.exploration.reachableFrontierCount}箇所の探索候補を比較しています。`;
 }
 
