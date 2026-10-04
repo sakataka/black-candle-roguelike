@@ -1,0 +1,2655 @@
+{
+  "method": "Derived previews only; original asset files read without edits. Native-size previews use Lanczos; FX canvas uses nearest-neighbor. Semantic review is not implied.",
+  "presentSheets": 29,
+  "missingSheets": [],
+  "floorSources": [
+    {
+      "theme": "blackstone",
+      "path": "/assets/sprites/dungeon-journey-terrain.png",
+      "index": 0
+    },
+    {
+      "theme": "crypt",
+      "path": "/assets/sprites/dungeon-journey-terrain.png",
+      "index": 1
+    },
+    {
+      "theme": "furnace",
+      "path": "/assets/sprites/dungeon-journey-terrain.png",
+      "index": 2
+    },
+    {
+      "theme": "black-candle",
+      "path": "/assets/sprites/dungeon-journey-terrain.png",
+      "index": 3
+    }
+  ],
+  "sheets": [
+    {
+      "compositeSheetNumber": 1,
+      "key": "existing-weapons",
+      "sha256": "b5e835d3f2eff135888962f5e155df41ce77b347ebbfd147e41280c3314f6f52",
+      "measuredSize": [
+        384,
+        256
+      ],
+      "expectedSize": [
+        384,
+        256
+      ],
+      "dimensionPass": true,
+      "mode": "RGBA",
+      "iccProfilePresent": true,
+      "alphaRange": [
+        0,
+        255
+      ],
+      "cells": [
+        {
+          "index": 0,
+          "assetId": "icon.item.rusted-sword",
+          "bbox": [
+            20,
+            14,
+            108,
+            114
+          ],
+          "nonzeroAlphaPixels": 2275,
+          "partialAlphaPixels": 0,
+          "margin8Pass": true,
+          "magentaLikeOpaquePixels": 0
+        },
+        {
+          "index": 1,
+          "assetId": "icon.item.oath-knife",
+          "bbox": [
+            28,
+            14,
+            100,
+            114
+          ],
+          "nonzeroAlphaPixels": 1621,
+          "partialAlphaPixels": 0,
+          "margin8Pass": true,
+          "magentaLikeOpaquePixels": 0
+        },
+        {
+          "index": 2,
+          "assetId": "icon.item.hunter-spear",
+          "bbox": [
+            20,
+            14,
+            107,
+            114
+          ],
+          "nonzeroAlphaPixels": 948,
+          "partialAlphaPixels": 0,
+          "margin8Pass": true,
+          "magentaLikeOpaquePixels": 0
+        },
+        {
+          "index": 3,
+          "assetId": "icon.item.iron-axe",
+          "bbox": [
+            14,
+            14,
+            113,
+            114
+          ],
+          "nonzeroAlphaPixels": 3361,
+          "partialAlphaPixels": 0,
+          "margin8Pass": true,
+          "magentaLikeOpaquePixels": 0
+        },
+        {
+          "index": 4,
+          "assetId": "icon.item.silvered-mace",
+          "bbox": [
+            19,
+            14,
+            109,
+            114
+          ],
+          "nonzeroAlphaPixels": 2479,
+          "partialAlphaPixels": 0,
+          "margin8Pass": true,
+          "magentaLikeOpaquePixels": 0
+        },
+        {
+          "index": 5,
+          "assetId": "icon.item.sun-sigil-blade",
+          "bbox": [
+            18,
+            14,
+            110,
+            114
+          ],
+          "nonzeroAlphaPixels": 1828,
+          "partialAlphaPixels": 0,
+          "margin8Pass": true,
+          "magentaLikeOpaquePixels": 0
+        }
+      ],
+      "emptyCells": []
+    },
+    {
+      "compositeSheetNumber": 2,
+      "key": "existing-armor",
+      "sha256": "a526915ba7fd569d422410ac84e3d884b9277af7c3a300eaa328d16868f21aae",
+      "measuredSize": [
+        384,
+        256
+      ],
+      "expectedSize": [
+        384,
+        256
+      ],
+      "dimensionPass": true,
+      "mode": "RGBA",
+      "iccProfilePresent": true,
+      "alphaRange": [
+        0,
+        255
+      ],
+      "cells": [
+        {
+          "index": 0,
+          "assetId": "icon.item.leather-armor",
+          "bbox": [
+            16,
+            14,
+            112,
+            114
+          ],
+          "nonzeroAlphaPixels": 6121,
+          "partialAlphaPixels": 0,
+          "margin8Pass": true,
+          "magentaLikeOpaquePixels": 0
+        },
+        {
+          "index": 1,
+          "assetId": "icon.item.chain-mail",
+          "bbox": [
+            14,
+            18,
+            114,
+            110
+          ],
+          "nonzeroAlphaPixels": 5738,
+          "partialAlphaPixels": 0,
+          "margin8Pass": true,
+          "magentaLikeOpaquePixels": 0
+        },
+        {
+          "index": 2,
+          "assetId": "icon.item.trapweave-cloak",
+          "bbox": [
+            14,
+            16,
+            114,
+            112
+          ],
+          "nonzeroAlphaPixels": 6614,
+          "partialAlphaPixels": 0,
+          "margin8Pass": true,
+          "magentaLikeOpaquePixels": 0
+        },
+        {
+          "index": 3,
+          "assetId": "icon.item.moonlit-mail",
+          "bbox": [
+            14,
+            19,
+            114,
+            109
+          ],
+          "nonzeroAlphaPixels": 5908,
+          "partialAlphaPixels": 0,
+          "margin8Pass": true,
+          "magentaLikeOpaquePixels": 0
+        },
+        {
+          "index": 4,
+          "assetId": "icon.item.ward-shield",
+          "bbox": [
+            14,
+            14,
+            114,
+            113
+          ],
+          "nonzeroAlphaPixels": 7834,
+          "partialAlphaPixels": 0,
+          "margin8Pass": true,
+          "magentaLikeOpaquePixels": 0
+        },
+        {
+          "index": 5,
+          "assetId": "icon.item.tower-kite-shield",
+          "bbox": [
+            34,
+            14,
+            93,
+            114
+          ],
+          "nonzeroAlphaPixels": 4140,
+          "partialAlphaPixels": 0,
+          "margin8Pass": true,
+          "magentaLikeOpaquePixels": 0
+        }
+      ],
+      "emptyCells": []
+    },
+    {
+      "compositeSheetNumber": 3,
+      "key": "existing-vials",
+      "sha256": "46cfb30876d62cef81352e2524656dcc8cab21a8e0fc1e96ae1d2f78b5b5c1f1",
+      "measuredSize": [
+        256,
+        256
+      ],
+      "expectedSize": [
+        256,
+        256
+      ],
+      "dimensionPass": true,
+      "mode": "RGBA",
+      "iccProfilePresent": true,
+      "alphaRange": [
+        0,
+        255
+      ],
+      "cells": [
+        {
+          "index": 0,
+          "assetId": "icon.item.ember-tonic",
+          "bbox": [
+            27,
+            14,
+            101,
+            114
+          ],
+          "nonzeroAlphaPixels": 4656,
+          "partialAlphaPixels": 0,
+          "margin8Pass": true,
+          "magentaLikeOpaquePixels": 0
+        },
+        {
+          "index": 1,
+          "assetId": "icon.item.greater-tonic",
+          "bbox": [
+            25,
+            14,
+            103,
+            114
+          ],
+          "nonzeroAlphaPixels": 5252,
+          "partialAlphaPixels": 0,
+          "margin8Pass": true,
+          "magentaLikeOpaquePixels": 0
+        },
+        {
+          "index": 2,
+          "assetId": "icon.item.guardian-draught",
+          "bbox": [
+            36,
+            14,
+            92,
+            114
+          ],
+          "nonzeroAlphaPixels": 3878,
+          "partialAlphaPixels": 0,
+          "margin8Pass": true,
+          "magentaLikeOpaquePixels": 0
+        },
+        {
+          "index": 3,
+          "assetId": "icon.item.unmarked-vial",
+          "bbox": [
+            49,
+            14,
+            79,
+            114
+          ],
+          "nonzeroAlphaPixels": 2725,
+          "partialAlphaPixels": 0,
+          "margin8Pass": true,
+          "magentaLikeOpaquePixels": 0
+        }
+      ],
+      "emptyCells": []
+    },
+    {
+      "compositeSheetNumber": 4,
+      "key": "existing-supplies",
+      "sha256": "226378015de0114f5dd254f6c53965ba142951eda6f8fd83c4e56b7a0dbca769",
+      "measuredSize": [
+        512,
+        256
+      ],
+      "expectedSize": [
+        512,
+        256
+      ],
+      "dimensionPass": true,
+      "mode": "RGBA",
+      "iccProfilePresent": true,
+      "alphaRange": [
+        0,
+        255
+      ],
+      "cells": [
+        {
+          "index": 0,
+          "assetId": "icon.item.mapping-scroll",
+          "bbox": [
+            14,
+            20,
+            114,
+            108
+          ],
+          "nonzeroAlphaPixels": 5243,
+          "partialAlphaPixels": 0,
+          "margin8Pass": true,
+          "magentaLikeOpaquePixels": 0
+        },
+        {
+          "index": 1,
+          "assetId": "icon.item.repulsion-scroll",
+          "bbox": [
+            25,
+            14,
+            102,
+            114
+          ],
+          "nonzeroAlphaPixels": 4331,
+          "partialAlphaPixels": 0,
+          "margin8Pass": true,
+          "magentaLikeOpaquePixels": 0
+        },
+        {
+          "index": 2,
+          "assetId": "icon.item.glim-map",
+          "bbox": [
+            14,
+            20,
+            114,
+            108
+          ],
+          "nonzeroAlphaPixels": 5609,
+          "partialAlphaPixels": 0,
+          "margin8Pass": true,
+          "magentaLikeOpaquePixels": 0
+        },
+        {
+          "index": 3,
+          "assetId": "icon.item.sealed-prayer-strip",
+          "bbox": [
+            33,
+            14,
+            95,
+            114
+          ],
+          "nonzeroAlphaPixels": 3019,
+          "partialAlphaPixels": 0,
+          "margin8Pass": true,
+          "magentaLikeOpaquePixels": 0
+        },
+        {
+          "index": 4,
+          "assetId": "icon.item.ember-dart",
+          "bbox": [
+            14,
+            15,
+            114,
+            113
+          ],
+          "nonzeroAlphaPixels": 2834,
+          "partialAlphaPixels": 0,
+          "margin8Pass": true,
+          "magentaLikeOpaquePixels": 0
+        },
+        {
+          "index": 5,
+          "assetId": "icon.item.bloodmoss-salve",
+          "bbox": [
+            14,
+            25,
+            114,
+            102
+          ],
+          "nonzeroAlphaPixels": 5575,
+          "partialAlphaPixels": 0,
+          "margin8Pass": true,
+          "magentaLikeOpaquePixels": 0
+        },
+        {
+          "index": 6,
+          "assetId": "icon.item.coin-pouch",
+          "bbox": [
+            14,
+            15,
+            114,
+            113
+          ],
+          "nonzeroAlphaPixels": 5663,
+          "partialAlphaPixels": 0,
+          "margin8Pass": true,
+          "magentaLikeOpaquePixels": 0
+        }
+      ],
+      "emptyCells": [
+        {
+          "index": 7,
+          "fullyTransparent": true
+        }
+      ]
+    },
+    {
+      "compositeSheetNumber": 5,
+      "key": "existing-relics",
+      "sha256": "03c16a1741a713c76ec7f9f44bce2fe99ae818ce9f7eedbcc8cdf00e53a1163b",
+      "measuredSize": [
+        256,
+        256
+      ],
+      "expectedSize": [
+        256,
+        256
+      ],
+      "dimensionPass": true,
+      "mode": "RGBA",
+      "iccProfilePresent": true,
+      "alphaRange": [
+        0,
+        255
+      ],
+      "cells": [
+        {
+          "index": 0,
+          "assetId": "icon.item.void-prism",
+          "bbox": [
+            25,
+            14,
+            102,
+            114
+          ],
+          "nonzeroAlphaPixels": 3344,
+          "partialAlphaPixels": 0,
+          "margin8Pass": true,
+          "magentaLikeOpaquePixels": 0
+        },
+        {
+          "index": 1,
+          "assetId": "icon.item.grave-sun-charm",
+          "bbox": [
+            15,
+            14,
+            113,
+            114
+          ],
+          "nonzeroAlphaPixels": 5098,
+          "partialAlphaPixels": 0,
+          "margin8Pass": true,
+          "magentaLikeOpaquePixels": 0
+        },
+        {
+          "index": 2,
+          "assetId": "icon.item.colossus-heart",
+          "bbox": [
+            16,
+            14,
+            111,
+            114
+          ],
+          "nonzeroAlphaPixels": 5841,
+          "partialAlphaPixels": 0,
+          "margin8Pass": true,
+          "magentaLikeOpaquePixels": 0
+        },
+        {
+          "index": 3,
+          "assetId": "icon.item.black-candle-core",
+          "bbox": [
+            20,
+            15,
+            108,
+            114
+          ],
+          "nonzeroAlphaPixels": 4276,
+          "partialAlphaPixels": 0,
+          "margin8Pass": true,
+          "magentaLikeOpaquePixels": 0
+        }
+      ],
+      "emptyCells": []
+    },
+    {
+      "compositeSheetNumber": 6,
+      "key": "existing-traps",
+      "sha256": "f2c0bdb8ff5cdeca2ca8f2bffba11f47e7a8a38ab6cf1008d2e069d427737dc4",
+      "measuredSize": [
+        256,
+        256
+      ],
+      "expectedSize": [
+        256,
+        256
+      ],
+      "dimensionPass": true,
+      "mode": "RGBA",
+      "iccProfilePresent": true,
+      "alphaRange": [
+        0,
+        255
+      ],
+      "cells": [
+        {
+          "index": 0,
+          "assetId": "sprite.trap.risk-panel",
+          "bbox": [
+            14,
+            19,
+            114,
+            108
+          ],
+          "nonzeroAlphaPixels": 1800,
+          "partialAlphaPixels": 0,
+          "margin8Pass": true,
+          "magentaLikeOpaquePixels": 0
+        },
+        {
+          "index": 1,
+          "assetId": "sprite.trap.blood-needle",
+          "bbox": [
+            14,
+            23,
+            114,
+            104
+          ],
+          "nonzeroAlphaPixels": 3227,
+          "partialAlphaPixels": 0,
+          "margin8Pass": true,
+          "magentaLikeOpaquePixels": 0
+        },
+        {
+          "index": 2,
+          "assetId": "sprite.trap.venom-mist",
+          "bbox": [
+            14,
+            21,
+            114,
+            106
+          ],
+          "nonzeroAlphaPixels": 4475,
+          "partialAlphaPixels": 0,
+          "margin8Pass": true,
+          "magentaLikeOpaquePixels": 0
+        },
+        {
+          "index": 3,
+          "assetId": "sprite.trap.crumbling-floor",
+          "bbox": [
+            14,
+            28,
+            113,
+            98
+          ],
+          "nonzeroAlphaPixels": 2456,
+          "partialAlphaPixels": 0,
+          "margin8Pass": true,
+          "magentaLikeOpaquePixels": 0
+        }
+      ],
+      "emptyCells": []
+    },
+    {
+      "compositeSheetNumber": 7,
+      "key": "existing-events-a",
+      "sha256": "69140764c4597191f9d5faeb0a2006555ef6c19c39d1896278504e0745bd06e1",
+      "measuredSize": [
+        256,
+        256
+      ],
+      "expectedSize": [
+        256,
+        256
+      ],
+      "dimensionPass": true,
+      "mode": "RGBA",
+      "iccProfilePresent": true,
+      "alphaRange": [
+        0,
+        255
+      ],
+      "cells": [
+        {
+          "index": 0,
+          "assetId": "sprite.event.blood-inscription",
+          "bbox": [
+            21,
+            14,
+            107,
+            114
+          ],
+          "nonzeroAlphaPixels": 5121,
+          "partialAlphaPixels": 0,
+          "margin8Pass": true,
+          "magentaLikeOpaquePixels": 0
+        },
+        {
+          "index": 1,
+          "assetId": "sprite.event.warning-brazier",
+          "bbox": [
+            14,
+            30,
+            114,
+            98
+          ],
+          "nonzeroAlphaPixels": 4066,
+          "partialAlphaPixels": 0,
+          "margin8Pass": true,
+          "magentaLikeOpaquePixels": 0
+        },
+        {
+          "index": 2,
+          "assetId": "sprite.event.scout-cache",
+          "bbox": [
+            14,
+            21,
+            114,
+            107
+          ],
+          "nonzeroAlphaPixels": 5782,
+          "partialAlphaPixels": 0,
+          "margin8Pass": true,
+          "magentaLikeOpaquePixels": 0
+        },
+        {
+          "index": 3,
+          "assetId": "sprite.event.lantern-font",
+          "bbox": [
+            14,
+            31,
+            114,
+            96
+          ],
+          "nonzeroAlphaPixels": 5155,
+          "partialAlphaPixels": 0,
+          "margin8Pass": true,
+          "magentaLikeOpaquePixels": 0
+        }
+      ],
+      "emptyCells": []
+    },
+    {
+      "compositeSheetNumber": 8,
+      "key": "existing-events-b",
+      "sha256": "bdc60c545a91b08ac5527cfdf4635cc7a7c0505cbf007924c1bb197bbcbc57cd",
+      "measuredSize": [
+        256,
+        256
+      ],
+      "expectedSize": [
+        256,
+        256
+      ],
+      "dimensionPass": true,
+      "mode": "RGBA",
+      "iccProfilePresent": true,
+      "alphaRange": [
+        0,
+        255
+      ],
+      "cells": [
+        {
+          "index": 0,
+          "assetId": "sprite.event.dread-altar",
+          "bbox": [
+            14,
+            19,
+            113,
+            114
+          ],
+          "nonzeroAlphaPixels": 6090,
+          "partialAlphaPixels": 0,
+          "margin8Pass": true,
+          "magentaLikeOpaquePixels": 0
+        },
+        {
+          "index": 1,
+          "assetId": "sprite.event.furnace-control-stone",
+          "bbox": [
+            36,
+            14,
+            91,
+            114
+          ],
+          "nonzeroAlphaPixels": 3874,
+          "partialAlphaPixels": 0,
+          "margin8Pass": true,
+          "magentaLikeOpaquePixels": 0
+        },
+        {
+          "index": 2,
+          "assetId": "sprite.event.seal-key",
+          "bbox": [
+            16,
+            14,
+            111,
+            114
+          ],
+          "nonzeroAlphaPixels": 3298,
+          "partialAlphaPixels": 0,
+          "margin8Pass": true,
+          "magentaLikeOpaquePixels": 0
+        },
+        {
+          "index": 3,
+          "assetId": "sprite.event.oath-echo",
+          "bbox": [
+            18,
+            14,
+            109,
+            114
+          ],
+          "nonzeroAlphaPixels": 2376,
+          "partialAlphaPixels": 0,
+          "margin8Pass": true,
+          "magentaLikeOpaquePixels": 0
+        }
+      ],
+      "emptyCells": []
+    },
+    {
+      "compositeSheetNumber": 9,
+      "key": "monsters-blackstone",
+      "sha256": "5b888f58feda6b1c0545899d759644405b843224aa94d9747575c34a591081bb",
+      "measuredSize": [
+        256,
+        256
+      ],
+      "expectedSize": [
+        256,
+        256
+      ],
+      "dimensionPass": true,
+      "mode": "RGBA",
+      "iccProfilePresent": true,
+      "alphaRange": [
+        0,
+        255
+      ],
+      "cells": [
+        {
+          "index": 0,
+          "assetId": "sprite.monster.ash-claw",
+          "bbox": [
+            28,
+            37,
+            102,
+            107
+          ],
+          "nonzeroAlphaPixels": 2461,
+          "partialAlphaPixels": 0,
+          "margin8Pass": true,
+          "magentaLikeOpaquePixels": 0
+        },
+        {
+          "index": 1,
+          "assetId": "sprite.monster.rust-footman",
+          "bbox": [
+            29,
+            12,
+            98,
+            107
+          ],
+          "nonzeroAlphaPixels": 3245,
+          "partialAlphaPixels": 0,
+          "margin8Pass": true,
+          "magentaLikeOpaquePixels": 0
+        },
+        {
+          "index": 2,
+          "assetId": "sprite.monster.blackstone-hexer",
+          "bbox": [
+            24,
+            12,
+            103,
+            107
+          ],
+          "nonzeroAlphaPixels": 3946,
+          "partialAlphaPixels": 0,
+          "margin8Pass": true,
+          "magentaLikeOpaquePixels": 0
+        },
+        {
+          "index": 3,
+          "assetId": "sprite.monster.vein-gnawer",
+          "bbox": [
+            14,
+            25,
+            114,
+            107
+          ],
+          "nonzeroAlphaPixels": 5018,
+          "partialAlphaPixels": 0,
+          "margin8Pass": true,
+          "magentaLikeOpaquePixels": 0
+        }
+      ],
+      "emptyCells": []
+    },
+    {
+      "compositeSheetNumber": 10,
+      "key": "monsters-crypt",
+      "sha256": "b00309adb6674114302f08b1b6228fbe4f9e77acba5c29c81bfea250b2b9221c",
+      "measuredSize": [
+        256,
+        256
+      ],
+      "expectedSize": [
+        256,
+        256
+      ],
+      "dimensionPass": true,
+      "mode": "RGBA",
+      "iccProfilePresent": true,
+      "alphaRange": [
+        0,
+        255
+      ],
+      "cells": [
+        {
+          "index": 0,
+          "assetId": "sprite.monster.venom-swarm",
+          "bbox": [
+            25,
+            40,
+            102,
+            107
+          ],
+          "nonzeroAlphaPixels": 2273,
+          "partialAlphaPixels": 0,
+          "margin8Pass": true,
+          "magentaLikeOpaquePixels": 0
+        },
+        {
+          "index": 1,
+          "assetId": "sprite.monster.acid-ooze",
+          "bbox": [
+            14,
+            57,
+            114,
+            107
+          ],
+          "nonzeroAlphaPixels": 3018,
+          "partialAlphaPixels": 2925,
+          "margin8Pass": true,
+          "magentaLikeOpaquePixels": 0
+        },
+        {
+          "index": 2,
+          "assetId": "sprite.monster.grave-bloodling",
+          "bbox": [
+            25,
+            38,
+            102,
+            107
+          ],
+          "nonzeroAlphaPixels": 2621,
+          "partialAlphaPixels": 0,
+          "margin8Pass": true,
+          "magentaLikeOpaquePixels": 0
+        },
+        {
+          "index": 3,
+          "assetId": "sprite.monster.coffer-maw",
+          "bbox": [
+            21,
+            12,
+            107,
+            107
+          ],
+          "nonzeroAlphaPixels": 5204,
+          "partialAlphaPixels": 0,
+          "margin8Pass": true,
+          "magentaLikeOpaquePixels": 0
+        }
+      ],
+      "emptyCells": []
+    },
+    {
+      "compositeSheetNumber": 11,
+      "key": "monsters-furnace",
+      "sha256": "b60972de7f75b2bdbda287b14bc0cac90add24cf80e854d8d7b21b3ac6738cf7",
+      "measuredSize": [
+        256,
+        256
+      ],
+      "expectedSize": [
+        256,
+        256
+      ],
+      "dimensionPass": true,
+      "mode": "RGBA",
+      "iccProfilePresent": true,
+      "alphaRange": [
+        0,
+        255
+      ],
+      "cells": [
+        {
+          "index": 0,
+          "assetId": "sprite.monster.core-ant",
+          "bbox": [
+            25,
+            50,
+            102,
+            107
+          ],
+          "nonzeroAlphaPixels": 1631,
+          "partialAlphaPixels": 0,
+          "margin8Pass": true,
+          "magentaLikeOpaquePixels": 0
+        },
+        {
+          "index": 1,
+          "assetId": "sprite.monster.ember-hound",
+          "bbox": [
+            15,
+            25,
+            114,
+            107
+          ],
+          "nonzeroAlphaPixels": 3434,
+          "partialAlphaPixels": 0,
+          "margin8Pass": true,
+          "magentaLikeOpaquePixels": 0
+        },
+        {
+          "index": 2,
+          "assetId": "sprite.monster.threefold-gatehound",
+          "bbox": [
+            16,
+            12,
+            112,
+            107
+          ],
+          "nonzeroAlphaPixels": 5788,
+          "partialAlphaPixels": 0,
+          "margin8Pass": true,
+          "magentaLikeOpaquePixels": 0
+        },
+        {
+          "index": 3,
+          "assetId": "sprite.monster.candle-root-knight",
+          "bbox": [
+            27,
+            12,
+            99,
+            107
+          ],
+          "nonzeroAlphaPixels": 3963,
+          "partialAlphaPixels": 0,
+          "margin8Pass": true,
+          "magentaLikeOpaquePixels": 0
+        }
+      ],
+      "emptyCells": []
+    },
+    {
+      "compositeSheetNumber": 12,
+      "key": "new-weapons-tools",
+      "sha256": "9d38f48c44fb78d733618b5b26aeef7414e093a36a2292b66d1f781f40895346",
+      "measuredSize": [
+        384,
+        256
+      ],
+      "expectedSize": [
+        384,
+        256
+      ],
+      "dimensionPass": true,
+      "mode": "RGBA",
+      "iccProfilePresent": true,
+      "alphaRange": [
+        0,
+        255
+      ],
+      "cells": [
+        {
+          "index": 0,
+          "assetId": "icon.item.light-throwing-blade",
+          "bbox": [
+            14,
+            22,
+            114,
+            105
+          ],
+          "nonzeroAlphaPixels": 2408,
+          "partialAlphaPixels": 0,
+          "margin8Pass": true,
+          "magentaLikeOpaquePixels": 0
+        },
+        {
+          "index": 1,
+          "assetId": "icon.item.hunter-longbow",
+          "bbox": [
+            15,
+            14,
+            113,
+            114
+          ],
+          "nonzeroAlphaPixels": 1123,
+          "partialAlphaPixels": 0,
+          "margin8Pass": true,
+          "magentaLikeOpaquePixels": 0
+        },
+        {
+          "index": 2,
+          "assetId": "icon.item.ironbreaker-greataxe",
+          "bbox": [
+            16,
+            14,
+            112,
+            114
+          ],
+          "nonzeroAlphaPixels": 2469,
+          "partialAlphaPixels": 0,
+          "margin8Pass": true,
+          "magentaLikeOpaquePixels": 0
+        },
+        {
+          "index": 3,
+          "assetId": "icon.item.silver-banishing-saber",
+          "bbox": [
+            17,
+            14,
+            111,
+            114
+          ],
+          "nonzeroAlphaPixels": 1558,
+          "partialAlphaPixels": 0,
+          "margin8Pass": true,
+          "magentaLikeOpaquePixels": 0
+        },
+        {
+          "index": 4,
+          "assetId": "icon.item.sacred-pick",
+          "bbox": [
+            14,
+            14,
+            113,
+            114
+          ],
+          "nonzeroAlphaPixels": 2866,
+          "partialAlphaPixels": 0,
+          "margin8Pass": true,
+          "magentaLikeOpaquePixels": 0
+        },
+        {
+          "index": 5,
+          "assetId": "icon.item.scrying-crystal",
+          "bbox": [
+            23,
+            14,
+            105,
+            114
+          ],
+          "nonzeroAlphaPixels": 4685,
+          "partialAlphaPixels": 0,
+          "margin8Pass": true,
+          "magentaLikeOpaquePixels": 0
+        }
+      ],
+      "emptyCells": []
+    },
+    {
+      "compositeSheetNumber": 13,
+      "key": "new-armor-utility",
+      "sha256": "a4b03a359d71e4dcfed5b1d5773026bef281793b77f77b0e906e30cdce525ee4",
+      "measuredSize": [
+        384,
+        256
+      ],
+      "expectedSize": [
+        384,
+        256
+      ],
+      "dimensionPass": true,
+      "mode": "RGBA",
+      "iccProfilePresent": true,
+      "alphaRange": [
+        0,
+        255
+      ],
+      "cells": [
+        {
+          "index": 0,
+          "assetId": "icon.item.witchward-cloak",
+          "bbox": [
+            18,
+            14,
+            109,
+            114
+          ],
+          "nonzeroAlphaPixels": 6966,
+          "partialAlphaPixels": 0,
+          "margin8Pass": true,
+          "magentaLikeOpaquePixels": 0
+        },
+        {
+          "index": 1,
+          "assetId": "icon.item.venomguard-cloak",
+          "bbox": [
+            14,
+            15,
+            114,
+            112
+          ],
+          "nonzeroAlphaPixels": 6869,
+          "partialAlphaPixels": 0,
+          "margin8Pass": true,
+          "magentaLikeOpaquePixels": 0
+        },
+        {
+          "index": 2,
+          "assetId": "icon.item.reflecting-shield",
+          "bbox": [
+            24,
+            14,
+            103,
+            114
+          ],
+          "nonzeroAlphaPixels": 5108,
+          "partialAlphaPixels": 0,
+          "margin8Pass": true,
+          "magentaLikeOpaquePixels": 0
+        },
+        {
+          "index": 3,
+          "assetId": "icon.item.regrowth-ring",
+          "bbox": [
+            14,
+            17,
+            114,
+            110
+          ],
+          "nonzeroAlphaPixels": 5556,
+          "partialAlphaPixels": 0,
+          "margin8Pass": true,
+          "magentaLikeOpaquePixels": 0
+        },
+        {
+          "index": 4,
+          "assetId": "icon.item.searcher-ring",
+          "bbox": [
+            14,
+            31,
+            114,
+            97
+          ],
+          "nonzeroAlphaPixels": 5041,
+          "partialAlphaPixels": 0,
+          "margin8Pass": true,
+          "magentaLikeOpaquePixels": 0
+        },
+        {
+          "index": 5,
+          "assetId": "icon.item.lockpick-bundle",
+          "bbox": [
+            14,
+            15,
+            114,
+            113
+          ],
+          "nonzeroAlphaPixels": 4378,
+          "partialAlphaPixels": 0,
+          "margin8Pass": true,
+          "magentaLikeOpaquePixels": 0
+        }
+      ],
+      "emptyCells": []
+    },
+    {
+      "compositeSheetNumber": 14,
+      "key": "hero-relic-surveyor",
+      "sha256": "eee81b63c12f9a39db68b7e46e488c16b5e9e8b84c0ea833b8409e2dee9199c6",
+      "measuredSize": [
+        512,
+        256
+      ],
+      "expectedSize": [
+        512,
+        256
+      ],
+      "dimensionPass": true,
+      "mode": "RGBA",
+      "iccProfilePresent": true,
+      "alphaRange": [
+        0,
+        255
+      ],
+      "cells": [
+        {
+          "index": 0,
+          "assetId": "character.relic-surveyor.south",
+          "bbox": [
+            34,
+            20,
+            94,
+            107
+          ],
+          "nonzeroAlphaPixels": 2855,
+          "partialAlphaPixels": 0,
+          "margin8Pass": true,
+          "magentaLikeOpaquePixels": 0
+        },
+        {
+          "index": 1,
+          "assetId": "character.relic-surveyor.southwest",
+          "bbox": [
+            35,
+            20,
+            93,
+            107
+          ],
+          "nonzeroAlphaPixels": 2757,
+          "partialAlphaPixels": 0,
+          "margin8Pass": true,
+          "magentaLikeOpaquePixels": 0
+        },
+        {
+          "index": 2,
+          "assetId": "character.relic-surveyor.west",
+          "bbox": [
+            37,
+            20,
+            90,
+            107
+          ],
+          "nonzeroAlphaPixels": 2234,
+          "partialAlphaPixels": 0,
+          "margin8Pass": true,
+          "magentaLikeOpaquePixels": 0
+        },
+        {
+          "index": 3,
+          "assetId": "character.relic-surveyor.northwest",
+          "bbox": [
+            36,
+            20,
+            92,
+            107
+          ],
+          "nonzeroAlphaPixels": 2782,
+          "partialAlphaPixels": 0,
+          "margin8Pass": true,
+          "magentaLikeOpaquePixels": 0
+        },
+        {
+          "index": 4,
+          "assetId": "character.relic-surveyor.north",
+          "bbox": [
+            34,
+            22,
+            93,
+            107
+          ],
+          "nonzeroAlphaPixels": 2800,
+          "partialAlphaPixels": 0,
+          "margin8Pass": true,
+          "magentaLikeOpaquePixels": 0
+        },
+        {
+          "index": 5,
+          "assetId": "character.relic-surveyor.northeast",
+          "bbox": [
+            36,
+            21,
+            92,
+            107
+          ],
+          "nonzeroAlphaPixels": 2612,
+          "partialAlphaPixels": 0,
+          "margin8Pass": true,
+          "magentaLikeOpaquePixels": 0
+        },
+        {
+          "index": 6,
+          "assetId": "character.relic-surveyor.east",
+          "bbox": [
+            39,
+            21,
+            89,
+            107
+          ],
+          "nonzeroAlphaPixels": 2266,
+          "partialAlphaPixels": 0,
+          "margin8Pass": true,
+          "magentaLikeOpaquePixels": 0
+        },
+        {
+          "index": 7,
+          "assetId": "character.relic-surveyor.southeast",
+          "bbox": [
+            37,
+            21,
+            90,
+            107
+          ],
+          "nonzeroAlphaPixels": 2732,
+          "partialAlphaPixels": 0,
+          "margin8Pass": true,
+          "magentaLikeOpaquePixels": 0
+        }
+      ],
+      "emptyCells": []
+    },
+    {
+      "compositeSheetNumber": 15,
+      "key": "hero-ash-apothecary",
+      "sha256": "187bdeeaf30eae3d47767037169cc0e63e9f8a8ebe2dacbcac0ecd8fc027e5bc",
+      "measuredSize": [
+        512,
+        256
+      ],
+      "expectedSize": [
+        512,
+        256
+      ],
+      "dimensionPass": true,
+      "mode": "RGBA",
+      "iccProfilePresent": true,
+      "alphaRange": [
+        0,
+        255
+      ],
+      "cells": [
+        {
+          "index": 0,
+          "assetId": "character.ash-apothecary.south",
+          "bbox": [
+            37,
+            22,
+            90,
+            107
+          ],
+          "nonzeroAlphaPixels": 2747,
+          "partialAlphaPixels": 0,
+          "margin8Pass": true,
+          "magentaLikeOpaquePixels": 0
+        },
+        {
+          "index": 1,
+          "assetId": "character.ash-apothecary.southwest",
+          "bbox": [
+            37,
+            20,
+            90,
+            107
+          ],
+          "nonzeroAlphaPixels": 2691,
+          "partialAlphaPixels": 0,
+          "margin8Pass": true,
+          "magentaLikeOpaquePixels": 0
+        },
+        {
+          "index": 2,
+          "assetId": "character.ash-apothecary.west",
+          "bbox": [
+            42,
+            20,
+            86,
+            107
+          ],
+          "nonzeroAlphaPixels": 2201,
+          "partialAlphaPixels": 0,
+          "margin8Pass": true,
+          "magentaLikeOpaquePixels": 0
+        },
+        {
+          "index": 3,
+          "assetId": "character.ash-apothecary.northwest",
+          "bbox": [
+            38,
+            20,
+            90,
+            107
+          ],
+          "nonzeroAlphaPixels": 2665,
+          "partialAlphaPixels": 0,
+          "margin8Pass": true,
+          "magentaLikeOpaquePixels": 0
+        },
+        {
+          "index": 4,
+          "assetId": "character.ash-apothecary.north",
+          "bbox": [
+            39,
+            23,
+            88,
+            107
+          ],
+          "nonzeroAlphaPixels": 2541,
+          "partialAlphaPixels": 0,
+          "margin8Pass": true,
+          "magentaLikeOpaquePixels": 0
+        },
+        {
+          "index": 5,
+          "assetId": "character.ash-apothecary.northeast",
+          "bbox": [
+            39,
+            23,
+            88,
+            107
+          ],
+          "nonzeroAlphaPixels": 2372,
+          "partialAlphaPixels": 0,
+          "margin8Pass": true,
+          "magentaLikeOpaquePixels": 0
+        },
+        {
+          "index": 6,
+          "assetId": "character.ash-apothecary.east",
+          "bbox": [
+            42,
+            22,
+            86,
+            107
+          ],
+          "nonzeroAlphaPixels": 2135,
+          "partialAlphaPixels": 0,
+          "margin8Pass": true,
+          "magentaLikeOpaquePixels": 0
+        },
+        {
+          "index": 7,
+          "assetId": "character.ash-apothecary.southeast",
+          "bbox": [
+            38,
+            23,
+            90,
+            107
+          ],
+          "nonzeroAlphaPixels": 2671,
+          "partialAlphaPixels": 0,
+          "margin8Pass": true,
+          "magentaLikeOpaquePixels": 0
+        }
+      ],
+      "emptyCells": []
+    },
+    {
+      "compositeSheetNumber": 16,
+      "key": "hero-iron-oath-vanguard",
+      "sha256": "81026566b41b4e6925dff5caa4bbb11d47d30b624a8d77393940629e486e8ae6",
+      "measuredSize": [
+        512,
+        256
+      ],
+      "expectedSize": [
+        512,
+        256
+      ],
+      "dimensionPass": true,
+      "mode": "RGBA",
+      "iccProfilePresent": true,
+      "alphaRange": [
+        0,
+        255
+      ],
+      "cells": [
+        {
+          "index": 0,
+          "assetId": "character.iron-oath-vanguard.south",
+          "bbox": [
+            26,
+            22,
+            101,
+            107
+          ],
+          "nonzeroAlphaPixels": 3168,
+          "partialAlphaPixels": 0,
+          "margin8Pass": true,
+          "magentaLikeOpaquePixels": 0
+        },
+        {
+          "index": 1,
+          "assetId": "character.iron-oath-vanguard.southwest",
+          "bbox": [
+            32,
+            21,
+            96,
+            107
+          ],
+          "nonzeroAlphaPixels": 2865,
+          "partialAlphaPixels": 0,
+          "margin8Pass": true,
+          "magentaLikeOpaquePixels": 0
+        },
+        {
+          "index": 2,
+          "assetId": "character.iron-oath-vanguard.west",
+          "bbox": [
+            36,
+            20,
+            92,
+            107
+          ],
+          "nonzeroAlphaPixels": 2365,
+          "partialAlphaPixels": 0,
+          "margin8Pass": true,
+          "magentaLikeOpaquePixels": 0
+        },
+        {
+          "index": 3,
+          "assetId": "character.iron-oath-vanguard.northwest",
+          "bbox": [
+            28,
+            22,
+            100,
+            107
+          ],
+          "nonzeroAlphaPixels": 2925,
+          "partialAlphaPixels": 0,
+          "margin8Pass": true,
+          "magentaLikeOpaquePixels": 0
+        },
+        {
+          "index": 4,
+          "assetId": "character.iron-oath-vanguard.north",
+          "bbox": [
+            28,
+            23,
+            99,
+            107
+          ],
+          "nonzeroAlphaPixels": 3049,
+          "partialAlphaPixels": 0,
+          "margin8Pass": true,
+          "magentaLikeOpaquePixels": 0
+        },
+        {
+          "index": 5,
+          "assetId": "character.iron-oath-vanguard.northeast",
+          "bbox": [
+            33,
+            20,
+            95,
+            107
+          ],
+          "nonzeroAlphaPixels": 2804,
+          "partialAlphaPixels": 0,
+          "margin8Pass": true,
+          "magentaLikeOpaquePixels": 0
+        },
+        {
+          "index": 6,
+          "assetId": "character.iron-oath-vanguard.east",
+          "bbox": [
+            34,
+            20,
+            93,
+            107
+          ],
+          "nonzeroAlphaPixels": 2341,
+          "partialAlphaPixels": 0,
+          "margin8Pass": true,
+          "magentaLikeOpaquePixels": 0
+        },
+        {
+          "index": 7,
+          "assetId": "character.iron-oath-vanguard.southeast",
+          "bbox": [
+            27,
+            21,
+            100,
+            107
+          ],
+          "nonzeroAlphaPixels": 3128,
+          "partialAlphaPixels": 0,
+          "margin8Pass": true,
+          "magentaLikeOpaquePixels": 0
+        }
+      ],
+      "emptyCells": []
+    },
+    {
+      "compositeSheetNumber": 17,
+      "key": "hero-keyshadow-rogue",
+      "sha256": "0c1903386d7068c3cff8274ea97b08327597048a4ee694d6a2dd6d185c938bec",
+      "measuredSize": [
+        512,
+        256
+      ],
+      "expectedSize": [
+        512,
+        256
+      ],
+      "dimensionPass": true,
+      "mode": "RGBA",
+      "iccProfilePresent": true,
+      "alphaRange": [
+        0,
+        255
+      ],
+      "cells": [
+        {
+          "index": 0,
+          "assetId": "character.keyshadow-rogue.south",
+          "bbox": [
+            39,
+            20,
+            88,
+            107
+          ],
+          "nonzeroAlphaPixels": 2250,
+          "partialAlphaPixels": 0,
+          "margin8Pass": true,
+          "magentaLikeOpaquePixels": 0
+        },
+        {
+          "index": 1,
+          "assetId": "character.keyshadow-rogue.southwest",
+          "bbox": [
+            41,
+            20,
+            87,
+            107
+          ],
+          "nonzeroAlphaPixels": 2205,
+          "partialAlphaPixels": 0,
+          "margin8Pass": true,
+          "magentaLikeOpaquePixels": 0
+        },
+        {
+          "index": 2,
+          "assetId": "character.keyshadow-rogue.west",
+          "bbox": [
+            46,
+            21,
+            82,
+            107
+          ],
+          "nonzeroAlphaPixels": 1721,
+          "partialAlphaPixels": 0,
+          "margin8Pass": true,
+          "magentaLikeOpaquePixels": 0
+        },
+        {
+          "index": 3,
+          "assetId": "character.keyshadow-rogue.northwest",
+          "bbox": [
+            39,
+            20,
+            88,
+            107
+          ],
+          "nonzeroAlphaPixels": 2215,
+          "partialAlphaPixels": 0,
+          "margin8Pass": true,
+          "magentaLikeOpaquePixels": 0
+        },
+        {
+          "index": 4,
+          "assetId": "character.keyshadow-rogue.north",
+          "bbox": [
+            38,
+            21,
+            89,
+            107
+          ],
+          "nonzeroAlphaPixels": 2219,
+          "partialAlphaPixels": 0,
+          "margin8Pass": true,
+          "magentaLikeOpaquePixels": 0
+        },
+        {
+          "index": 5,
+          "assetId": "character.keyshadow-rogue.northeast",
+          "bbox": [
+            40,
+            21,
+            88,
+            107
+          ],
+          "nonzeroAlphaPixels": 2177,
+          "partialAlphaPixels": 0,
+          "margin8Pass": true,
+          "magentaLikeOpaquePixels": 0
+        },
+        {
+          "index": 6,
+          "assetId": "character.keyshadow-rogue.east",
+          "bbox": [
+            46,
+            22,
+            82,
+            107
+          ],
+          "nonzeroAlphaPixels": 1721,
+          "partialAlphaPixels": 0,
+          "margin8Pass": true,
+          "magentaLikeOpaquePixels": 0
+        },
+        {
+          "index": 7,
+          "assetId": "character.keyshadow-rogue.southeast",
+          "bbox": [
+            39,
+            21,
+            89,
+            107
+          ],
+          "nonzeroAlphaPixels": 2218,
+          "partialAlphaPixels": 0,
+          "margin8Pass": true,
+          "magentaLikeOpaquePixels": 0
+        }
+      ],
+      "emptyCells": []
+    },
+    {
+      "compositeSheetNumber": 18,
+      "key": "terrain-ore-mine",
+      "sha256": "b253d17b1bc0aa6e043449720df3429dc742d90bdca04df448386024bf8e0302",
+      "measuredSize": [
+        256,
+        128
+      ],
+      "expectedSize": [
+        256,
+        128
+      ],
+      "dimensionPass": true,
+      "mode": "RGB",
+      "iccProfilePresent": true,
+      "alphaRange": [
+        255,
+        255
+      ],
+      "cells": [
+        {
+          "index": 0,
+          "assetId": "floor:ore-mine",
+          "bbox": [
+            0,
+            0,
+            128,
+            128
+          ],
+          "nonzeroAlphaPixels": 16384,
+          "partialAlphaPixels": 0,
+          "margin8Pass": null,
+          "magentaLikeOpaquePixels": 0,
+          "fullyOpaque": true,
+          "meanLuminance": 68.56011561279297,
+          "leftRightEdgeMeanAbsoluteDifference": 0.0,
+          "topBottomEdgeMeanAbsoluteDifference": 0.0,
+          "internalHorizontalMeanDifference": 12.353141404199475,
+          "internalVerticalMeanDifference": 12.818897637795276
+        },
+        {
+          "index": 1,
+          "assetId": "wall:ore-mine",
+          "bbox": [
+            0,
+            0,
+            128,
+            128
+          ],
+          "nonzeroAlphaPixels": 16384,
+          "partialAlphaPixels": 0,
+          "margin8Pass": null,
+          "magentaLikeOpaquePixels": 0,
+          "fullyOpaque": true,
+          "meanLuminance": 35.92228659667969,
+          "leftRightEdgeMeanAbsoluteDifference": 0.0,
+          "topBottomEdgeMeanAbsoluteDifference": 0.0,
+          "internalHorizontalMeanDifference": 11.847645997375327,
+          "internalVerticalMeanDifference": 11.427739501312336
+        }
+      ],
+      "emptyCells": []
+    },
+    {
+      "compositeSheetNumber": 19,
+      "key": "props-ore-mine",
+      "sha256": "a1e89c748fc43f0f16adc7ebdbdd7488fa617c50ea942fcf30d152e90ee955dc",
+      "measuredSize": [
+        256,
+        256
+      ],
+      "expectedSize": [
+        256,
+        256
+      ],
+      "dimensionPass": true,
+      "mode": "RGBA",
+      "iccProfilePresent": true,
+      "alphaRange": [
+        0,
+        255
+      ],
+      "cells": [
+        {
+          "index": 0,
+          "assetId": "prop.ore-mine.cover-pillar",
+          "bbox": [
+            19,
+            14,
+            109,
+            114
+          ],
+          "nonzeroAlphaPixels": 5978,
+          "partialAlphaPixels": 0,
+          "margin8Pass": true,
+          "magentaLikeOpaquePixels": 0
+        },
+        {
+          "index": 1,
+          "assetId": "prop.ore-mine.cover-cart",
+          "bbox": [
+            14,
+            23,
+            114,
+            105
+          ],
+          "nonzeroAlphaPixels": 5732,
+          "partialAlphaPixels": 0,
+          "margin8Pass": true,
+          "magentaLikeOpaquePixels": 0
+        },
+        {
+          "index": 2,
+          "assetId": "prop.ore-mine.ore-cluster",
+          "bbox": [
+            14,
+            15,
+            114,
+            112
+          ],
+          "nonzeroAlphaPixels": 6132,
+          "partialAlphaPixels": 0,
+          "margin8Pass": true,
+          "magentaLikeOpaquePixels": 0
+        },
+        {
+          "index": 3,
+          "assetId": "prop.ore-mine.locked-cache",
+          "bbox": [
+            14,
+            15,
+            114,
+            113
+          ],
+          "nonzeroAlphaPixels": 7677,
+          "partialAlphaPixels": 0,
+          "margin8Pass": true,
+          "magentaLikeOpaquePixels": 0
+        }
+      ],
+      "emptyCells": []
+    },
+    {
+      "compositeSheetNumber": 20,
+      "key": "terrain-sunken-archive",
+      "sha256": "2610804200ad18f3450930908ba04ccd91c8ef734849e54695e65bca9281edd6",
+      "measuredSize": [
+        256,
+        128
+      ],
+      "expectedSize": [
+        256,
+        128
+      ],
+      "dimensionPass": true,
+      "mode": "RGB",
+      "iccProfilePresent": true,
+      "alphaRange": [
+        255,
+        255
+      ],
+      "cells": [
+        {
+          "index": 0,
+          "assetId": "floor:sunken-archive",
+          "bbox": [
+            0,
+            0,
+            128,
+            128
+          ],
+          "nonzeroAlphaPixels": 16384,
+          "partialAlphaPixels": 0,
+          "margin8Pass": null,
+          "magentaLikeOpaquePixels": 0,
+          "fullyOpaque": true,
+          "meanLuminance": 76.66275458984376,
+          "leftRightEdgeMeanAbsoluteDifference": 0.0,
+          "topBottomEdgeMeanAbsoluteDifference": 0.0,
+          "internalHorizontalMeanDifference": 12.914000984251969,
+          "internalVerticalMeanDifference": 14.173597440944881
+        },
+        {
+          "index": 1,
+          "assetId": "wall:sunken-archive",
+          "bbox": [
+            0,
+            0,
+            128,
+            128
+          ],
+          "nonzeroAlphaPixels": 16384,
+          "partialAlphaPixels": 0,
+          "margin8Pass": null,
+          "magentaLikeOpaquePixels": 0,
+          "fullyOpaque": true,
+          "meanLuminance": 45.50388941650391,
+          "leftRightEdgeMeanAbsoluteDifference": 0.0,
+          "topBottomEdgeMeanAbsoluteDifference": 0.0,
+          "internalHorizontalMeanDifference": 12.193733595800525,
+          "internalVerticalMeanDifference": 13.211532152230971
+        }
+      ],
+      "emptyCells": []
+    },
+    {
+      "compositeSheetNumber": 21,
+      "key": "props-sunken-archive",
+      "sha256": "f743b73ceb31071d581fc1186653482f07f2dc7bb5c937b288f1681cbd3127a0",
+      "measuredSize": [
+        256,
+        256
+      ],
+      "expectedSize": [
+        256,
+        256
+      ],
+      "dimensionPass": true,
+      "mode": "RGBA",
+      "iccProfilePresent": true,
+      "alphaRange": [
+        0,
+        255
+      ],
+      "cells": [
+        {
+          "index": 0,
+          "assetId": "prop.sunken-archive.cover-books",
+          "bbox": [
+            14,
+            22,
+            114,
+            106
+          ],
+          "nonzeroAlphaPixels": 5735,
+          "partialAlphaPixels": 0,
+          "margin8Pass": true,
+          "magentaLikeOpaquePixels": 0
+        },
+        {
+          "index": 1,
+          "assetId": "prop.sunken-archive.cover-statue",
+          "bbox": [
+            28,
+            14,
+            100,
+            114
+          ],
+          "nonzeroAlphaPixels": 5231,
+          "partialAlphaPixels": 0,
+          "margin8Pass": true,
+          "magentaLikeOpaquePixels": 0
+        },
+        {
+          "index": 2,
+          "assetId": "prop.sunken-archive.sealed-book",
+          "bbox": [
+            14,
+            14,
+            114,
+            114
+          ],
+          "nonzeroAlphaPixels": 6370,
+          "partialAlphaPixels": 0,
+          "margin8Pass": true,
+          "magentaLikeOpaquePixels": 0
+        },
+        {
+          "index": 3,
+          "assetId": "prop.sunken-archive.memory-vessel",
+          "bbox": [
+            34,
+            16,
+            94,
+            114
+          ],
+          "nonzeroAlphaPixels": 3472,
+          "partialAlphaPixels": 0,
+          "margin8Pass": true,
+          "magentaLikeOpaquePixels": 0
+        }
+      ],
+      "emptyCells": []
+    },
+    {
+      "compositeSheetNumber": 22,
+      "key": "terrain-thorn-chapel",
+      "sha256": "6b04c2e717ecec429d5f472f08c47759aefe41237a65b14701a110264bb7922a",
+      "measuredSize": [
+        256,
+        128
+      ],
+      "expectedSize": [
+        256,
+        128
+      ],
+      "dimensionPass": true,
+      "mode": "RGB",
+      "iccProfilePresent": true,
+      "alphaRange": [
+        255,
+        255
+      ],
+      "cells": [
+        {
+          "index": 0,
+          "assetId": "floor:thorn-chapel",
+          "bbox": [
+            0,
+            0,
+            128,
+            128
+          ],
+          "nonzeroAlphaPixels": 16384,
+          "partialAlphaPixels": 0,
+          "margin8Pass": null,
+          "magentaLikeOpaquePixels": 0,
+          "fullyOpaque": true,
+          "meanLuminance": 62.43369645996093,
+          "leftRightEdgeMeanAbsoluteDifference": 0.0,
+          "topBottomEdgeMeanAbsoluteDifference": 0.0,
+          "internalHorizontalMeanDifference": 14.210588910761155,
+          "internalVerticalMeanDifference": 14.788016732283465
+        },
+        {
+          "index": 1,
+          "assetId": "wall:thorn-chapel",
+          "bbox": [
+            0,
+            0,
+            128,
+            128
+          ],
+          "nonzeroAlphaPixels": 16384,
+          "partialAlphaPixels": 0,
+          "margin8Pass": null,
+          "magentaLikeOpaquePixels": 0,
+          "fullyOpaque": true,
+          "meanLuminance": 33.02645843505859,
+          "leftRightEdgeMeanAbsoluteDifference": 0.0,
+          "topBottomEdgeMeanAbsoluteDifference": 0.0,
+          "internalHorizontalMeanDifference": 12.046259842519685,
+          "internalVerticalMeanDifference": 12.015378937007874
+        }
+      ],
+      "emptyCells": []
+    },
+    {
+      "compositeSheetNumber": 23,
+      "key": "props-thorn-chapel",
+      "sha256": "bb2ceec4fd0c8adc1f37675f075a5373df01fff66cdaab7d43e68e61dc11e9c0",
+      "measuredSize": [
+        256,
+        256
+      ],
+      "expectedSize": [
+        256,
+        256
+      ],
+      "dimensionPass": true,
+      "mode": "RGBA",
+      "iccProfilePresent": true,
+      "alphaRange": [
+        0,
+        255
+      ],
+      "cells": [
+        {
+          "index": 0,
+          "assetId": "prop.thorn-chapel.cover-root",
+          "bbox": [
+            15,
+            14,
+            112,
+            114
+          ],
+          "nonzeroAlphaPixels": 5170,
+          "partialAlphaPixels": 0,
+          "margin8Pass": true,
+          "magentaLikeOpaquePixels": 0
+        },
+        {
+          "index": 1,
+          "assetId": "prop.thorn-chapel.cover-pillar",
+          "bbox": [
+            26,
+            14,
+            102,
+            114
+          ],
+          "nonzeroAlphaPixels": 4982,
+          "partialAlphaPixels": 0,
+          "margin8Pass": true,
+          "magentaLikeOpaquePixels": 0
+        },
+        {
+          "index": 2,
+          "assetId": "prop.thorn-chapel.thorn-altar",
+          "bbox": [
+            19,
+            31,
+            109,
+            114
+          ],
+          "nonzeroAlphaPixels": 3703,
+          "partialAlphaPixels": 0,
+          "margin8Pass": true,
+          "magentaLikeOpaquePixels": 0
+        },
+        {
+          "index": 3,
+          "assetId": "prop.thorn-chapel.seed-reliquary",
+          "bbox": [
+            30,
+            14,
+            98,
+            114
+          ],
+          "nonzeroAlphaPixels": 4519,
+          "partialAlphaPixels": 0,
+          "margin8Pass": true,
+          "magentaLikeOpaquePixels": 0
+        }
+      ],
+      "emptyCells": []
+    },
+    {
+      "compositeSheetNumber": 24,
+      "key": "fx-ember-bolt",
+      "sha256": "543c92ae0a16f4d372ea67df87a9dfb4dbb05e62a3a71208c3b12b540150f647",
+      "measuredSize": [
+        256,
+        256
+      ],
+      "expectedSize": [
+        256,
+        256
+      ],
+      "dimensionPass": true,
+      "mode": "RGBA",
+      "iccProfilePresent": true,
+      "alphaRange": [
+        0,
+        255
+      ],
+      "cells": [
+        {
+          "index": 0,
+          "assetId": "effect.ember-bolt.frame-0",
+          "bbox": [
+            21,
+            49,
+            73,
+            78
+          ],
+          "nonzeroAlphaPixels": 982,
+          "partialAlphaPixels": 494,
+          "margin8Pass": true,
+          "magentaLikeOpaquePixels": 0
+        },
+        {
+          "index": 1,
+          "assetId": "effect.ember-bolt.frame-1",
+          "bbox": [
+            18,
+            48,
+            73,
+            78
+          ],
+          "nonzeroAlphaPixels": 1092,
+          "partialAlphaPixels": 542,
+          "margin8Pass": true,
+          "magentaLikeOpaquePixels": 0
+        },
+        {
+          "index": 2,
+          "assetId": "effect.ember-bolt.frame-2",
+          "bbox": [
+            16,
+            44,
+            73,
+            78
+          ],
+          "nonzeroAlphaPixels": 1222,
+          "partialAlphaPixels": 613,
+          "margin8Pass": true,
+          "magentaLikeOpaquePixels": 0
+        },
+        {
+          "index": 3,
+          "assetId": "effect.ember-bolt.frame-3",
+          "bbox": [
+            19,
+            48,
+            72,
+            77
+          ],
+          "nonzeroAlphaPixels": 1026,
+          "partialAlphaPixels": 503,
+          "margin8Pass": true,
+          "magentaLikeOpaquePixels": 0
+        }
+      ],
+      "emptyCells": []
+    },
+    {
+      "compositeSheetNumber": 25,
+      "key": "fx-mending-light",
+      "sha256": "d6a725ed3b71e1a909140182edf3f25556fac1bae6d7cb7f949fc189008a07a7",
+      "measuredSize": [
+        256,
+        256
+      ],
+      "expectedSize": [
+        256,
+        256
+      ],
+      "dimensionPass": true,
+      "mode": "RGBA",
+      "iccProfilePresent": true,
+      "alphaRange": [
+        0,
+        255
+      ],
+      "cells": [
+        {
+          "index": 0,
+          "assetId": "effect.mending-light.frame-0",
+          "bbox": [
+            38,
+            41,
+            90,
+            85
+          ],
+          "nonzeroAlphaPixels": 973,
+          "partialAlphaPixels": 973,
+          "margin8Pass": true,
+          "magentaLikeOpaquePixels": 0
+        },
+        {
+          "index": 1,
+          "assetId": "effect.mending-light.frame-1",
+          "bbox": [
+            17,
+            17,
+            110,
+            111
+          ],
+          "nonzeroAlphaPixels": 3401,
+          "partialAlphaPixels": 2684,
+          "margin8Pass": true,
+          "magentaLikeOpaquePixels": 0
+        },
+        {
+          "index": 2,
+          "assetId": "effect.mending-light.frame-2",
+          "bbox": [
+            16,
+            16,
+            111,
+            112
+          ],
+          "nonzeroAlphaPixels": 2609,
+          "partialAlphaPixels": 2609,
+          "margin8Pass": true,
+          "magentaLikeOpaquePixels": 0
+        },
+        {
+          "index": 3,
+          "assetId": "effect.mending-light.frame-3",
+          "bbox": [
+            26,
+            31,
+            101,
+            97
+          ],
+          "nonzeroAlphaPixels": 653,
+          "partialAlphaPixels": 653,
+          "margin8Pass": true,
+          "magentaLikeOpaquePixels": 0
+        }
+      ],
+      "emptyCells": []
+    },
+    {
+      "compositeSheetNumber": 26,
+      "key": "fx-repulsion-gust",
+      "sha256": "31b41645b2de31569d0f78c7cbd07f63532a98b1eeaf318144f39c0cd013cc74",
+      "measuredSize": [
+        256,
+        256
+      ],
+      "expectedSize": [
+        256,
+        256
+      ],
+      "dimensionPass": true,
+      "mode": "RGBA",
+      "iccProfilePresent": true,
+      "alphaRange": [
+        0,
+        255
+      ],
+      "cells": [
+        {
+          "index": 0,
+          "assetId": "effect.repulsion-gust.frame-0",
+          "bbox": [
+            34,
+            35,
+            94,
+            91
+          ],
+          "nonzeroAlphaPixels": 932,
+          "partialAlphaPixels": 932,
+          "margin8Pass": true,
+          "magentaLikeOpaquePixels": 0
+        },
+        {
+          "index": 1,
+          "assetId": "effect.repulsion-gust.frame-1",
+          "bbox": [
+            20,
+            22,
+            109,
+            105
+          ],
+          "nonzeroAlphaPixels": 2208,
+          "partialAlphaPixels": 1815,
+          "margin8Pass": true,
+          "magentaLikeOpaquePixels": 0
+        },
+        {
+          "index": 2,
+          "assetId": "effect.repulsion-gust.frame-2",
+          "bbox": [
+            16,
+            19,
+            111,
+            109
+          ],
+          "nonzeroAlphaPixels": 1733,
+          "partialAlphaPixels": 1733,
+          "margin8Pass": true,
+          "magentaLikeOpaquePixels": 0
+        },
+        {
+          "index": 3,
+          "assetId": "effect.repulsion-gust.frame-3",
+          "bbox": [
+            81,
+            56,
+            98,
+            89
+          ],
+          "nonzeroAlphaPixels": 93,
+          "partialAlphaPixels": 93,
+          "margin8Pass": true,
+          "magentaLikeOpaquePixels": 0
+        }
+      ],
+      "emptyCells": []
+    },
+    {
+      "compositeSheetNumber": 27,
+      "key": "fx-ward-aura",
+      "sha256": "50333a4724bd1d82ce19a173544ef085a15d2bdd8b3bacfda6e5a5e8a2bfcdc0",
+      "measuredSize": [
+        256,
+        256
+      ],
+      "expectedSize": [
+        256,
+        256
+      ],
+      "dimensionPass": true,
+      "mode": "RGBA",
+      "iccProfilePresent": true,
+      "alphaRange": [
+        0,
+        255
+      ],
+      "cells": [
+        {
+          "index": 0,
+          "assetId": "effect.ward-aura.frame-0",
+          "bbox": [
+            21,
+            20,
+            108,
+            106
+          ],
+          "nonzeroAlphaPixels": 2287,
+          "partialAlphaPixels": 2287,
+          "margin8Pass": true,
+          "magentaLikeOpaquePixels": 0
+        },
+        {
+          "index": 1,
+          "assetId": "effect.ward-aura.frame-1",
+          "bbox": [
+            21,
+            20,
+            108,
+            106
+          ],
+          "nonzeroAlphaPixels": 2287,
+          "partialAlphaPixels": 2287,
+          "margin8Pass": true,
+          "magentaLikeOpaquePixels": 0
+        },
+        {
+          "index": 2,
+          "assetId": "effect.ward-aura.frame-2",
+          "bbox": [
+            21,
+            20,
+            108,
+            106
+          ],
+          "nonzeroAlphaPixels": 2287,
+          "partialAlphaPixels": 1659,
+          "margin8Pass": true,
+          "magentaLikeOpaquePixels": 0
+        },
+        {
+          "index": 3,
+          "assetId": "effect.ward-aura.frame-3",
+          "bbox": [
+            21,
+            20,
+            108,
+            106
+          ],
+          "nonzeroAlphaPixels": 2287,
+          "partialAlphaPixels": 2287,
+          "margin8Pass": true,
+          "magentaLikeOpaquePixels": 0
+        }
+      ],
+      "emptyCells": []
+    },
+    {
+      "compositeSheetNumber": 28,
+      "key": "fx-venom-impact",
+      "sha256": "0fbf22554ee24ec26b3ba9b7b9155af7c360c5967041a5923e33f53602144ff2",
+      "measuredSize": [
+        256,
+        256
+      ],
+      "expectedSize": [
+        256,
+        256
+      ],
+      "dimensionPass": true,
+      "mode": "RGBA",
+      "iccProfilePresent": true,
+      "alphaRange": [
+        0,
+        255
+      ],
+      "cells": [
+        {
+          "index": 0,
+          "assetId": "effect.venom-impact.frame-0",
+          "bbox": [
+            41,
+            39,
+            85,
+            86
+          ],
+          "nonzeroAlphaPixels": 974,
+          "partialAlphaPixels": 974,
+          "margin8Pass": true,
+          "magentaLikeOpaquePixels": 0
+        },
+        {
+          "index": 1,
+          "assetId": "effect.venom-impact.frame-1",
+          "bbox": [
+            16,
+            21,
+            112,
+            105
+          ],
+          "nonzeroAlphaPixels": 4170,
+          "partialAlphaPixels": 2746,
+          "margin8Pass": true,
+          "magentaLikeOpaquePixels": 0
+        },
+        {
+          "index": 2,
+          "assetId": "effect.venom-impact.frame-2",
+          "bbox": [
+            23,
+            18,
+            108,
+            103
+          ],
+          "nonzeroAlphaPixels": 2583,
+          "partialAlphaPixels": 2583,
+          "margin8Pass": true,
+          "magentaLikeOpaquePixels": 0
+        },
+        {
+          "index": 3,
+          "assetId": "effect.venom-impact.frame-3",
+          "bbox": [
+            27,
+            27,
+            100,
+            103
+          ],
+          "nonzeroAlphaPixels": 519,
+          "partialAlphaPixels": 519,
+          "margin8Pass": true,
+          "magentaLikeOpaquePixels": 0
+        }
+      ],
+      "emptyCells": []
+    },
+    {
+      "compositeSheetNumber": 29,
+      "key": "fx-frost-bind",
+      "sha256": "38fa4840cf312165e6980b7fa75f6799f7273f0c2e1630fce54bb6ee2d17d386",
+      "measuredSize": [
+        256,
+        256
+      ],
+      "expectedSize": [
+        256,
+        256
+      ],
+      "dimensionPass": true,
+      "mode": "RGBA",
+      "iccProfilePresent": true,
+      "alphaRange": [
+        0,
+        255
+      ],
+      "cells": [
+        {
+          "index": 0,
+          "assetId": "effect.frost-bind.frame-0",
+          "bbox": [
+            42,
+            37,
+            87,
+            72
+          ],
+          "nonzeroAlphaPixels": 864,
+          "partialAlphaPixels": 864,
+          "margin8Pass": true,
+          "magentaLikeOpaquePixels": 0
+        },
+        {
+          "index": 1,
+          "assetId": "effect.frost-bind.frame-1",
+          "bbox": [
+            30,
+            16,
+            97,
+            78
+          ],
+          "nonzeroAlphaPixels": 2339,
+          "partialAlphaPixels": 1632,
+          "margin8Pass": true,
+          "magentaLikeOpaquePixels": 0
+        },
+        {
+          "index": 2,
+          "assetId": "effect.frost-bind.frame-2",
+          "bbox": [
+            33,
+            18,
+            95,
+            76
+          ],
+          "nonzeroAlphaPixels": 1991,
+          "partialAlphaPixels": 1991,
+          "margin8Pass": true,
+          "magentaLikeOpaquePixels": 0
+        },
+        {
+          "index": 3,
+          "assetId": "effect.frost-bind.frame-3",
+          "bbox": [
+            38,
+            31,
+            90,
+            73
+          ],
+          "nonzeroAlphaPixels": 600,
+          "partialAlphaPixels": 600,
+          "margin8Pass": true,
+          "magentaLikeOpaquePixels": 0
+        }
+      ],
+      "emptyCells": []
+    }
+  ]
+}

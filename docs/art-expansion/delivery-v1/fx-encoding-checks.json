@@ -1,0 +1,474 @@
+{
+  "browserPlayback": "unverified: local preview returned ERR_BLOCKED_BY_CLIENT; no bypass attempted",
+  "gifBackground": "RGB #202631 (preview background only)",
+  "effects": [
+    {
+      "key": "fx-ember-bolt",
+      "source": "public/assets/sprites/expansion-v1/bc-fx-ember-bolt-v1.png",
+      "sourceSha256": "543c92ae0a16f4d372ea67df87a9dfb4dbb05e62a3a71208c3b12b540150f647",
+      "gif": "fx-ember-bolt.gif",
+      "frameCount": 4,
+      "durationsMs": [
+        80,
+        80,
+        80,
+        80
+      ],
+      "durationTotalMs": 320,
+      "repeat": "infinite",
+      "decodedDistinctFrames": 4,
+      "frames": [
+        {
+          "frame": 0,
+          "bbox": [
+            21,
+            49,
+            73,
+            78
+          ],
+          "alphaSum": 182896.0,
+          "alphaCentroid": [
+            53.62774472924504,
+            63.473011984953196
+          ],
+          "rgbaSha256": "9aea3c53900e8ba09abf6da03603f3d5a5c7eca8c86ed61f043b7e7ca50c9630"
+        },
+        {
+          "frame": 1,
+          "bbox": [
+            18,
+            48,
+            73,
+            78
+          ],
+          "alphaSum": 203154.0,
+          "alphaCentroid": [
+            52.20159091132835,
+            62.99395040215797
+          ],
+          "rgbaSha256": "63ca86d512183e8c491fec5b01b3cfa0cf51703706fb614aaa49bdbb77787d73"
+        },
+        {
+          "frame": 2,
+          "bbox": [
+            16,
+            44,
+            73,
+            78
+          ],
+          "alphaSum": 230120.0,
+          "alphaCentroid": [
+            50.059251694767944,
+            62.93388666782548
+          ],
+          "rgbaSha256": "cc226766aad6ba95cc94ec478c8b36a2b8cdc0faf39f30f9fbe2046c5b65707a"
+        },
+        {
+          "frame": 3,
+          "bbox": [
+            19,
+            48,
+            72,
+            77
+          ],
+          "alphaSum": 195965.0,
+          "alphaCentroid": [
+            51.2608833210012,
+            62.44123185262674
+          ],
+          "rgbaSha256": "63c429b605bf2026a1a97b18d672f27a6aae6967cb58492e8ecaaa732c4d254d"
+        }
+      ]
+    },
+    {
+      "key": "fx-mending-light",
+      "source": "public/assets/sprites/expansion-v1/bc-fx-mending-light-v1.png",
+      "sourceSha256": "d6a725ed3b71e1a909140182edf3f25556fac1bae6d7cb7f949fc189008a07a7",
+      "gif": "fx-mending-light.gif",
+      "frameCount": 4,
+      "durationsMs": [
+        80,
+        80,
+        80,
+        80
+      ],
+      "durationTotalMs": 320,
+      "repeat": "once (no loop extension)",
+      "decodedDistinctFrames": 4,
+      "frames": [
+        {
+          "frame": 0,
+          "bbox": [
+            38,
+            41,
+            90,
+            85
+          ],
+          "alphaSum": 69501.0,
+          "alphaCentroid": [
+            62.630580854951724,
+            63.74991726737745
+          ],
+          "rgbaSha256": "13040f180cf4a1050aed5c178c74ea18c9774234b6ef5abd53fc8f6fd1bf0f6e"
+        },
+        {
+          "frame": 1,
+          "bbox": [
+            17,
+            17,
+            110,
+            111
+          ],
+          "alphaSum": 438993.0,
+          "alphaCentroid": [
+            62.534714676543814,
+            64.2163975279788
+          ],
+          "rgbaSha256": "719177157b847f503c36a2166b2adaed181e90586fcd8e7b5b9de7ce12c72959"
+        },
+        {
+          "frame": 2,
+          "bbox": [
+            16,
+            16,
+            111,
+            112
+          ],
+          "alphaSum": 125155.0,
+          "alphaCentroid": [
+            64.3523950301626,
+            63.86571850904878
+          ],
+          "rgbaSha256": "a9116628647ae3a8eda734485ca3b11d764631de0855e8db6dfc447335f0525f"
+        },
+        {
+          "frame": 3,
+          "bbox": [
+            26,
+            31,
+            101,
+            97
+          ],
+          "alphaSum": 11296.0,
+          "alphaCentroid": [
+            61.52682365439094,
+            65.03957152974505
+          ],
+          "rgbaSha256": "5a37cd2cb8f729e71caadbe4d14cf2fee4fc064b0874351d94196248a3b844de"
+        }
+      ]
+    },
+    {
+      "key": "fx-repulsion-gust",
+      "source": "public/assets/sprites/expansion-v1/bc-fx-repulsion-gust-v1.png",
+      "sourceSha256": "31b41645b2de31569d0f78c7cbd07f63532a98b1eeaf318144f39c0cd013cc74",
+      "gif": "fx-repulsion-gust.gif",
+      "frameCount": 4,
+      "durationsMs": [
+        80,
+        80,
+        80,
+        80
+      ],
+      "durationTotalMs": 320,
+      "repeat": "once (no loop extension)",
+      "decodedDistinctFrames": 4,
+      "frames": [
+        {
+          "frame": 0,
+          "bbox": [
+            34,
+            35,
+            94,
+            91
+          ],
+          "alphaSum": 74680.0,
+          "alphaCentroid": [
+            62.20467327262989,
+            64.56258703802892
+          ],
+          "rgbaSha256": "6621756541d246bdd3f9458586fb020acfe0adf22ed4d9d7df652e67019d178f"
+        },
+        {
+          "frame": 1,
+          "bbox": [
+            20,
+            22,
+            109,
+            105
+          ],
+          "alphaSum": 276733.0,
+          "alphaCentroid": [
+            59.316593973252196,
+            64.727300321971
+          ],
+          "rgbaSha256": "a3e2903a9211ce26596e3183c3384e02e09287160c4e5e512ca9d7e54f866146"
+        },
+        {
+          "frame": 2,
+          "bbox": [
+            16,
+            19,
+            111,
+            109
+          ],
+          "alphaSum": 67426.0,
+          "alphaCentroid": [
+            59.23221012665737,
+            65.32653575771957
+          ],
+          "rgbaSha256": "15d0472c8f51d5d0b8bd12d1066d2f42dae58fc882339723d4d2316c7d737d01"
+        },
+        {
+          "frame": 3,
+          "bbox": [
+            81,
+            56,
+            98,
+            89
+          ],
+          "alphaSum": 1231.0,
+          "alphaCentroid": [
+            91.73598700243704,
+            76.22177091795288
+          ],
+          "rgbaSha256": "f42bb544556ea4fcb0c8ac5d0fb1fa3da3b2975fc5f6c7cf1e39fbab06ef56d1"
+        }
+      ]
+    },
+    {
+      "key": "fx-ward-aura",
+      "source": "public/assets/sprites/expansion-v1/bc-fx-ward-aura-v1.png",
+      "sourceSha256": "50333a4724bd1d82ce19a173544ef085a15d2bdd8b3bacfda6e5a5e8a2bfcdc0",
+      "gif": "fx-ward-aura.gif",
+      "frameCount": 4,
+      "durationsMs": [
+        80,
+        80,
+        80,
+        80
+      ],
+      "durationTotalMs": 320,
+      "repeat": "infinite",
+      "decodedDistinctFrames": 3,
+      "frames": [
+        {
+          "frame": 0,
+          "bbox": [
+            21,
+            20,
+            108,
+            106
+          ],
+          "alphaSum": 178761.0,
+          "alphaCentroid": [
+            64.03852070641807,
+            62.50943438445746
+          ],
+          "rgbaSha256": "2b4128312e9d3cae05023ca53095296447e2e830fb04b4368a2c0e5d5277c112"
+        },
+        {
+          "frame": 1,
+          "bbox": [
+            21,
+            20,
+            108,
+            106
+          ],
+          "alphaSum": 253635.0,
+          "alphaCentroid": [
+            64.03869339799319,
+            62.50652709602382
+          ],
+          "rgbaSha256": "05c9b87a7b076e81d390e5407d0508db6f071c44e619825b08bf0463da3dc9da"
+        },
+        {
+          "frame": 2,
+          "bbox": [
+            21,
+            20,
+            108,
+            106
+          ],
+          "alphaSum": 324999.0,
+          "alphaCentroid": [
+            64.03870165754356,
+            62.50583540257047
+          ],
+          "rgbaSha256": "621d3bc4796a80c2a8f459c814819b239b6870bbe6b0f7b0d2ef2461f5435eea"
+        },
+        {
+          "frame": 3,
+          "bbox": [
+            21,
+            20,
+            108,
+            106
+          ],
+          "alphaSum": 253635.0,
+          "alphaCentroid": [
+            64.03869339799319,
+            62.50652709602382
+          ],
+          "rgbaSha256": "05c9b87a7b076e81d390e5407d0508db6f071c44e619825b08bf0463da3dc9da"
+        }
+      ]
+    },
+    {
+      "key": "fx-venom-impact",
+      "source": "public/assets/sprites/expansion-v1/bc-fx-venom-impact-v1.png",
+      "sourceSha256": "0fbf22554ee24ec26b3ba9b7b9155af7c360c5967041a5923e33f53602144ff2",
+      "gif": "fx-venom-impact.gif",
+      "frameCount": 4,
+      "durationsMs": [
+        80,
+        80,
+        80,
+        80
+      ],
+      "durationTotalMs": 320,
+      "repeat": "once (no loop extension)",
+      "decodedDistinctFrames": 4,
+      "frames": [
+        {
+          "frame": 0,
+          "bbox": [
+            41,
+            39,
+            85,
+            86
+          ],
+          "alphaSum": 89701.0,
+          "alphaCentroid": [
+            62.23346450987169,
+            63.73720471343686
+          ],
+          "rgbaSha256": "d407d5bdcb1eeb24159261f2cf6367ea18491ba1c32a6e1eec9fafa2520ba16d"
+        },
+        {
+          "frame": 1,
+          "bbox": [
+            16,
+            21,
+            112,
+            105
+          ],
+          "alphaSum": 645383.0,
+          "alphaCentroid": [
+            60.88989948604162,
+            63.05777964402533
+          ],
+          "rgbaSha256": "e5b4b720269af3c6e2ce06ef346021099346df3c3441a78c22d78d53856c2e53"
+        },
+        {
+          "frame": 2,
+          "bbox": [
+            23,
+            18,
+            108,
+            103
+          ],
+          "alphaSum": 146351.0,
+          "alphaCentroid": [
+            62.865986566542084,
+            58.91521069210323
+          ],
+          "rgbaSha256": "19c8b136091c4feb0ca6f6ed03bdb9efa4b5594b1a7dfd9841ed3f208cdc4c4b"
+        },
+        {
+          "frame": 3,
+          "bbox": [
+            27,
+            27,
+            100,
+            103
+          ],
+          "alphaSum": 9319.0,
+          "alphaCentroid": [
+            61.62592552849018,
+            65.21568837858139
+          ],
+          "rgbaSha256": "f55d9466a84d7abdd17a36b1a67c9b96de90747c0e1186f839ee779ea80beb3d"
+        }
+      ]
+    },
+    {
+      "key": "fx-frost-bind",
+      "source": "public/assets/sprites/expansion-v1/bc-fx-frost-bind-v1.png",
+      "sourceSha256": "38fa4840cf312165e6980b7fa75f6799f7273f0c2e1630fce54bb6ee2d17d386",
+      "gif": "fx-frost-bind.gif",
+      "frameCount": 4,
+      "durationsMs": [
+        80,
+        80,
+        80,
+        80
+      ],
+      "durationTotalMs": 320,
+      "repeat": "once (no loop extension)",
+      "decodedDistinctFrames": 4,
+      "frames": [
+        {
+          "frame": 0,
+          "bbox": [
+            42,
+            37,
+            87,
+            72
+          ],
+          "alphaSum": 90674.0,
+          "alphaCentroid": [
+            63.65862319959415,
+            59.15221562961819
+          ],
+          "rgbaSha256": "bb30c45e047df406f7331c57b5f3d19dba38a4fdd8328c42ef51670065eb61b7"
+        },
+        {
+          "frame": 1,
+          "bbox": [
+            30,
+            16,
+            97,
+            78
+          ],
+          "alphaSum": 366625.0,
+          "alphaCentroid": [
+            63.50838049778384,
+            53.141305148312306
+          ],
+          "rgbaSha256": "f656af0a01d31a11469f3ae19cb082b00ffe024d75061b6d19d6507100cdca96"
+        },
+        {
+          "frame": 2,
+          "bbox": [
+            33,
+            18,
+            95,
+            76
+          ],
+          "alphaSum": 138926.0,
+          "alphaCentroid": [
+            62.256589839194966,
+            52.213703698371795
+          ],
+          "rgbaSha256": "eb034246db9698e277ed1ae0503f5d07690dada9c2683339279563afc0f67632"
+        },
+        {
+          "frame": 3,
+          "bbox": [
+            38,
+            31,
+            90,
+            73
+          ],
+          "alphaSum": 9489.0,
+          "alphaCentroid": [
+            62.917167246285175,
+            57.943513541996
+          ],
+          "rgbaSha256": "ed41dd8ed414ab38a54d8c308d67ec544b0fd02081d0b1de120b3be16d1e2ad8"
+        }
+      ]
+    }
+  ]
+}
