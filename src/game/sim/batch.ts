@@ -41,6 +41,7 @@ for (const config of options.configs) {
         tactics: options.tactics,
         bossTrial: options.bossTrial,
         foundationRank: options.foundationRank,
+        legacy: options.legacy,
         heat: options.heat,
         aftermath: options.aftermath as SimulationTask["aftermath"],
       });
@@ -139,6 +140,7 @@ async function runSimulationInChild(task: SimulationTask): Promise<{ run: Simula
       ...(task.tactics?.length ? ["--tactics", task.tactics.join(",")] : []),
       "--boss-trial", String(task.bossTrial ?? 0),
       "--foundation-rank", String(task.foundationRank ?? 0),
+      ...(task.legacy ? ["--legacy", task.legacy] : []),
       ...(task.heat ? ["--heat", String(task.heat)] : []),
       ...(task.aftermath ? ["--aftermath", task.aftermath] : []),
       ...(task.trace ? ["trace"] : []),

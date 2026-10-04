@@ -24,6 +24,8 @@ export type CliOptions = {
   tactics: string[];
   bossTrial: number;
   foundationRank: number;
+  /** 持ち込む継承品（解放済みの職業ID）。 */
+  legacy?: string;
   heat: number;
   aftermath?: string;
 };
@@ -82,6 +84,7 @@ export function parseCli(args: string[]): CliOptions {
     tactics: (last(values, "--tactics") ?? "").split(",").filter(Boolean),
     bossTrial: parseStage(last(values, "--boss-trial") ?? "0", 3),
     foundationRank: parseStage(last(values, "--foundation-rank") ?? "0", 99),
+    legacy: last(values, "--legacy"),
     heat: Number(last(values, "--heat") ?? 0),
     aftermath: last(values, "--aftermath"),
   };

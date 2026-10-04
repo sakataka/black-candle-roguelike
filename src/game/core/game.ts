@@ -111,8 +111,17 @@ export function createInitialGame(
       addInventoryItem(player, grant.contentId, grant.quantity);
     }
   }
-  refreshPlayerStats(state);
-  return state;
+  // 踏破で解放した継承品。どの職業でも持ち込め、装備なら最初から選び直す。
+  const legacy = modifiers.legacy ? getGameConfig().legacies?.[modifiers.legacy] : undefined;
+  for (const grant of legacy?.items ?? []) {
+    addInventoryItem(player, grant.contentId, grant.quantity, { plus: grant.plus, seals: grant.seals });
+  }
+  if (!legacy) {
+    refreshPlayerStats(state);
+    return state;
+  }
+  state.messages = pushMessage(state, `継承品「${legacy.label}」を携えて出発した。`, "loot");
+  return reevaluateEquipment(state);
 }
 
 function createFloorState(

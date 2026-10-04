@@ -144,6 +144,10 @@ export const observerShellMarkup = `
             <div class="step-heading"><span class="step-no" aria-hidden="true">III</span><h3 id="step-tactics">作戦カード</h3><em id="tactic-count">0/2</em><small>探索者の判断の癖。3階・6階の節目でも組み替えられる。</small></div>
             <div id="tactic-list" class="tactic-list"></div>
           </section>
+          <section class="prepare-step" aria-labelledby="step-legacy">
+            <div class="step-heading"><span class="step-no" aria-hidden="true">IV</span><h3 id="step-legacy">継承品</h3><em id="legacy-count">0/7</em><small>職業ごとに第十層を初めて踏破すると解放される。どの職業でも一つ持ち込める。</small></div>
+            <div id="legacy-list" class="tactic-list"></div>
+          </section>
         </div>
         <aside class="prepare-side" aria-label="灰灯院">
           <section class="side-section">

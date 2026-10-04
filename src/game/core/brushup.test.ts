@@ -3,6 +3,7 @@ import { chooseAutoplayAction, resetAutoplayState } from "../ai/autoplay";
 import { getGameConfig, loadBunGameConfig, setGameConfig } from "../content/config";
 import { bossForFloor } from "../content/floors";
 import { applyElite } from "./bestiary";
+import { createCampaignState, normalizeCampaignState, recordCampaignResult } from "./autonomous";
 import type { Entity, GameState, InventoryEntry, Point } from "../types";
 import { applyAction, createInitialGame, observeGame } from "./game";
 import { addInventoryItem, pieceName, preferredEquipment } from "./inventory";
@@ -259,5 +260,20 @@ describe("階の変化", () => {
     const drop = next.entities.find((entity) => entity.kind === "item" && getGameConfig().equipment[entity.contentId]);
     expect(next.messages.some((message) => message.text.includes("剛力の灰かぶり鼠を倒した"))).toBe(true);
     expect(drop?.seals?.length).toBeGreaterThanOrEqual(1);
+  });
+});
+
+describe("継承品", () => {
+  test("踏破した職業の継承品が解放され、別の職業でも持ち込める", () => {
+    const base = createCampaignState();
+    const won = createInitialGame(20260504, "role.keyshadow-rogue");
+    won.status = "won";
+    const campaign = recordCampaignResult(base, won, null);
+    expect(campaign.legacies).toEqual(["role.keyshadow-rogue"]);
+    expect(normalizeCampaignState(JSON.parse(JSON.stringify({ ...campaign, legacies: undefined }))).legacies).toEqual(["role.keyshadow-rogue"]);
+    const priest = createInitialGame(20260505, "role.lantern-priest", { modifiers: { legacy: "role.keyshadow-rogue" } });
+    const dagger = getPlayer(priest).inventory?.find((entry) => entry.contentId === "item.shadowstitch-dagger");
+    expect(dagger?.plus).toBe(2);
+    expect(dagger?.seals).toContain("venom");
   });
 });

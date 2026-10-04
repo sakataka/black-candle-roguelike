@@ -807,6 +807,43 @@
     "charge": { "label": "突進", "description": "2〜4マス先の敵へ一直線に詰め寄り、重い一撃で怯ませる。", "cooldown": 8, "range": 4, "scale": 1.5, "turns": 1 },
     "shadowstep": { "label": "影渡り", "description": "見えている敵の陰へ渡り、不意打ちを入れる。", "cooldown": 8, "range": 5 }
   },
+  "legacies": {
+    "role.oathbound": {
+      "label": "誓剣の継承",
+      "description": "誓約の探索者の踏破で解放。会心の印を刻んだ銀祓いの刃+2。",
+      "items": [{ "contentId": "item.silver-banishing-saber", "quantity": 1, "plus": 2, "seals": ["keen"] }]
+    },
+    "role.ash-scout": {
+      "label": "灰弓の継承",
+      "description": "灰弓の斥候の踏破で解放。会心の印を刻んだ狩人の長弓+2。",
+      "items": [{ "contentId": "item.hunter-longbow", "quantity": 1, "plus": 2, "seals": ["keen"] }]
+    },
+    "role.lantern-priest": {
+      "label": "灯火の継承",
+      "description": "灯火の祈祷者の踏破で解放。傷と穢れを払う墓陽の護符を2つ。",
+      "items": [{ "contentId": "item.grave-sun-charm", "quantity": 2 }]
+    },
+    "role.relic-surveyor": {
+      "label": "遺物の継承",
+      "description": "遺物調査員の踏破で解放。探索の指輪と地脈図の巻物2枚。",
+      "items": [{ "contentId": "item.searcher-ring", "quantity": 1 }, { "contentId": "item.mapping-scroll", "quantity": 2 }]
+    },
+    "role.ash-apothecary": {
+      "label": "薬師の継承",
+      "description": "灰薬師の踏破で解放。紅蓮の大薬瓶と血苔の軟膏を2つずつ。",
+      "items": [{ "contentId": "item.greater-tonic", "quantity": 2 }, { "contentId": "item.bloodmoss-salve", "quantity": 2 }]
+    },
+    "role.iron-oath-vanguard": {
+      "label": "鉄誓の継承",
+      "description": "鉄誓の重戦士の踏破で解放。砕骨の印を刻んだ鉄割りの大斧+1。",
+      "items": [{ "contentId": "item.ironbreaker-greataxe", "quantity": 1, "plus": 1, "seals": ["crush"] }]
+    },
+    "role.keyshadow-rogue": {
+      "label": "影の継承",
+      "description": "鍵影の盗賊の踏破で解放。毒刃の印を刻んだ影縫いの短刀+2。",
+      "items": [{ "contentId": "item.shadowstitch-dagger", "quantity": 1, "plus": 2, "seals": ["venom"] }]
+    }
+  },
   "seals": {
     "drain": { "glyph": "吸", "label": "吸命", "description": "与えた傷の一部を命火に変える。", "slots": ["weapon"], "weight": 3, "drainPercent": 25 },
     "keen": { "glyph": "会", "label": "会心", "description": "時折、深く斬り込む。", "slots": ["weapon"], "weight": 4, "critPercent": 15, "critMultiplier": 1.8 },

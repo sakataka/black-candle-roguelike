@@ -160,6 +160,8 @@ export type RunRuleKey = "fovRadius" | "monsterCountBase" | "trapCountBase" | "r
 
 /** 遠征開始時に灰灯院と遠征団から持ち込む条件。 */
 export type RunModifiers = {
+  /** 持ち込んだ継承品（解放した職業のID）。 */
+  legacy?: string;
   foundationRank?: number;
   bossTrial?: number;
   flameDebt?: number;
@@ -271,7 +273,16 @@ export type ExpeditionRecord = {
   gravesRecovered?: number;
 };
 
+/** 職業で初めて踏破すると解放され、以後どの職業でも一つ持ち込める品。 */
+export type LegacyConfig = {
+  label: string;
+  description: string;
+  items: Array<{ contentId: string; quantity: number; plus?: number; seals?: string[] }>;
+};
+
 export type CampaignState = {
+  /** 第十層を踏破した職業。継承品の解放に使う。 */
+  legacies?: string[];
   journey?: { victories: number; trialsCleared: number; lifetimeShards: number };
   flameDebt?: number;
   version: 4;
@@ -734,6 +745,7 @@ export type GameConfig = {
   guaranteedEquipment: Array<FloorRule & { slot: EquipmentSlot; tier: "early" | "mid" | "late"; favoredChancePercent?: number }>;
   weaponTypes: Record<WeaponType, WeaponTypeConfig>;
   skills: Record<SkillId, SkillConfig>;
+  legacies: Record<string, LegacyConfig>;
   monsterBehaviors: Record<string, MonsterBehavior>;
   omens: { chanceByFloor: Array<{ maxFloor: number; percent: number }>; definitions: Record<string, OmenConfig> };
   elites: { chanceByFloor: Array<{ maxFloor: number; percent: number }>; affixes: Record<string, EliteAffixConfig> };

@@ -34,6 +34,7 @@ const result = await runSimulation({
   heat,
   bossTrial: Number(optionValue("--boss-trial") ?? 0),
   foundationRank: Number(optionValue("--foundation-rank") ?? 0),
+  legacy: optionValue("--legacy"),
   aftermath,
 });
 

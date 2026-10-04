@@ -429,6 +429,7 @@ export function shardForecast(state: GameState): { ifReturned: number; ifLost: n
 export function createCampaignState(): CampaignState {
   return {
     version: 4,
+    legacies: [],
     journey: { victories: 0, trialsCleared: 0, lifetimeShards: 0 },
     roleTruths: [],
     expeditions: [],
@@ -445,14 +446,18 @@ export function normalizeCampaignState(value: unknown): CampaignState {
   if (!value || typeof value !== "object") return createCampaignState();
   const version = (value as { version?: unknown }).version;
   if (version !== 1 && version !== 2 && version !== 3 && version !== 4) return createCampaignState();
-  const input = value as { roleTruths?: unknown; expeditions?: unknown; shards?: unknown; facilities?: unknown; roster?: unknown; fallen?: unknown; heat?: unknown; cycle?: unknown; lessons?: unknown; flameDebt?: unknown; journey?: unknown };
+  const input = value as { roleTruths?: unknown; expeditions?: unknown; shards?: unknown; facilities?: unknown; roster?: unknown; fallen?: unknown; heat?: unknown; cycle?: unknown; lessons?: unknown; flameDebt?: unknown; journey?: unknown; legacies?: unknown };
   const roleTruths = Array.isArray(input.roleTruths) ? input.roleTruths.filter(isRoleTruthId) : [];
   const expeditions = Array.isArray(input.expeditions)
     ? input.expeditions.flatMap((entry) => normalizeExpeditionRecord(entry)).slice(0, 100)
     : [];
   const facilities = (input.facilities && typeof input.facilities === "object" ? input.facilities : {}) as Partial<Record<FacilityId, unknown>>;
+  // 継承品は踏破した職業から解放する。記録だけ残っている旧データも遠征録から復元する。
+  const savedLegacies = Array.isArray(input.legacies) ? input.legacies.filter((id): id is string => typeof id === "string") : [];
+  const legacies = unique([...savedLegacies, ...expeditions.filter((entry) => entry.status === "won").map((entry) => entry.identity.roleId)]);
   return {
     version: 4,
+    legacies,
     journey: normalizeJourney(input.journey, expeditions),
     roleTruths: unique(roleTruths),
     expeditions,
@@ -554,6 +559,7 @@ export function recordCampaignResult(campaign: CampaignState, state: GameState, 
   };
   return {
     version: 4,
+    legacies: state.status === "won" ? unique([...(campaign.legacies ?? []), state.runIdentity.roleId]) : [...(campaign.legacies ?? [])],
     roleTruths: truthRecovered ? unique([...campaign.roleTruths, truthRecovered]) : [...campaign.roleTruths],
     expeditions: [record, ...campaign.expeditions].slice(0, 100),
     shards: campaign.shards + shards.total,

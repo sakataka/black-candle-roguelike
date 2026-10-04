@@ -25,6 +25,7 @@ export type SimulationRunInput = {
   heat?: number;
   bossTrial?: number;
   foundationRank?: number;
+  legacy?: string;
   aftermath?: EndingId;
 };
 
@@ -125,7 +126,7 @@ export async function runSimulation(input: SimulationRunInput): Promise<Simulati
   let state = createInitialGame(input.seed, input.roleId, {
     identity,
     tactics: input.tactics,
-    modifiers: { ...carried.modifiers, bossTrial: input.bossTrial ?? 0, foundationRank: input.foundationRank ?? 0, graves: [] },
+    modifiers: { ...carried.modifiers, bossTrial: input.bossTrial ?? 0, foundationRank: input.foundationRank ?? 0, graves: [], legacy: input.legacy },
     bonusEmbers: carried.bonusEmbers,
     bonusMaxEmbers: carried.bonusMaxEmbers,
   });
