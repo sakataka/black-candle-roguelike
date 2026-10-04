@@ -1,0 +1,55 @@
+// Bun Snapshot v1, https://bun.sh/docs/test/snapshots
+
+exports[`遠征の既存挙動を維持する: role.oathbound / none 1`] = `
+{
+  "fingerprint": "f3f67a7b4be1a945543cffcc7732e9183cf232b34b1aed47e5045d61a9bab4e3",
+  "floor": 10,
+  "status": "won",
+  "turn": 885,
+}
+`;
+
+exports[`遠征の既存挙動を維持する: role.ash-scout / none 1`] = `
+{
+  "fingerprint": "92f2d35ee48b9d3024a75ee8dbd876fe0eebda92b79be1cd9807d818f657b5df",
+  "floor": 6,
+  "status": "lost",
+  "turn": 504,
+}
+`;
+
+exports[`遠征の既存挙動を維持する: role.lantern-priest / none 1`] = `
+{
+  "fingerprint": "06cac2f4491795d96ec94e7c548a17b9fc647e5ae4301954f71815bedf58df51",
+  "floor": 6,
+  "status": "returned",
+  "turn": 524,
+}
+`;
+
+exports[`遠征の既存挙動を維持する: role.oathbound / lantern 1`] = `
+{
+  "fingerprint": "6debea54ee1e8c0ccbe995b1427328d597dcf616f0a91af74336050a511a1ba7",
+  "floor": 10,
+  "status": "won",
+  "turn": 857,
+}
+`;
+
+exports[`遠征の既存挙動を維持する: role.ash-scout / lantern 1`] = `
+{
+  "fingerprint": "486b7d22d526d0bbaf69b1606430e3e8f5031aad7f31d616bfe16d531737fe46",
+  "floor": 6,
+  "status": "returned",
+  "turn": 535,
+}
+`;
+
+exports[`遠征の既存挙動を維持する: role.lantern-priest / lantern 1`] = `
+{
+  "fingerprint": "b7fb2815a7ddf112170a833675cfc0be31c15e7e491c89006d8e5398ccf83fd1",
+  "floor": 6,
+  "status": "returned",
+  "turn": 537,
+}
+`;

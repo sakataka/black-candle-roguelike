@@ -1,8 +1,8 @@
+import { samePoint as samePosition } from "./spatial";
 import { realtimeConfig } from "../content/realtime";
 import type { AttackTelegraph, ExpeditionDynamics, GameAction, GameObservation, GameState, Point } from "../types";
 
-export const samePosition = (a: Point, b: Point) => a.x === b.x && a.y === b.y;
-export const gridDistance = (a: Point, b: Point) => Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y));
+export { samePoint as samePosition, chebyshev as gridDistance } from "./spatial";
 
 export function createDynamics(state: Pick<GameState, "modifiers">): ExpeditionDynamics {
   return { lights: [], borrowed: false, debt: state.modifiers.flameDebt ?? 0, loanShieldTurns: 0, lawPhase: 0, floorKills: 0, floorAwakened: 0, heat: [], trail: [], memories: [],

@@ -1,8 +1,9 @@
+import { createActionCounts } from "../core/actions";
 import { chooseAutoplayAction, getAutoplayDebugState, resetAutoplayState } from "../ai/autoplay";
 import { chooseWatcherAction, type WatcherPolicy } from "../ai/watcher";
 import { realtimeConfig } from "../content/realtime";
 import { isInstantIntervention } from "../core/realtime";
-import { getGameConfig, loadBunGameConfig } from "../content/config";
+import { loadBunGameConfig } from "../content/config";
 import { applyAction, createInitialGame, observeGame } from "../core/game";
 import { paceDelayMs, paceKindFor, type PaceKind } from "../core/pacing";
 import { analyzeRun, createRunLog, recordTurn } from "../core/runLog";
@@ -105,20 +106,7 @@ export type SimulationRunResult = {
 export async function runSimulation(input: SimulationRunInput): Promise<SimulationRunResult> {
   const startMs = performance.now();
   const profile = input.profile ? createSimulationProfile() : null;
-  const actions: SimulationRunResult["actions"] = {
-    move: 0,
-    wait: 0,
-    pickup: 0,
-    equip: 0,
-    dropItem: 0,
-    useItem: 0,
-    merchantService: 0,
-    descend: 0,
-    resolveDecision: 0,
-    invokeLantern: 0,
-    placeLantern: 0,
-    borrowFlame: 0,
-  };
+  const actions = createActionCounts();
 
   const configStartMs = performance.now();
   await loadBunGameConfig(input.configPath);

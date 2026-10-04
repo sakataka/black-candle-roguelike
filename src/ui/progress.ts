@@ -1,3 +1,4 @@
+import { escapeHtmlAttribute } from "./dom";
 import { campaignProgress, ROLE_TRUTH_IDS, roleTruthLabel, truthRoleLabel } from "../game/core/autonomous";
 import { getGameConfig } from "../game/content/config";
 import { journeyProgress } from "../game/core/journey";
@@ -6,8 +7,6 @@ import type { CampaignState, RoleTruthId } from "../game/types";
 
 const chapterNames = ["帰還路", "最初の真相", "三つの真相", "黒燭核", "結末"];
 const truthMarks = ["剣", "弓", "祈"];
-const escape = (value: string) => value.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!));
-
 function bossPortrait(): string {
   const asset = assetForContent("monster.black-candle-warden");
   if (!asset) return "";
@@ -31,9 +30,9 @@ export function candleRoadMarkup(campaign: CampaignState, fresh = new Set<string
       <ol class="candle-chapters">${progress.roadmap.map((chapter, i) => `<li class="${chapter.done ? "is-done" : chapter.id === next?.id ? "is-next" : ""}${fresh.has(chapter.id) ? " is-fresh" : ""}"${chapter.id === next?.id ? ' aria-current="step"' : ""}><span>${chapter.done ? "◆" : i + 1}</span><strong>${chapterNames[i]}</strong></li>`).join("")}</ol>
       <div class="truth-sockets" aria-label="持ち帰った三つの真相">${ROLE_TRUTH_IDS.map((truth, i) => {
         const found = campaign.roleTruths.includes(truth);
-        return `<span class="truth-socket${found ? " is-filled" : ""}${freshTruths.includes(truth) ? " is-fresh" : ""}" title="${escape(roleTruthLabel(truth))} · ${escape(truthRoleLabel(truth))} · ${found ? "回収済み" : "未回収"}"><i aria-hidden="true">${truthMarks[i]}</i><span>${escape(roleTruthLabel(truth))}<small>${found ? "◆ 回収済み" : `${truthMarks[i] === "祈" ? "祈祷者" : truthMarks[i] === "剣" ? "探索者" : "斥候"}で帰還`}</small></span></span>`;
+        return `<span class="truth-socket${found ? " is-filled" : ""}${freshTruths.includes(truth) ? " is-fresh" : ""}" title="${escapeHtmlAttribute(roleTruthLabel(truth))} · ${escapeHtmlAttribute(truthRoleLabel(truth))} · ${found ? "回収済み" : "未回収"}"><i aria-hidden="true">${truthMarks[i]}</i><span>${escapeHtmlAttribute(roleTruthLabel(truth))}<small>${found ? "◆ 回収済み" : `${truthMarks[i] === "祈" ? "祈祷者" : truthMarks[i] === "剣" ? "探索者" : "斥候"}で帰還`}</small></span></span>`;
       }).join("")}</div>
-      <p class="progress-next">${next ? `<span>次へ</span><strong>${escape(next.label)}</strong>` : `<span>第${campaign.cycle.number}周期</span><strong>結末を記録した</strong>`}</p>
+      <p class="progress-next">${next ? `<span>次へ</span><strong>${escapeHtmlAttribute(next.label)}</strong>` : `<span>第${campaign.cycle.number}周期</span><strong>結末を記録した</strong>`}</p>
     </div>
   </section>`;
 }
@@ -61,9 +60,9 @@ export function growthMarkup(campaign: CampaignState, before?: CampaignState | n
         const previousThreshold = i > 0 ? config!.trials[i - 1].victories : 0;
         const span = Math.max(1, trial.victories - previousThreshold);
         const current = Math.min(span, Math.max(0, journey.victories - previousThreshold));
-        return `<li class="${cleared ? "is-cleared" : active ? "is-next" : ""}${active && journey.trial ? " is-challenge" : ""}"><span class="trial-sigil" aria-hidden="true">${bossPortrait()}<b>${cleared ? "◆" : i + 1}</b></span><strong>${escape(trial.label)}</strong><div class="trial-pips" role="img" aria-label="${escape(trial.label)}: ${cleared ? "突破済み" : active && journey.trial ? "挑戦中" : `踏破 ${current}/${span}`}">${Array.from({ length: span }, (_, n) => `<i class="${cleared || n < current ? "is-filled" : ""}"></i>`).join("")}</div><small>${cleared ? "突破" : active && journey.trial ? "挑戦中" : `踏破 ${trial.victories}回で覚醒`}</small></li>`;
+        return `<li class="${cleared ? "is-cleared" : active ? "is-next" : ""}${active && journey.trial ? " is-challenge" : ""}"><span class="trial-sigil" aria-hidden="true">${bossPortrait()}<b>${cleared ? "◆" : i + 1}</b></span><strong>${escapeHtmlAttribute(trial.label)}</strong><div class="trial-pips" role="img" aria-label="${escapeHtmlAttribute(trial.label)}: ${cleared ? "突破済み" : active && journey.trial ? "挑戦中" : `踏破 ${current}/${span}`}">${Array.from({ length: span }, (_, n) => `<i class="${cleared || n < current ? "is-filled" : ""}"></i>`).join("")}</div><small>${cleared ? "突破" : active && journey.trial ? "挑戦中" : `踏破 ${trial.victories}回で覚醒`}</small></li>`;
       }).join("")}</ol>
-      <p class="growth-caption">${journey.trial ? "第6階・第10層の守り手が覚醒。第10層の踏破で突破。" : journey.nextTrial ? `あと <b>${journey.victoriesToTrial}</b> 回の踏破で${escape(journey.nextTrial.label)}` : "すべての覚醒を突破した"}</p>
+      <p class="growth-caption">${journey.trial ? "第6階・第10層の守り手が覚醒。第10層の踏破で突破。" : journey.nextTrial ? `あと <b>${journey.victoriesToTrial}</b> 回の踏破で${escapeHtmlAttribute(journey.nextTrial.label)}` : "すべての覚醒を突破した"}</p>
     </div>
   </section>`;
 }

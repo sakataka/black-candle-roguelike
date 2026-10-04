@@ -133,3 +133,7 @@ export function assetIdForContent(contentId: string): string {
 export function assetForContent(contentId: string): AssetDefinition | null {
   return Object.values(assetCatalog).find((asset) => asset.contentId === contentId) ?? null;
 }
+
+export function publicAssetPath(path: string): string {
+  return path.startsWith("/") ? `${import.meta.env.BASE_URL}${path.slice(1)}` : path;
+}

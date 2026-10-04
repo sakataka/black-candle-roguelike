@@ -1,8 +1,9 @@
+import { chebyshev as distance } from "../core/spatial";
 import { getGameConfig } from "../content/config";
 import { contentEntities } from "../content/entities";
 import { realtimeConfig } from "../content/realtime";
 import { visibleDangerTiles } from "../core/realtime";
-import type { GameAction, GameObservation, LanternRiteId, Point } from "../types";
+import type { GameAction, GameObservation, LanternRiteId } from "../types";
 
 export type WatcherPolicy = "none" | "lantern";
 
@@ -83,8 +84,4 @@ function isWatcherGuide(observation: GameObservation): boolean {
 
 function isDazedVisible(entity: GameObservation["visibleEntities"][number]): boolean {
   return entity.conditions?.some((condition) => condition.kind === "dazed") ?? false;
-}
-
-function distance(a: Point, b: Point): number {
-  return Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y));
 }

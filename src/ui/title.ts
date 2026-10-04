@@ -1,3 +1,4 @@
+import { escapeHtmlAttribute } from "./dom";
 import "./title.css";
 
 export type TitleLedger = {
@@ -106,7 +107,7 @@ export function showTitle(ledger: Promise<TitleLedger>, ready: Promise<unknown>,
     savedLedger = value;
     const toggle = root.querySelector<HTMLButtonElement>("[data-saves-toggle]")!;
     toggle.hidden = false;
-    toggle.innerHTML = `<span>${escapeHtml(value.slotName)}</span>記録を選ぶ・新しく始める`;
+    toggle.innerHTML = `<span>${escapeHtmlAttribute(value.slotName)}</span>記録を選ぶ・新しく始める`;
   }, () => undefined);
   let savedLedger: TitleLedger | null = null;
   const savesPanel = root.querySelector<HTMLElement>("[data-saves]")!;
@@ -242,13 +243,13 @@ function savesMarkup(ledger: TitleLedger, confirmingDelete: string | null): stri
       : `<span>遠征 <b>${slot.expeditions}</b></span><span>最深 <b>${slot.highestFloor}F</b></span><span>灯片 <b>${slot.shards}</b></span><span>遠征団 <b>${slot.roster}</b>人</span>`;
     const confirming = confirmingDelete === slot.id;
     return `<li class="title-save${slot.active ? " is-active" : ""}">
-      <div class="title-save-head"><strong>${escapeHtml(slot.name)}</strong><em>第${toKanji(slot.cycle)}周期</em>${slot.active ? '<span class="title-save-badge">使用中</span>' : ""}<small>${playedLabel}</small></div>
-      <div class="title-save-road" aria-label="黒燭への道 ${slot.roadmapDone}/${slot.roadmapTotal}"><span class="title-save-steps">${Array.from({ length: slot.roadmapTotal }, (_, index) => `<i class="${index < slot.roadmapDone ? "is-done" : ""}"></i>`).join("")}</span><span>${slot.nextGoal ? `次: ${escapeHtml(slot.nextGoal)}` : "結末を迎えた"}</span></div>
+      <div class="title-save-head"><strong>${escapeHtmlAttribute(slot.name)}</strong><em>第${toKanji(slot.cycle)}周期</em>${slot.active ? '<span class="title-save-badge">使用中</span>' : ""}<small>${playedLabel}</small></div>
+      <div class="title-save-road" aria-label="黒燭への道 ${slot.roadmapDone}/${slot.roadmapTotal}"><span class="title-save-steps">${Array.from({ length: slot.roadmapTotal }, (_, index) => `<i class="${index < slot.roadmapDone ? "is-done" : ""}"></i>`).join("")}</span><span>${slot.nextGoal ? `次: ${escapeHtmlAttribute(slot.nextGoal)}` : "結末を迎えた"}</span></div>
       <div class="title-save-stats">${stats}</div>
       <div class="title-save-actions">
         ${slot.active
-          ? `<button type="button" class="title-save-main" data-act="continue" data-slot="${escapeHtml(slot.id)}">この記録で続ける</button>`
-          : `<button type="button" class="title-save-main" data-act="select" data-slot="${escapeHtml(slot.id)}">この記録に切り替える</button><button type="button" class="title-save-delete${confirming ? " is-confirming" : ""}" data-act="delete" data-slot="${escapeHtml(slot.id)}">${confirming ? "本当に消す" : "消す"}</button>`}
+          ? `<button type="button" class="title-save-main" data-act="continue" data-slot="${escapeHtmlAttribute(slot.id)}">この記録で続ける</button>`
+          : `<button type="button" class="title-save-main" data-act="select" data-slot="${escapeHtmlAttribute(slot.id)}">この記録に切り替える</button><button type="button" class="title-save-delete${confirming ? " is-confirming" : ""}" data-act="delete" data-slot="${escapeHtmlAttribute(slot.id)}">${confirming ? "本当に消す" : "消す"}</button>`}
       </div>
     </li>`;
   }).join("");
@@ -258,10 +259,6 @@ function savesMarkup(ledger: TitleLedger, confirmingDelete: string | null): stri
     <ol class="title-save-list">${items}</ol>
     <button type="button" class="title-save-new" data-act="create"${full ? " disabled" : ""}>${full ? `記録は${ledger.maxSlots}つまで。不要な記録を消すと新しく始められる` : "＋ 新しい記録を始める（第一周期・灯片0から）"}</button>
   `;
-}
-
-function escapeHtml(value: string): string {
-  return value.replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char] ?? char);
 }
 
 function toKanji(value: number): string {

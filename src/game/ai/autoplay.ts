@@ -1,23 +1,17 @@
+import { isKnownWalkable, isVisibleBlockerAt, observationIndex, walkKnownPaths, type PathOptions } from "./navigation";
+import { DIRECTION_DELTAS, chebyshev as distance, isWalkable, linePoints, pointKey, samePoint } from "../core/spatial";
 import { getGameConfig, runRules } from "../content/config";
 import { contentEntities } from "../content/entities";
 import { realtimeConfig } from "../content/realtime";
 import { visibleDangerTiles } from "../core/realtime";
 import type { AutoplayPolicyValues, Direction, GameAction, GameObservation, Point, PolicyModifier } from "../types";
 
-const cardinalDirections: Array<{ action: GameAction; delta: Point }> = [
-  { action: { type: "move", direction: "north" }, delta: { x: 0, y: -1 } },
-  { action: { type: "move", direction: "south" }, delta: { x: 0, y: 1 } },
-  { action: { type: "move", direction: "west" }, delta: { x: -1, y: 0 } },
-  { action: { type: "move", direction: "east" }, delta: { x: 1, y: 0 } },
-];
-// 斜めも1手。同じ評価なら縦横を先に選ぶよう、縦横を前に並べる。
-const directions: Array<{ action: GameAction; delta: Point }> = [
-  ...cardinalDirections,
-  { action: { type: "move", direction: "northwest" }, delta: { x: -1, y: -1 } },
-  { action: { type: "move", direction: "northeast" }, delta: { x: 1, y: -1 } },
-  { action: { type: "move", direction: "southwest" }, delta: { x: -1, y: 1 } },
-  { action: { type: "move", direction: "southeast" }, delta: { x: 1, y: 1 } },
-];
+// 斜めも1手。同じ評価なら縦横を先に選ぶ。
+const directions = Object.entries(DIRECTION_DELTAS).map(([direction, delta]) => ({
+  action: { type: "move", direction: direction as Direction } as GameAction,
+  delta,
+}));
+const cardinalDirections = directions.slice(0, 4);
 
 const visitCounts = new Map<string, number>();
 const recentPositions = new Map<string, string[]>();
@@ -41,25 +35,12 @@ export type AutoplayDebugState = {
   reachableFrontierCount: number;
 };
 
-type PathOptions = {
-  avoidTraps?: boolean;
-  allowHostileBlockers?: boolean;
-};
-
 type KnownSurvivalPickupCandidate = {
   entity: GameObservation["knownEntities"][number];
   options: PathOptions;
   score: number;
 };
 
-type ObservationIndex = {
-  knownTiles: Map<string, GameObservation["knownTiles"][number]>;
-  knownTraps: Set<string>;
-  visibleBlockers: Set<string>;
-  visibleNonHostileBlockers: Set<string>;
-};
-
-const observationIndexes = new WeakMap<GameObservation, ObservationIndex>();
 const tacticalIntents = new WeakMap<GameObservation, "dodge" | "lure" | "cover" | "opening">();
 const terrainTurns = new Map<string, number>();
 
@@ -462,28 +443,10 @@ function stepTowardRangedThreatCovered(observation: GameObservation, target: Poi
 
 function hasKnownLineOfSight(observation: GameObservation, from: Point, to: Point): boolean {
   const index = observationIndex(observation);
-  let x0 = from.x;
-  let y0 = from.y;
-  const dx = Math.abs(to.x - x0);
-  const dy = Math.abs(to.y - y0);
-  const sx = x0 < to.x ? 1 : -1;
-  const sy = y0 < to.y ? 1 : -1;
-  let error = dx - dy;
-  while (!(x0 === to.x && y0 === to.y)) {
-    const doubleError = error * 2;
-    if (doubleError > -dy) {
-      error -= dy;
-      x0 += sx;
-    }
-    if (doubleError < dx) {
-      error += dx;
-      y0 += sy;
-    }
-    if (x0 === to.x && y0 === to.y) break;
-    const tile = index.knownTiles.get(`${x0},${y0}`);
-    if (!tile || tile.kind === "wall" || tile.kind === "cover") return false;
-  }
-  return true;
+  return linePoints(from, to).every((point) => {
+    const tile = index.knownTiles.get(pointKey(point));
+    return tile && tile.kind !== "wall" && tile.kind !== "cover";
+  });
 }
 
 function recordPlayerPosition(observation: GameObservation): void {
@@ -619,74 +582,17 @@ function isRangedThreat(contentId: string): boolean {
 }
 
 function stepTowardKnownReachable(observation: GameObservation, target: Point, options: PathOptions = {}): GameAction | null {
-  const start = observation.player.pos;
-  const queue: Point[] = [start];
-  const cameFrom = new Map<string, Point | null>([[pointKey(start), null]]);
-  const targetKey = pointKey(target);
-
-  let cursor = 0;
-  while (cursor < queue.length) {
-    const current = queue[cursor];
-    cursor += 1;
-    if (pointKey(current) === targetKey) {
-      break;
-    }
-    for (const { delta } of directions) {
-      const next = { x: current.x + delta.x, y: current.y + delta.y };
-      const key = pointKey(next);
-      if (cameFrom.has(key) || !isKnownWalkable(observation, next, options)) {
-        continue;
-      }
-      cameFrom.set(key, current);
-      queue.push(next);
-    }
+  for (const path of walkKnownPaths(observation, observation.player.pos, options)) {
+    if (samePoint(path.point, target)) return actionFromStep(observation.player.pos, path.firstStep);
   }
-
-  if (!cameFrom.has(targetKey)) {
-    return null;
-  }
-
-  let step = target;
-  while (cameFrom.get(pointKey(step)) && pointKey(cameFrom.get(pointKey(step)) as Point) !== pointKey(start)) {
-    step = cameFrom.get(pointKey(step)) as Point;
-  }
-  return actionFromStep(start, step);
+  return null;
 }
 
 function stepTowardAdjacentTarget(observation: GameObservation, target: Point): GameAction | null {
-  const start = observation.player.pos;
-  const queue: Point[] = [start];
-  const cameFrom = new Map<string, Point | null>([[pointKey(start), null]]);
-  const candidates: Point[] = [];
-
-  let cursor = 0;
-  while (cursor < queue.length) {
-    const current = queue[cursor];
-    cursor += 1;
-    if (distance(current, target) <= 1 && distance(current, start) > 0) {
-      candidates.push(current);
-    }
-    for (const { delta } of directions) {
-      const next = { x: current.x + delta.x, y: current.y + delta.y };
-      const key = pointKey(next);
-      if (cameFrom.has(key) || !isKnownWalkable(observation, next)) {
-        continue;
-      }
-      cameFrom.set(key, current);
-      queue.push(next);
-    }
-  }
-
-  const targetNeighbor = nearest(candidates, start);
-  if (!targetNeighbor) {
-    return null;
-  }
-
-  let step = targetNeighbor;
-  while (cameFrom.get(pointKey(step)) && pointKey(cameFrom.get(pointKey(step)) as Point) !== pointKey(start)) {
-    step = cameFrom.get(pointKey(step)) as Point;
-  }
-  return actionFromStep(start, step);
+  const candidates = [...walkKnownPaths(observation)]
+    .filter(({ point, distance: pathDistance }) => distance(point, target) <= 1 && pathDistance > 0);
+  const neighbor = nearest(candidates.map((path) => ({ ...path, pos: path.point })), observation.player.pos);
+  return neighbor ? actionFromStep(observation.player.pos, neighbor.firstStep) : null;
 }
 
 function actionFromStep(from: Point, to: Point): GameAction | null {
@@ -967,32 +873,9 @@ function stepTowardKnownReachableWeighted(observation: GameObservation, target: 
 }
 
 function pathDistanceFrom(observation: GameObservation, from: Point, target: Point, options: PathOptions = {}): number | null {
-  if (samePoint(from, target)) {
-    return 0;
+  for (const path of walkKnownPaths(observation, from, options)) {
+    if (samePoint(path.point, target)) return path.distance;
   }
-
-  const queue: Array<Point & { distance: number }> = [{ ...from, distance: 0 }];
-  const seen = new Set<string>([pointKey(from)]);
-  const targetKey = pointKey(target);
-
-  let cursor = 0;
-  while (cursor < queue.length) {
-    const current = queue[cursor];
-    cursor += 1;
-    for (const { delta } of directions) {
-      const next = { x: current.x + delta.x, y: current.y + delta.y };
-      const key = pointKey(next);
-      if (seen.has(key) || !isKnownWalkable(observation, next, options)) {
-        continue;
-      }
-      if (key === targetKey) {
-        return current.distance + 1;
-      }
-      seen.add(key);
-      queue.push({ ...next, distance: current.distance + 1 });
-    }
-  }
-
   return null;
 }
 
@@ -1000,7 +883,7 @@ function stepOntoAdjacentKnownTrap(observation: GameObservation): GameAction | n
   for (const { action, delta } of directions) {
     const point = { x: observation.player.pos.x + delta.x, y: observation.player.pos.y + delta.y };
     const tile = observation.knownTiles.find((candidate) => candidate.x === point.x && candidate.y === point.y);
-    if (!tile || !isWalkableTileKind(tile.kind)) {
+    if (!tile || !isWalkable(tile.kind)) {
       continue;
     }
     const trap = observation.knownEntities.find((entity) => entity.kind === "trap" && entity.pos.x === point.x && entity.pos.y === point.y);
@@ -1013,29 +896,11 @@ function stepOntoAdjacentKnownTrap(observation: GameObservation): GameAction | n
 
 function stepTowardReachableFrontier(observation: GameObservation, options: PathOptions = {}): GameAction | null {
   const start = observation.player.pos;
-  const queue: Array<Point & { pathDistance: number }> = [{ ...start, pathDistance: 0 }];
-  const cameFrom = new Map<string, Point | null>([[pointKey(start), null]]);
   const reachableFrontiers: Array<{ target: Point; firstStep: Point; action: GameAction; pathDistance: number }> = [];
-
-  let cursor = 0;
-  while (cursor < queue.length) {
-    const current = queue[cursor];
-    cursor += 1;
-    if (distance(current, start) > 0 && hasUnseenNeighbor(observation, current) && !isStaleFrontier(observation, current)) {
-      const firstStep = firstStepFromPath(cameFrom, start, current);
-      const action = actionFromStep(start, firstStep);
-      if (action) {
-        reachableFrontiers.push({ target: current, firstStep, action, pathDistance: current.pathDistance });
-      }
-    }
-    for (const { delta } of directions) {
-      const next = { x: current.x + delta.x, y: current.y + delta.y };
-      const key = pointKey(next);
-      if (cameFrom.has(key) || !isKnownWalkable(observation, next, options)) {
-        continue;
-      }
-      cameFrom.set(key, current);
-      queue.push({ ...next, pathDistance: current.pathDistance + 1 });
+  for (const path of walkKnownPaths(observation, start, options)) {
+    if (path.distance > 0 && hasUnseenNeighbor(observation, path.point) && !isStaleFrontier(observation, path.point)) {
+      const action = actionFromStep(start, path.firstStep);
+      if (action) reachableFrontiers.push({ target: path.point, firstStep: path.firstStep, action, pathDistance: path.distance });
     }
   }
 
@@ -1054,71 +919,19 @@ function stepTowardReachableFrontier(observation: GameObservation, options: Path
 }
 
 function stepTowardNearestUnseen(observation: GameObservation, options: PathOptions = {}): GameAction | null {
-  const start = observation.player.pos;
-  const queue: Point[] = [start];
-  const cameFrom = new Map<string, Point | null>([[pointKey(start), null]]);
-  let target: Point | null = null;
-
-  let cursor = 0;
-  while (cursor < queue.length) {
-    const current = queue[cursor];
-    cursor += 1;
-    if (distance(current, start) > 0 && hasUnseenNeighbor(observation, current) && !isStaleFrontier(observation, current)) {
-      target = current;
-      break;
-    }
-    for (const { delta } of directions) {
-      const next = { x: current.x + delta.x, y: current.y + delta.y };
-      const key = pointKey(next);
-      if (cameFrom.has(key) || !isKnownWalkable(observation, next, options)) {
-        continue;
-      }
-      cameFrom.set(key, current);
-      queue.push(next);
+  for (const path of walkKnownPaths(observation, observation.player.pos, options)) {
+    if (path.distance > 0 && hasUnseenNeighbor(observation, path.point) && !isStaleFrontier(observation, path.point)) {
+      return actionFromStep(observation.player.pos, path.firstStep);
     }
   }
-
-  if (!target) {
-    return null;
-  }
-
-  let step = target;
-  while (cameFrom.get(pointKey(step)) && pointKey(cameFrom.get(pointKey(step)) as Point) !== pointKey(start)) {
-    step = cameFrom.get(pointKey(step)) as Point;
-  }
-  return actionFromStep(start, step);
+  return null;
 }
 
 function stepTowardDistantKnownArea(observation: GameObservation, options: PathOptions = {}): GameAction | null {
-  const start = observation.player.pos;
-  const queue: Point[] = [start];
-  const cameFrom = new Map<string, Point | null>([[pointKey(start), null]]);
-  const candidates: Point[] = [];
-
-  let cursor = 0;
-  while (cursor < queue.length) {
-    const current = queue[cursor];
-    cursor += 1;
-    if (distance(current, start) >= 6) {
-      candidates.push(current);
-    }
-    for (const { delta } of directions) {
-      const next = { x: current.x + delta.x, y: current.y + delta.y };
-      const key = pointKey(next);
-      if (cameFrom.has(key) || !isKnownWalkable(observation, next, options)) {
-        continue;
-      }
-      cameFrom.set(key, current);
-      queue.push(next);
-    }
-  }
-
-  const target = candidates.sort((a, b) => distantAreaScore(observation, a) - distantAreaScore(observation, b))[0];
-  if (!target) {
-    return null;
-  }
-  const firstStep = firstStepFromPath(cameFrom, start, target);
-  return actionFromStep(start, firstStep);
+  const paths = [...walkKnownPaths(observation, observation.player.pos, options)]
+    .filter(({ point }) => distance(point, observation.player.pos) >= 6)
+    .sort((a, b) => distantAreaScore(observation, a.point) - distantAreaScore(observation, b.point));
+  return paths[0] ? actionFromStep(observation.player.pos, paths[0].firstStep) : null;
 }
 
 function frontierScore(observation: GameObservation, point: Point): number {
@@ -1209,29 +1022,6 @@ function pointOf(item: { pos?: Point; x?: number; y?: number }): Point {
   return item.pos ?? { x: item.x ?? 0, y: item.y ?? 0 };
 }
 
-function isKnownWalkable(observation: GameObservation, pos: Point, options: PathOptions = {}): boolean {
-  const index = observationIndex(observation);
-  const tile = index.knownTiles.get(pointKey(pos));
-  if (!tile || !isWalkableTileKind(tile.kind)) {
-    return false;
-  }
-  return !isVisibleBlockerAt(observation, pos, options) && (options.avoidTraps === false || !isKnownTrapAt(observation, pos));
-}
-
-function isWalkableTileKind(kind: GameObservation["knownTiles"][number]["kind"]): boolean {
-  return kind === "floor" || kind === "cover" || kind === "stairsDown";
-}
-
-function isVisibleBlockerAt(observation: GameObservation, pos: Point, options: PathOptions = {}): boolean {
-  const index = observationIndex(observation);
-  const key = pointKey(pos);
-  return options.allowHostileBlockers ? index.visibleNonHostileBlockers.has(key) : index.visibleBlockers.has(key);
-}
-
-function isKnownTrapAt(observation: GameObservation, pos: Point): boolean {
-  return observationIndex(observation).knownTraps.has(pointKey(pos));
-}
-
 function isSurvivalPickup(contentId: string): boolean {
   const consumable = getGameConfig().consumables[contentId];
   return !!consumable && (!!consumable.heal || !!consumable.cureConditions || !!consumable.guardedTurns || !!consumable.pushVisibleMonsters);
@@ -1293,52 +1083,8 @@ function hasUnseenNeighbor(observation: GameObservation, pos: Point): boolean {
 }
 
 /** 8方向移動での歩数。 */
-function distance(a: Point, b: Point): number {
-  return Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y));
-}
-
 function localMoveScore(observation: GameObservation, point: Point): number {
   return visitScore(observation, point) * VISIT_PENALTY + recentVisitScore(observation, point) * RECENT_POSITION_PENALTY + distance(point, observation.player.pos);
-}
-
-function observationIndex(observation: GameObservation): ObservationIndex {
-  const existing = observationIndexes.get(observation);
-  if (existing) {
-    return existing;
-  }
-  const knownTiles = new Map<string, GameObservation["knownTiles"][number]>();
-  for (const tile of observation.knownTiles) {
-    knownTiles.set(pointKey(tile), tile);
-  }
-  const knownTraps = new Set<string>();
-  for (const entity of observation.knownEntities) {
-    if (entity.kind === "trap") {
-      knownTraps.add(pointKey(entity.pos));
-    }
-  }
-  const visibleBlockers = new Set<string>();
-  const visibleNonHostileBlockers = new Set<string>();
-  for (const entity of observation.visibleEntities) {
-    if (!entity.blocksMovement) {
-      continue;
-    }
-    const key = pointKey(entity.pos);
-    visibleBlockers.add(key);
-    if (!(entity.kind === "monster" && entity.hostile)) {
-      visibleNonHostileBlockers.add(key);
-    }
-  }
-  const index = { knownTiles, knownTraps, visibleBlockers, visibleNonHostileBlockers };
-  observationIndexes.set(observation, index);
-  return index;
-}
-
-function pointKey(point: Point): string {
-  return `${point.x},${point.y}`;
-}
-
-function samePoint(a: Point, b: Point): boolean {
-  return a.x === b.x && a.y === b.y;
 }
 
 function runScope(observation: GameObservation): string {

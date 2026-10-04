@@ -1,11 +1,16 @@
+import { clearCondition, clearConditions, hasCondition, upsertCondition } from "./conditions";
+import { equipmentSlot, weaponBonus, defenseBonus, shouldAutoEquip, equippedSlotScore, canReceiveInventory, addInventoryItem, equipmentScore, equippedWeaponSpecialDamage } from "./inventory";
+import { biomeThemeForFloor, biomeThemeName, bossForFloor, eventPoolForFloor, guaranteedItemsForFloor, itemPoolForFloor, monsterPoolForFloor, trapPoolForFloor } from "../content/floors";
+export { biomeThemeName } from "../content/floors";
+import { bossPointNearStairs, buildFloorPlan, chooseCoverPoints, createPointTaker, generateFloorMap, rngForFloor, setTileKind } from "./generation";
+import { buildExplorationStatus } from "./exploration";
+import { cloneModifiers, cloneState, cloneStory, getPlayer } from "./state";
+import { DIRECTION_DELTAS, blocksSight, chebyshev, inBounds, isWalkable, linePoints, manhattan, samePoint, tileAt } from "./spatial";
 import { bossTrialDefinition, foundationBonus } from "./journey";
 import * as ROT from "rot-js";
 import { floorRuleMatches, getGameConfig, runRules } from "../content/config";
 import { contentEntities, getContentName } from "../content/entities";
 import type {
-  ConditionKind,
-  BiomeTheme,
-  Direction,
   Entity,
   GameAction,
   GameConfig,
@@ -22,13 +27,11 @@ import type {
   RunModifiers,
   RoleTruthId,
   Stats,
-  Tile,
-  TileKind,
   TrapKind,
 } from "../types";
 import { Rng } from "./rng";
 import { realtimeConfig } from "../content/realtime";
-import { armDecision, createDynamics, gridDistance, recordLastMoment, repayFlame, telegraphTiles } from "./realtime";
+import { armDecision, createDynamics, recordLastMoment, repayFlame, telegraphTiles } from "./realtime";
 import {
   createCheckpointDecision,
   createContextDecision,
@@ -43,25 +46,6 @@ import {
   missionShards,
   roleTruthFor,
 } from "./autonomous";
-
-const DIRS: Record<Direction, Point> = {
-  north: { x: 0, y: -1 },
-  south: { x: 0, y: 1 },
-  west: { x: -1, y: 0 },
-  east: { x: 1, y: 0 },
-  northwest: { x: -1, y: -1 },
-  northeast: { x: 1, y: -1 },
-  southwest: { x: -1, y: 1 },
-  southeast: { x: 1, y: 1 },
-};
-
-type FloorPlan = {
-  guaranteedLootPoints: Point[];
-  lootPoints: Point[];
-  eventPoints: Point[];
-  trapPoints: Point[];
-  monsterPoints: Point[];
-};
 
 type RunCarryState = Pick<GameState, "runTurn" | "runIdentity" | "directive" | "revelationsRemaining" | "lantern" | "tactics" | "modifiers" | "knownRoleTruths" | "story" | "expedition">;
 
@@ -128,14 +112,6 @@ export function createInitialGame(
   return state;
 }
 
-function biomeThemeForFloor(floor: number): BiomeTheme {
-  return [...getGameConfig().biomes].sort((a, b) => b.minFloor - a.minFloor).find((entry) => floor >= entry.minFloor)?.theme ?? "blackstone";
-}
-
-export function biomeThemeName(theme: BiomeTheme): string {
-  return getGameConfig().biomes.find((entry) => entry.theme === theme)?.nameJa ?? theme;
-}
-
 function createFloorState(
   seed: number,
   floor: number,
@@ -160,64 +136,7 @@ function createFloorState(
     story: createRunStoryState(defaultMissionForTemperament(fallbackIdentity.temperament)),
   };
   const rules = runRules(run.modifiers);
-  const biome = biomeThemeForFloor(floor);
-  const tiles = Array.from({ length: rules.mapWidth * rules.mapHeight }, (): Tile => ({
-    kind: "wall",
-    explored: false,
-    visible: false,
-  }));
-
-  ROT.RNG.setSeed(seed + floor * 4099);
-  const biomeConfig = config.biomes.find((entry) => entry.theme === biome);
-  const dungeon = new ROT.Map.Uniform(rules.mapWidth, rules.mapHeight, {
-    roomWidth: biomeConfig?.roomWidth ?? [5, 12],
-    roomHeight: biomeConfig?.roomHeight ?? [4, 7],
-    roomDugPercentage: biomeConfig?.density ?? 0.28,
-    timeLimit: 1000,
-  });
-  const generatedDungeon = dungeon.create((x, y, value) => {
-    if (value === 0) {
-      setTileKind(tiles, rules.mapWidth, x, y, "floor");
-    }
-  });
-  if (!generatedDungeon) {
-    const digger = new ROT.Map.Digger(rules.mapWidth, rules.mapHeight, {
-      roomWidth: [5, 12],
-      roomHeight: [4, 7],
-      corridorLength: [3, 9],
-      dugPercentage: 0.34,
-    });
-    digger.create((x, y, value) => {
-      if (value === 0) {
-        setTileKind(tiles, rules.mapWidth, x, y, "floor");
-      }
-    });
-  }
-
-  const walkable = walkablePoints(tiles, rules.mapWidth);
-  const roomCenters = generatedDungeon ? dungeon.getRooms().map((room) => {
-    const [x, y] = room.getCenter();
-    return { x: Math.round(x), y: Math.round(y) };
-  }).filter((point) => walkable.some((walkablePoint) => samePoint(walkablePoint, point))) : [];
-  const start = nearestPoint(roomCenters.length > 0 ? roomCenters : walkable, { x: Math.floor(rules.mapWidth / 2), y: Math.floor(rules.mapHeight / 2) }) ?? { x: 3, y: 3 };
-  const connectedWalkable = connectedWalkablePoints(tiles, rules.mapWidth, rules.mapHeight, start);
-  const floorWalkable = connectedWalkable.length > 0 ? connectedWalkable : walkable;
-  const stairs =
-    farthestPoint(roomCenters.filter((point) => floorWalkable.some((walkablePoint) => samePoint(walkablePoint, point)) && manhattan(point, start) >= Math.floor((rules.mapWidth + rules.mapHeight) * 0.28)), start) ??
-    stairPoint(floorWalkable, start, rngForFloor(seed, floor)) ??
-    farthestPoint(floorWalkable, start) ??
-    { x: rules.mapWidth - 4, y: rules.mapHeight - 4 };
-  setTileKind(tiles, rules.mapWidth, stairs.x, stairs.y, "stairsDown");
-
-  // 守り手の階は出口を決戦の間にする。壁を開くだけなので通路の接続は失わない。
-  if (bossForFloor(floor)) {
-    for (let y = Math.max(1, stairs.y - 3); y <= Math.min(rules.mapHeight - 2, stairs.y + 3); y += 1) {
-      for (let x = Math.max(1, stairs.x - 4); x <= Math.min(rules.mapWidth - 2, stairs.x + 4); x += 1) {
-        if (x !== stairs.x || y !== stairs.y) setTileKind(tiles, rules.mapWidth, x, y, "floor");
-      }
-    }
-    floorWalkable.splice(0, floorWalkable.length, ...connectedWalkablePoints(tiles, rules.mapWidth, rules.mapHeight, start));
-  }
+  const { biome, tiles, roomCenters, start, stairs, floorWalkable } = generateFloorMap(seed, floor, rules);
 
   const roles = playableRoles();
   const role = roles.find((candidate) => candidate.id === roleId) ?? roles[0];
@@ -308,12 +227,8 @@ function createFloorState(
     pendingDecision: null,
     knownRoleTruths: [...run.knownRoleTruths],
     story: {
-      ...run.story,
+      ...cloneStory(run.story),
       maxFloorReached: Math.max(run.story.maxFloorReached, floor),
-      discoveries: [...run.story.discoveries],
-      decisions: run.story.decisions.map((entry) => ({ ...entry })),
-      contextActs: [...run.story.contextActs],
-      crisisKinds: [...run.story.crisisKinds],
     },
     messages: [
       ...carriedMessages,
@@ -386,7 +301,7 @@ export function applyAction(state: GameState, action: GameAction): GameState {
 
   switch (action.type) {
     case "move":
-      next = moveActor(next, player.id, DIRS[action.direction]);
+      next = moveActor(next, player.id, DIRECTION_DELTAS[action.direction]);
       break;
     case "wait":
       next.messages = pushMessage(next, "息を整えた。", "explore");
@@ -546,17 +461,6 @@ function applyDecisionEffect(state: GameState, effect: NonNullable<NonNullable<G
   }
   if (applied.length > 0) state.messages = pushMessage(state, `灯守の介入: ${applied.join("、")}。`, "explore");
   return applied.join(" / ") || undefined;
-}
-
-function cloneModifiers(modifiers: RunModifiers): RunModifiers {
-  return {
-    ...modifiers,
-    scars: [...modifiers.scars],
-    graves: modifiers.graves?.map((grave) => ({ ...grave })),
-    lessons: modifiers.lessons ? [...modifiers.lessons] : undefined,
-    ruleDeltas: modifiers.ruleDeltas ? { ...modifiers.ruleDeltas } : undefined,
-    bossOverride: modifiers.bossOverride ? { ...modifiers.bossOverride } : undefined,
-  };
 }
 
 /** 定義済みの作戦だけを、枠数の範囲で重複なく残す。 */
@@ -807,11 +711,7 @@ function carryRun(state: GameState): RunCarryState {
     modifiers: cloneModifiers(state.modifiers),
     knownRoleTruths: [...state.knownRoleTruths],
     story: {
-      ...state.story,
-      discoveries: [...state.story.discoveries],
-      decisions: state.story.decisions.map((entry) => ({ ...entry })),
-      contextActs: [...state.story.contextActs],
-      crisisKinds: [...state.story.crisisKinds],
+      ...cloneStory(state.story),
       recoveredGraves: [...(state.story.recoveredGraves ?? [])],
     },
   };
@@ -885,152 +785,6 @@ export function observeGame(state: GameState): GameObservation {
   };
 }
 
-function buildExplorationStatus(
-  state: GameState,
-  knownTiles: Array<Tile & Point>,
-  knownEntities: Array<Pick<Entity, "id" | "kind" | "contentId" | "pos" | "stats" | "hostile" | "blocksMovement" | "goldAmount">>,
-  visibleEntities: Array<Pick<Entity, "id" | "kind" | "contentId" | "pos" | "stats" | "hostile" | "blocksMovement" | "goldAmount">>,
-  aliveBoss: boolean,
-): GameObservation["exploration"] {
-  const knownTileMap = new Map(knownTiles.map((tile) => [pointKey(tile), tile]));
-  const knownStairsTile = knownTiles.find((tile) => tile.kind === "stairsDown") ?? null;
-  const knownStairs = knownStairsTile ? { x: knownStairsTile.x, y: knownStairsTile.y } : null;
-  const reachableStairs = knownStairs && isKnownPointReachable(state, knownTileMap, knownEntities, visibleEntities, knownStairs) ? knownStairs : null;
-  const blockedStairs = knownStairs && !reachableStairs ? knownStairs : null;
-  const reachableFrontiers = reachableExplorationFrontiers(state, knownTileMap, knownEntities, visibleEntities);
-  const nearestFrontier = reachableFrontiers[0] ?? null;
-  const knownWalkableTiles = knownTiles.filter((tile) => isWalkable(tile.kind)).length;
-  const stalledHint = reachableFrontiers.length === 0 && !reachableStairs && state.status === "playing";
-  return {
-    objective: explorationObjective(aliveBoss, reachableStairs, blockedStairs, nearestFrontier, stalledHint),
-    knownStairs,
-    reachableStairs,
-    blockedStairs,
-    nearestFrontier,
-    reachableFrontiers,
-    reachableFrontierCount: reachableFrontiers.length,
-    knownWalkableTiles,
-    exploredTileRatio: knownTiles.length / Math.max(1, state.width * state.height),
-    stalledHint,
-  };
-}
-
-function reachableExplorationFrontiers(
-  state: GameState,
-  knownTileMap: Map<string, Tile & Point>,
-  knownEntities: Array<Pick<Entity, "id" | "kind" | "contentId" | "pos" | "stats" | "hostile" | "blocksMovement" | "goldAmount">>,
-  visibleEntities: Array<Pick<Entity, "id" | "kind" | "contentId" | "pos" | "stats" | "hostile" | "blocksMovement" | "goldAmount">>,
-): GameObservation["exploration"]["reachableFrontiers"] {
-  const player = getPlayer(state);
-  const start = player.pos;
-  const queue: Array<Point & { distance: number }> = [{ ...start, distance: 0 }];
-  const visited = new Set<string>([pointKey(start)]);
-  const frontiers: GameObservation["exploration"]["reachableFrontiers"] = [];
-
-  let cursor = 0;
-  while (cursor < queue.length) {
-    const current = queue[cursor];
-    cursor += 1;
-
-    const unseenNeighbors = countUnseenNeighbors(state, knownTileMap, current);
-    if (current.distance > 0 && unseenNeighbors > 0) {
-      frontiers.push({ x: current.x, y: current.y, distance: current.distance, unseenNeighbors });
-    }
-
-    for (const delta of Object.values(DIRS)) {
-      const next = { x: current.x + delta.x, y: current.y + delta.y };
-      const key = pointKey(next);
-      if (visited.has(key) || !isKnownExplorationStep(knownTileMap, knownEntities, visibleEntities, next)) {
-        continue;
-      }
-      visited.add(key);
-      queue.push({ ...next, distance: current.distance + 1 });
-    }
-  }
-
-  return frontiers.sort((a, b) => a.distance - b.distance || b.unseenNeighbors - a.unseenNeighbors || manhattan(a, start) - manhattan(b, start));
-}
-
-function isKnownPointReachable(
-  state: GameState,
-  knownTileMap: Map<string, Tile & Point>,
-  knownEntities: Array<Pick<Entity, "id" | "kind" | "contentId" | "pos" | "stats" | "hostile" | "blocksMovement" | "goldAmount">>,
-  visibleEntities: Array<Pick<Entity, "id" | "kind" | "contentId" | "pos" | "stats" | "hostile" | "blocksMovement" | "goldAmount">>,
-  target: Point,
-): boolean {
-  const player = getPlayer(state);
-  const targetKey = pointKey(target);
-  if (pointKey(player.pos) === targetKey) {
-    return true;
-  }
-
-  const queue: Point[] = [player.pos];
-  const visited = new Set<string>([pointKey(player.pos)]);
-  let cursor = 0;
-  while (cursor < queue.length) {
-    const current = queue[cursor];
-    cursor += 1;
-    for (const delta of Object.values(DIRS)) {
-      const next = { x: current.x + delta.x, y: current.y + delta.y };
-      const key = pointKey(next);
-      if (visited.has(key) || !isKnownExplorationStep(knownTileMap, knownEntities, visibleEntities, next)) {
-        continue;
-      }
-      if (key === targetKey) {
-        return true;
-      }
-      visited.add(key);
-      queue.push(next);
-    }
-  }
-  return false;
-}
-
-function isKnownExplorationStep(
-  knownTileMap: Map<string, Tile & Point>,
-  knownEntities: Array<Pick<Entity, "id" | "kind" | "contentId" | "pos" | "stats" | "hostile" | "blocksMovement" | "goldAmount">>,
-  visibleEntities: Array<Pick<Entity, "id" | "kind" | "contentId" | "pos" | "stats" | "hostile" | "blocksMovement" | "goldAmount">>,
-  point: Point,
-): boolean {
-  const tile = knownTileMap.get(pointKey(point));
-  if (!tile || !isWalkable(tile.kind)) {
-    return false;
-  }
-  if (knownEntities.some((entity) => entity.kind === "trap" && samePoint(entity.pos, point))) {
-    return false;
-  }
-  return !visibleEntities.some((entity) => entity.blocksMovement && entity.kind !== "player" && !(entity.kind === "monster" && entity.hostile) && samePoint(entity.pos, point));
-}
-
-function countUnseenNeighbors(state: GameState, knownTileMap: Map<string, Tile & Point>, point: Point): number {
-  return cardinalDeltas().filter((delta) => {
-    const neighbor = { x: point.x + delta.x, y: point.y + delta.y };
-    return inBounds(state, neighbor) && !knownTileMap.has(pointKey(neighbor));
-  }).length;
-}
-
-function explorationObjective(
-  aliveBoss: boolean,
-  reachableStairs: Point | null,
-  blockedStairs: Point | null,
-  nearestFrontier: Point | null,
-  stalledHint: boolean,
-): GameObservation["exploration"]["objective"] {
-  if (aliveBoss) {
-    return "defeatBoss";
-  }
-  if (reachableStairs) {
-    return "descend";
-  }
-  if (blockedStairs) {
-    return "findStairs";
-  }
-  if (nearestFrontier) {
-    return "explore";
-  }
-  return stalledHint ? "resolveStall" : "findStairs";
-}
-
 function monster(id: string, contentId: string, pos: Point, stats: Stats): Entity {
   return { id, kind: "monster", contentId, pos, blocksMovement: true, stats, hostile: true };
 }
@@ -1078,136 +832,9 @@ function createInitialRunObjectives(): RunObjectiveFlags {
   };
 }
 
-function rngForFloor(seed: number, floor: number): Rng {
-  return new Rng(seed + floor * 113);
-}
-
-function monsterPoolForFloor(floor: number): string[] {
-  const biome = biomeThemeForFloor(floor);
-  const pool = getGameConfig().monsterSpawnRules
-    .filter((rule) => floorRuleMatches(rule, floor, biome))
-    .map((rule) => rule.contentId);
-  return pool.length > 0 ? pool : ["monster.ash-rat"];
-}
-
-function itemPoolForFloor(floor: number): string[] {
-  const biome = biomeThemeForFloor(floor);
-  const pool = getGameConfig().itemPools.flatMap((rule) => floorRuleMatches(rule, floor, biome) ? rule.items : []);
-  return pool.length > 0 ? pool : ["item.ember-tonic"];
-}
-
-function guaranteedItemsForFloor(floor: number): string[] {
-  const biome = biomeThemeForFloor(floor);
-  return getGameConfig().guaranteedItems.find((rule) => floorRuleMatches(rule, floor, biome))?.items ?? [];
-}
-
-function eventPoolForFloor(floor: number): string[] {
-  const biome = biomeThemeForFloor(floor);
-  const pool = getGameConfig().eventPools.flatMap((rule) => floorRuleMatches(rule, floor, biome) ? rule.events : []);
-  return pool.length > 0 ? pool : ["event.blood-inscription"];
-}
-
-function trapPoolForFloor(floor: number): string[] {
-  const biome = biomeThemeForFloor(floor);
-  return getGameConfig().trapPools.find((rule) => floorRuleMatches(rule, floor, biome))?.traps ?? ["trap.blood-needle"];
-}
-
-function bossForFloor(floor: number): string | null {
-  return getGameConfig().bosses.find((boss) => boss.floor === floor)?.contentId ?? null;
-}
-
 function bossAlive(state: GameState): boolean {
   const bossId = state.modifiers.bossOverride?.floor === state.floor ? state.modifiers.bossOverride.contentId : bossForFloor(state.floor);
   return !!bossId && state.entities.some((entity) => entity.kind === "monster" && entity.contentId === bossId);
-}
-
-function bossPointNearStairs(points: Point[], stairs: Point, rng: Rng): Point | null {
-  const candidates = points.filter((point) => manhattan(point, stairs) <= 6 && manhattan(point, stairs) >= 2);
-  if (candidates.length === 0) {
-    return null;
-  }
-  const point = rng.pick(candidates);
-  points.splice(points.findIndex((candidate) => samePoint(candidate, point)), 1);
-  return point;
-}
-
-function chooseCoverPoints(walkable: Point[], start: Point, stairs: Point, rng: Rng): Point[] {
-  const { rules } = getGameConfig();
-  const count = Math.min(rules.coverCountBase + Math.floor(rng.int(0, Math.max(1, rules.coverCountFloorDivisor * 4)) / rules.coverCountFloorDivisor), rules.coverCountMax);
-  const candidates = walkable.filter((point) => {
-    if (samePoint(point, start) || samePoint(point, stairs)) {
-      return false;
-    }
-    return manhattan(point, start) > 3 && manhattan(point, stairs) > 2 && openNeighborCount(walkable, point) >= 3;
-  });
-  const cover: Point[] = [];
-  while (cover.length < count && candidates.length > 0) {
-    const index = rng.int(0, candidates.length - 1);
-    const [point] = candidates.splice(index, 1);
-    if (!point || cover.some((coverPoint) => manhattan(coverPoint, point) < 3)) {
-      continue;
-    }
-    cover.push(point);
-  }
-  return cover;
-}
-
-function openNeighborCount(walkable: Point[], point: Point): number {
-  return cardinalDeltas().filter((delta) => walkable.some((candidate) => samePoint(candidate, { x: point.x + delta.x, y: point.y + delta.y }))).length;
-}
-
-function buildFloorPlan(walkable: Point[], roomCenters: Point[], start: Point, stairs: Point): FloorPlan {
-  const sideRoomCenters = roomCenters
-    .filter((point) => !samePoint(point, start) && !samePoint(point, stairs))
-    .sort((a, b) => manhattan(a, start) - manhattan(b, start));
-  const firstSideRoom = sideRoomCenters[0] ?? start;
-  const farSideRooms = sideRoomCenters.slice(Math.max(0, Math.floor(sideRoomCenters.length / 2)));
-  const exitRoom = nearestPoint(roomCenters, stairs) ?? stairs;
-  const nearStart = walkable.filter((point) => manhattan(point, start) >= 5 && manhattan(point, start) <= 14);
-  const sideRoomPoints = pointsNearAny(walkable, sideRoomCenters, 5);
-  const farRoomPoints = pointsNearAny(walkable, farSideRooms.length > 0 ? farSideRooms : [exitRoom], 5);
-  const exitRoomPoints = pointsNearAny(walkable, [exitRoom, stairs], 6);
-  const widePoints = walkable.filter((point) => openNeighborCount(walkable, point) >= 3);
-
-  return {
-    guaranteedLootPoints: uniquePoints([...nearStart, ...pointsNearAny(walkable, [firstSideRoom], 4), ...sideRoomPoints]),
-    lootPoints: uniquePoints([...sideRoomPoints, ...nearStart, ...widePoints]),
-    eventPoints: uniquePoints([...sideRoomPoints, ...farRoomPoints, ...widePoints]),
-    trapPoints: uniquePoints([...farRoomPoints, ...exitRoomPoints, ...sideRoomPoints]),
-    monsterPoints: uniquePoints([...exitRoomPoints, ...farRoomPoints, ...sideRoomPoints, ...walkable]),
-  };
-}
-
-function createPointTaker(points: Point[], rng: Rng, fallback: Point): (preferred?: Point[]) => Point {
-  return (preferred = []) => {
-    const preferredIndexes = preferred
-      .map((point) => points.findIndex((candidate) => samePoint(candidate, point)))
-      .filter((index) => index >= 0);
-    const index = preferredIndexes.length > 0 ? rng.pick(preferredIndexes) : rng.int(0, Math.max(0, points.length - 1));
-    const [point] = points.splice(index, 1);
-    return point ?? fallback;
-  };
-}
-
-function pointsNearAny(points: Point[], centers: Point[], radius: number): Point[] {
-  if (centers.length === 0) {
-    return [];
-  }
-  return points.filter((point) => centers.some((center) => manhattan(point, center) <= radius));
-}
-
-function uniquePoints(points: Point[]): Point[] {
-  const seen = new Set<string>();
-  const unique: Point[] = [];
-  for (const point of points) {
-    const key = pointKey(point);
-    if (seen.has(key)) {
-      continue;
-    }
-    seen.add(key);
-    unique.push(point);
-  }
-  return unique;
 }
 
 function statsForMonster(contentId: string, dangerBoost: number, floor = 1, runObjectives: RunObjectiveFlags = createInitialRunObjectives(), rules = getGameConfig().rules): Stats {
@@ -1220,23 +847,6 @@ function statsForMonster(contentId: string, dangerBoost: number, floor = 1, runO
     attack = Math.max(1, attack - 1);
   }
   return { hp, maxHp: hp, attack, defense: base.defense };
-}
-
-function equipmentSlot(contentId: string): "weapon" | "shield" | "armor" | null {
-  return getGameConfig().equipment[contentId]?.slot ?? null;
-}
-
-function weaponBonus(player: Entity): number {
-  const equippedWeapon = player.inventory?.find((entry) => entry.equipped && equipmentSlot(entry.contentId) === "weapon")?.contentId;
-  return equippedWeapon ? weaponPower(equippedWeapon) : 0;
-}
-
-function defenseBonus(player: Entity): number {
-  const armor = player.inventory?.find((entry) => entry.equipped && equipmentSlot(entry.contentId) === "armor")?.contentId;
-  const armorBonus = armor ? armorPower(armor) : 0;
-  const shieldBonus = player.inventory?.filter((entry) => entry.equipped && equipmentSlot(entry.contentId) === "shield").reduce((sum, entry) => sum + shieldPower(entry.contentId), 0) ?? 0;
-  const guardedBonus = hasCondition(player, "guarded") ? getGameConfig().rules.guardedDefenseBonus : 0;
-  return armorBonus + shieldBonus + guardedBonus;
 }
 
 function rangedDefenseBonus(state: GameState, actor: Entity): number {
@@ -2244,43 +1854,6 @@ function equipItem(state: GameState, contentId: string): GameState {
   return state;
 }
 
-function shouldAutoEquip(player: Entity, contentId: string): boolean {
-  const slot = equipmentSlot(contentId);
-  if (!slot) {
-    return false;
-  }
-
-  const current = player.inventory?.find((entry) => entry.equipped && equipmentSlot(entry.contentId) === slot)?.contentId;
-  if (!current) {
-    return true;
-  }
-  if (slot === "weapon") {
-    return weaponPower(contentId) > weaponPower(current);
-  }
-  if (slot === "armor") {
-    return armorPower(contentId) > armorPower(current);
-  }
-  if (slot === "shield") {
-    return shieldPower(contentId) > shieldPower(current);
-  }
-  return false;
-}
-
-function weaponPower(contentId: string): number {
-  const equipment = getGameConfig().equipment[contentId];
-  return equipment?.slot === "weapon" ? equipment.power : 0;
-}
-
-function armorPower(contentId: string): number {
-  const equipment = getGameConfig().equipment[contentId];
-  return equipment?.slot === "armor" ? equipment.power : 0;
-}
-
-function shieldPower(contentId: string): number {
-  const equipment = getGameConfig().equipment[contentId];
-  return equipment?.slot === "shield" ? equipment.power : 0;
-}
-
 function awardXp(state: GameState, defeatedContentId: string): GameState {
   const reward = contentEntities[defeatedContentId]?.xpReward ?? 5;
   state.playerProgress = normalizeProgress({ ...state.playerProgress, xp: state.playerProgress.xp + reward });
@@ -2408,12 +1981,6 @@ function merchantOfferScore(state: GameState, player: Entity, offer: GameConfig[
   return 0;
 }
 
-function equippedSlotScore(player: Entity, contentId: string): number {
-  const slot = equipmentSlot(contentId);
-  const current = player.inventory?.find((entry) => entry.equipped && equipmentSlot(entry.contentId) === slot)?.contentId;
-  return current ? equipmentScore(current) : 0;
-}
-
 function merchantServiceLabel(serviceId: MerchantServiceId, contentId?: string): string {
   if (serviceId === "heal") {
     return "回復";
@@ -2425,25 +1992,6 @@ function merchantServiceLabel(serviceId: MerchantServiceId, contentId?: string):
     return contentId ? `装備購入: ${getContentName(contentId)}` : "装備購入";
   }
   return contentId ? `地図購入: ${getContentName(contentId)}` : "地図購入";
-}
-
-function canReceiveInventory(player: Entity, contentId: string): boolean {
-  const inventory = player.inventory ?? [];
-  return inventory.some((entry) => entry.contentId === contentId) || inventory.length < getGameConfig().rules.inventorySlotLimit;
-}
-
-function addInventoryItem(player: Entity, contentId: string, quantity = 1): boolean {
-  player.inventory ??= [];
-  const existing = player.inventory.find((entry) => entry.contentId === contentId);
-  if (existing) {
-    existing.quantity += quantity;
-    return true;
-  }
-  if (!canReceiveInventory(player, contentId)) {
-    return false;
-  }
-  player.inventory.push({ contentId, quantity });
-  return true;
 }
 
 function reevaluateEquipment(state: GameState): GameState {
@@ -2469,32 +2017,6 @@ function reevaluateEquipment(state: GameState): GameState {
   player.stats.attack = baseAttack(state.playerProgress, state.modifiers.rank, state.modifiers.foundationRank) + weaponBonus(player);
   player.stats.defense = baseDefense(state.playerProgress) + defenseBonus(player);
   return state;
-}
-
-function equipmentScore(contentId: string): number {
-  const equipment = getGameConfig().equipment[contentId];
-  const slot = equipmentSlot(contentId);
-  const tacticalValue = ((equipment?.rangedDefense ?? 0) * 0.8) + (((equipment?.trapAvoidPercent ?? 0) - (equipment?.trapAvoidPenaltyPercent ?? 0)) / 12);
-  if (slot === "weapon") {
-    return weaponPower(contentId) + tacticalValue;
-  }
-  if (slot === "armor") {
-    return armorPower(contentId) + tacticalValue;
-  }
-  if (slot === "shield") {
-    return shieldPower(contentId) + tacticalValue;
-  }
-  return 0;
-}
-
-function equippedWeaponSpecialDamage(player: Entity, defenderContentId: string): number {
-  const weapon = player.inventory?.find((entry) => entry.equipped && equipmentSlot(entry.contentId) === "weapon")?.contentId;
-  const special = weapon ? getGameConfig().equipment[weapon]?.specialDamage : undefined;
-  if (!special) {
-    return 0;
-  }
-  const family = contentEntities[defenderContentId]?.family;
-  return family && special.families.includes(family) ? special.amount : 0;
 }
 
 function applyLevelUps(state: GameState): GameState {
@@ -2530,9 +2052,7 @@ function baseDefense(progress: PlayerProgress): number {
 function nearestVisibleMonster(state: GameState): Entity | null {
   const player = getPlayer(state);
   const visibleMonsters = state.entities.filter((entity) => entity.kind === "monster" && entity.hostile && tileAt(state, entity.pos).visible);
-  return nearestPoint(visibleMonsters.map((entity) => entity.pos), player.pos)
-    ? [...visibleMonsters].sort((a, b) => chebyshev(a.pos, player.pos) - chebyshev(b.pos, player.pos))[0] ?? null
-    : null;
+  return visibleMonsters.sort((a, b) => chebyshev(a.pos, player.pos) - chebyshev(b.pos, player.pos))[0] ?? null;
 }
 
 function applyAttackSideEffect(state: GameState, attacker: Entity, defender: Entity): GameState {
@@ -2688,7 +2208,7 @@ function shouldKeepDistance(contentId: string): boolean {
 }
 
 function stepMonsterAwayFromPlayer(state: GameState, monsterEntity: Entity, playerPos: Point): GameState | null {
-  const candidates = Object.values(DIRS)
+  const candidates = Object.values(DIRECTION_DELTAS)
     .map((delta) => ({ x: monsterEntity.pos.x + delta.x, y: monsterEntity.pos.y + delta.y }))
     .filter((point) => inBounds(state, point) && isWalkable(tileAt(state, point).kind))
     .filter((point) => !state.entities.some((entity) => entity.blocksMovement && samePoint(entity.pos, point)))
@@ -2853,24 +2373,6 @@ function openPointsAround(state: GameState, center: Point, radius: number): Poin
   return points.sort((a, b) => manhattan(a, center) - manhattan(b, center));
 }
 
-function upsertCondition(conditions: Entity["conditions"] = [], kind: ConditionKind, turns: number): Entity["conditions"] {
-  const next = conditions.filter((condition) => condition.kind !== kind);
-  next.push({ kind, turns });
-  return next;
-}
-
-function clearCondition(conditions: Entity["conditions"] = [], kind: ConditionKind): Entity["conditions"] {
-  return conditions.filter((condition) => condition.kind !== kind);
-}
-
-function clearConditions(conditions: Entity["conditions"] = [], kinds: ConditionKind[]): Entity["conditions"] {
-  return kinds.reduce<NonNullable<Entity["conditions"]>>((next, kind) => clearCondition(next, kind) ?? [], conditions);
-}
-
-function hasCondition(entity: Entity, kind: ConditionKind): boolean {
-  return entity.conditions?.some((condition) => condition.kind === kind && condition.turns > 0) ?? false;
-}
-
 function nextStepToward(state: GameState, from: Point, to: Point): Point | null {
   const passable = (x: number, y: number) => inBounds(state, { x, y }) && isWalkable(tileAt(state, { x, y }).kind);
   const astar = new ROT.Path.AStar(to.x, to.y, passable, { topology: 8 });
@@ -2887,33 +2389,27 @@ function nextStepToward(state: GameState, from: Point, to: Point): Point | null 
 }
 
 function updateVisibility(state: GameState): GameState {
-  for (const tile of state.tiles) {
-    tile.visible = false;
+  for (const tile of state.tiles) tile.visible = false;
+  revealVisibleArea(state, getPlayer(state).pos, runRules(state.modifiers).fovRadius);
+  for (const light of state.expedition?.lights ?? []) {
+    revealVisibleArea(state, light.pos, realtimeConfig().light.radius);
   }
+  return state;
+}
 
-  const player = getPlayer(state);
+function revealVisibleArea(state: GameState, origin: Point, radius: number): void {
   const lightPasses = (x: number, y: number) => {
     const point = { x, y };
-    return inBounds(state, point) && (samePoint(point, player.pos) || !blocksSight(tileAt(state, point).kind));
+    return inBounds(state, point) && (samePoint(point, origin) || !blocksSight(tileAt(state, point).kind));
   };
   const fov = new ROT.FOV.PreciseShadowcasting(lightPasses, { topology: 8 });
-  fov.compute(player.pos.x, player.pos.y, runRules(state.modifiers).fovRadius, (x, y) => {
-    if (!inBounds(state, { x, y })) {
-      return;
-    }
-    const tile = tileAt(state, { x, y });
+  fov.compute(origin.x, origin.y, radius, (x, y) => {
+    const point = { x, y };
+    if (!inBounds(state, point)) return;
+    const tile = tileAt(state, point);
     tile.visible = true;
     tile.explored = true;
   });
-  for (const light of state.expedition?.lights ?? []) {
-    const lampFov = new ROT.FOV.PreciseShadowcasting((x, y) => inBounds(state, { x, y }) && (samePoint({ x, y }, light.pos) || !blocksSight(tileAt(state, { x, y }).kind)), { topology: 8 });
-    lampFov.compute(light.pos.x, light.pos.y, realtimeConfig().light.radius, (x, y) => {
-      if (!inBounds(state, { x, y })) return;
-      tileAt(state, { x, y }).visible = true;
-      tileAt(state, { x, y }).explored = true;
-    });
-  }
-  return state;
 }
 
 function hasLineOfSight(state: GameState, from: Point, to: Point): boolean {
@@ -2929,209 +2425,12 @@ function hasLineOfSight(state: GameState, from: Point, to: Point): boolean {
   return true;
 }
 
-function getPlayer(state: GameState): Entity {
-  const player = state.entities.find((entity) => entity.id === state.playerId);
-  if (!player) {
-    throw new Error("Missing player entity");
-  }
-  return player;
-}
-
 function pushMessage(state: GameState, text: string, tone: GameMessage["tone"]): GameMessage[] {
   return [...state.messages, message(state.turn, text, tone)].slice(-80);
 }
 
 function message(turn: number, text: string, tone: GameMessage["tone"]): GameMessage {
   return { turn, text, tone };
-}
-
-function cloneState(state: GameState): GameState {
-  return {
-    ...state,
-    expedition: state.expedition ? structuredClone(state.expedition) : undefined,
-    playerProgress: { ...state.playerProgress },
-    runObjectives: { ...state.runObjectives },
-    runIdentity: { ...state.runIdentity },
-    lantern: { ...state.lantern },
-    tactics: [...state.tactics],
-    modifiers: cloneModifiers(state.modifiers),
-    knownRoleTruths: [...state.knownRoleTruths],
-    pendingDecision: state.pendingDecision ? {
-      ...state.pendingDecision,
-      options: state.pendingDecision.options.map((option) => ({ ...option })),
-    } : null,
-    story: {
-      ...state.story,
-      discoveries: [...state.story.discoveries],
-      decisions: state.story.decisions.map((entry) => ({ ...entry })),
-      contextActs: [...state.story.contextActs],
-      crisisKinds: [...state.story.crisisKinds],
-    },
-    tiles: state.tiles.map((tile) => ({ ...tile })),
-    entities: state.entities.map((entity) => ({
-      ...entity,
-      pos: { ...entity.pos },
-      stats: entity.stats ? { ...entity.stats } : undefined,
-      inventory: entity.inventory?.map((entry) => ({ ...entry })),
-      conditions: entity.conditions?.map((condition) => ({ ...condition })),
-      telegraph: entity.telegraph ? structuredClone(entity.telegraph) : undefined,
-    })),
-    messages: state.messages.map((entry) => ({ ...entry })),
-    strikes: [],
-  };
-}
-
-function setTileKind(tiles: Tile[], width: number, x: number, y: number, kind: TileKind): void {
-  tiles[y * width + x].kind = kind;
-}
-
-function walkablePoints(tiles: Tile[], width: number): Point[] {
-  return tiles.flatMap((tile, index) => {
-    if (!isWalkable(tile.kind)) {
-      return [];
-    }
-    return [{ x: index % width, y: Math.floor(index / width) }];
-  });
-}
-
-function connectedWalkablePoints(tiles: Tile[], width: number, height: number, start: Point): Point[] {
-  if (!isWalkable(tileAt(tiles, width, start).kind)) {
-    return [];
-  }
-
-  const queue: Point[] = [start];
-  const visited = new Set<string>([pointKey(start)]);
-  const points: Point[] = [];
-  let cursor = 0;
-  while (cursor < queue.length) {
-    const current = queue[cursor];
-    cursor += 1;
-    points.push(current);
-    for (const delta of cardinalDeltas()) {
-      const next = { x: current.x + delta.x, y: current.y + delta.y };
-      const key = pointKey(next);
-      if (visited.has(key) || next.x < 0 || next.y < 0 || next.x >= width || next.y >= height || !isWalkable(tileAt(tiles, width, next).kind)) {
-        continue;
-      }
-      visited.add(key);
-      queue.push(next);
-    }
-  }
-  return points;
-}
-
-function nearestPoint(points: Point[], target: Point): Point | null {
-  let best: Point | null = null;
-  let bestDistance = Number.POSITIVE_INFINITY;
-  for (const point of points) {
-    const distance = manhattan(point, target);
-    if (distance < bestDistance) {
-      best = point;
-      bestDistance = distance;
-    }
-  }
-  return best;
-}
-
-function farthestPoint(points: Point[], target: Point): Point | null {
-  let best: Point | null = null;
-  let bestDistance = Number.NEGATIVE_INFINITY;
-  for (const point of points) {
-    const distance = manhattan(point, target);
-    if (distance > bestDistance) {
-      best = point;
-      bestDistance = distance;
-    }
-  }
-  return best;
-}
-
-function stairPoint(points: Point[], start: Point, rng: Rng): Point | null {
-  const { rules } = getGameConfig();
-  const minDistance = Math.floor((rules.mapWidth + rules.mapHeight) * 0.28);
-  const maxDistance = Math.floor((rules.mapWidth + rules.mapHeight) * 0.5);
-  const candidates = points.filter((point) => {
-    const distance = manhattan(point, start);
-    return distance >= minDistance && distance <= maxDistance;
-  });
-  if (candidates.length === 0) {
-    return null;
-  }
-  return rng.pick(candidates);
-}
-
-function tileAt(state: GameState, pos: Point): Tile;
-function tileAt(tiles: Tile[], width: number, pos: Point): Tile;
-function tileAt(stateOrTiles: GameState | Tile[], posOrWidth: Point | number, maybePos?: Point): Tile {
-  if (Array.isArray(stateOrTiles)) {
-    const width = posOrWidth as number;
-    const pos = maybePos as Point;
-    return stateOrTiles[pos.y * width + pos.x];
-  }
-  const state = stateOrTiles;
-  const pos = posOrWidth as Point;
-  return state.tiles[pos.y * state.width + pos.x];
-}
-
-function inBounds(state: GameState, pos: Point): boolean {
-  return pos.x >= 0 && pos.y >= 0 && pos.x < state.width && pos.y < state.height;
-}
-
-function isWalkable(kind: TileKind): boolean {
-  return kind === "floor" || kind === "cover" || kind === "stairsDown";
-}
-
-function blocksSight(kind: TileKind): boolean {
-  return kind === "wall" || kind === "cover";
-}
-
-function linePoints(from: Point, to: Point): Point[] {
-  const points: Point[] = [];
-  let x0 = from.x;
-  let y0 = from.y;
-  const x1 = to.x;
-  const y1 = to.y;
-  const dx = Math.abs(x1 - x0);
-  const dy = Math.abs(y1 - y0);
-  const sx = x0 < x1 ? 1 : -1;
-  const sy = y0 < y1 ? 1 : -1;
-  let error = dx - dy;
-
-  while (!(x0 === x1 && y0 === y1)) {
-    const doubleError = error * 2;
-    if (doubleError > -dy) {
-      error -= dy;
-      x0 += sx;
-    }
-    if (doubleError < dx) {
-      error += dx;
-      y0 += sy;
-    }
-    if (!(x0 === x1 && y0 === y1)) {
-      points.push({ x: x0, y: y0 });
-    }
-  }
-  return points;
-}
-
-function samePoint(a: Point, b: Point): boolean {
-  return a.x === b.x && a.y === b.y;
-}
-
-function pointKey(point: Point): string {
-  return `${point.x},${point.y}`;
-}
-
-function cardinalDeltas(): Point[] {
-  return [DIRS.north, DIRS.south, DIRS.west, DIRS.east];
-}
-
-function chebyshev(a: Point, b: Point): number {
-  return Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y));
-}
-
-function manhattan(a: Point, b: Point): number {
-  return Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
 }
 
 function clampNumber(value: number, min: number, max: number): number {

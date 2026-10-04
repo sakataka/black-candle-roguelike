@@ -1,6 +1,7 @@
+import { samePoint } from "../core/spatial";
 import { contentEntities } from "../content/entities";
 import { Application, Assets, Container, Graphics, Rectangle, Sprite, Text, Texture } from "pixi.js";
-import { assetCatalog, assetIdForContent } from "../content/assets";
+import { assetCatalog, assetIdForContent, publicAssetPath } from "../content/assets";
 import { facingAfterStep } from "./characterFacing";
 import { realtimeConfig } from "../content/realtime";
 import type { VisualEvent } from "../core/visualEvents";
@@ -764,6 +765,11 @@ export class PixiRoguelikeRenderer {
     mote.sprite.scale.set(size);
   }
 
+  private addEffect(effect: Omit<Effect, "age">): void {
+    this.effectLayer.addChild(effect.node);
+    this.effects.push({ ...effect, age: 0 });
+  }
+
   /** 打撃の火花。重力で落ちながら消える小さな光の粒。 */
   private spawnSparks(pos: Point, color: number, count: number, spread = 1): void {
     const cx = pos.x * TILE_SIZE + TILE_SIZE / 2;
@@ -779,10 +785,8 @@ export class PixiRoguelikeRenderer {
       const vx = Math.cos(angle) * speed;
       const vy = Math.sin(angle) * speed - 60;
       const size = 0.12 + Math.random() * 0.18;
-      this.effectLayer.addChild(sprite);
-      this.effects.push({
+      this.addEffect({
         node: sprite,
-        age: 0,
         life: 320 + Math.random() * 260,
         update: (effect, progress) => {
           const t = effect.age / 1000;
@@ -811,10 +815,8 @@ export class PixiRoguelikeRenderer {
       const rise = 26 + Math.random() * 46;
       const sway = (Math.random() - 0.5) * 30;
       const size = 0.16 + Math.random() * 0.22;
-      this.effectLayer.addChild(sprite);
-      this.effects.push({
+      this.addEffect({
         node: sprite,
-        age: 0,
         life: 700 + Math.random() * 600,
         update: (effect, progress) => {
           effect.node.x = cx + ox + sway * progress;
@@ -840,10 +842,8 @@ export class PixiRoguelikeRenderer {
       const delay = Math.random() * 0.35;
       const size = 0.12 + Math.random() * 0.14;
       sprite.alpha = 0;
-      this.effectLayer.addChild(sprite);
-      this.effects.push({
+      this.addEffect({
         node: sprite,
-        age: 0,
         life: 900,
         update: (effect, progress) => {
           const local = clamp((progress - delay) / (1 - delay), 0, 1);
@@ -864,10 +864,8 @@ export class PixiRoguelikeRenderer {
     const angle = Math.atan2(to.y - from.y, to.x - from.x);
     const color = byPlayer ? 0xfff0c8 : 0xff7a5c;
     node.blendMode = "add";
-    this.effectLayer.addChild(node);
-    this.effects.push({
+    this.addEffect({
       node,
-      age: 0,
       life: 200,
       update: (effect, progress) => {
         const graphic = effect.node as Graphics;
@@ -896,10 +894,8 @@ export class PixiRoguelikeRenderer {
     const baseY = pos.y * TILE_SIZE + 20;
     label.x = baseX;
     label.y = baseY;
-    this.effectLayer.addChild(label);
-    this.effects.push({
+    this.addEffect({
       node: label,
-      age: 0,
       life,
       update: (effect, progress) => {
         effect.node.y = baseY - 26 * (1 - (1 - progress) ** 2);
@@ -912,12 +908,10 @@ export class PixiRoguelikeRenderer {
   private spawnProjectile(from: Point, to: Point, byPlayer: boolean): void {
     const color = byPlayer ? "#f3b35c" : "#ff6a3d";
     const node = new Graphics();
-    this.effectLayer.addChild(node);
     const fromPx = { x: from.x * TILE_SIZE + TILE_SIZE / 2, y: from.y * TILE_SIZE + TILE_SIZE / 2 };
     const toPx = { x: to.x * TILE_SIZE + TILE_SIZE / 2, y: to.y * TILE_SIZE + TILE_SIZE / 2 };
-    this.effects.push({
+    this.addEffect({
       node,
-      age: 0,
       life: 240,
       update: (effect, progress) => {
         const graphic = effect.node as Graphics;
@@ -938,10 +932,8 @@ export class PixiRoguelikeRenderer {
     const node = new Graphics();
     const cx = pos.x * TILE_SIZE + TILE_SIZE / 2;
     const cy = pos.y * TILE_SIZE + TILE_SIZE / 2;
-    this.effectLayer.addChild(node);
-    this.effects.push({
+    this.addEffect({
       node,
-      age: 0,
       life: 520,
       update: (effect, progress) => {
         const graphic = effect.node as Graphics;
@@ -955,11 +947,9 @@ export class PixiRoguelikeRenderer {
     view.lunge = null;
     view.sprite.tint = 0xff5a44;
     if (view.hpBar) view.hpBar.visible = false;
-    this.effectLayer.addChild(view.root);
     const baseY = view.root.y;
-    this.effects.push({
+    this.addEffect({
       node: view.root,
-      age: 0,
       life: 420,
       update: (effect, progress) => {
         effect.node.alpha = 1 - progress;
@@ -1123,10 +1113,6 @@ function hashPhase(id: string): number {
   return (Math.abs(hash) % 1000) / 1000 * Math.PI * 2;
 }
 
-function samePoint(a: Point, b: Point): boolean {
-  return a.x === b.x && a.y === b.y;
-}
-
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
@@ -1139,11 +1125,4 @@ function tileTextureKey(kind: TileKind, biome: BiomeTheme): string {
     return `${kind}:${biome}`;
   }
   return `${kind}:visible`;
-}
-
-function publicAssetPath(path: string): string {
-  if (!path.startsWith("/")) {
-    return path;
-  }
-  return `${import.meta.env.BASE_URL}${path.slice(1)}`;
 }

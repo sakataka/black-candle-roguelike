@@ -1,3 +1,10 @@
+import { renderDecisionContext } from "./ui/decisionContext";
+import { renderInventory } from "./ui/inventory";
+import { conditionLabel, conditionTone, tacticLabels } from "./ui/labels";
+import { renderRunInsights } from "./ui/runInsights";
+import { observerShellMarkup } from "./ui/shell";
+import { applySprite, spriteStyle } from "./ui/sprites";
+import { escapeHtml, requireElement, setText } from "./ui/dom";
 import { bossTrialDefinition, journeyProgress } from "./game/core/journey";
 import { candleRoadMarkup, growthMarkup } from "./ui/progress";
 import "@fontsource/shippori-mincho-b1/500.css";
@@ -64,14 +71,13 @@ import { suggestLanternAction, type WatcherSuggestion } from "./game/ai/watcher"
 import { applyAction, biomeThemeName, canBorrowFlame, canPlaceLantern, canInvokeLantern, createInitialGame, lanternRiteLabel, normalizeTactics, observeGame, playableRoles } from "./game/core/game";
 import { paceDelayMs, paceKindFor, type PaceKind } from "./game/core/pacing";
 import { analyzeRun, createRunLog, recordTurn } from "./game/core/runLog";
-import { buildRunInsights, type RunInsights } from "./game/core/runInsights";
+import { buildRunInsights } from "./game/core/runInsights";
 import { deriveVisualEvents, type VisualEvent } from "./game/core/visualEvents";
 import type { LookaheadProgress, LookaheadRequest } from "./game/sim/lookahead.worker";
 import type { LookaheadSummary } from "./game/sim/rollout";
 import { PixiRoguelikeRenderer } from "./game/renderer/PixiRoguelikeRenderer";
 import type {
   CampaignState,
-  EquipmentConfig,
   FacilityId,
   GameAction,
   GameState,
@@ -81,7 +87,6 @@ import type {
   RunLog,
   RunLogEntry,
   RunReview,
-  StatusCondition,
   Veteran,
 } from "./game/types";
 
@@ -149,218 +154,7 @@ const titleClosed = showTitle(
   consumeAutoEnter(),
 );
 
-app.innerHTML = `
-  <main class="observer-shell" tabindex="-1">
-    <header class="topbar">
-      <div class="topbar-brand">
-        <span id="brand-mark" class="brand-mark" aria-hidden="true"></span>
-        <div><h1>黒燭の迷宮</h1><p>灰灯院・遠征観測室</p></div>
-      </div>
-      <div class="topbar-run">
-        <div class="depth-chip"><span id="biome-kicker">地下1階</span><strong id="biome-title">黒石迷宮</strong></div>
-        <div class="route-track" id="route-track" aria-label="道のり">
-          <div class="route-track-label"><span>道のり</span><strong id="route-next">-</strong></div>
-          <ol id="route-nodes" class="route-nodes"></ol>
-        </div>
-        <div id="live-progress" class="live-progress" aria-label="今回の目標と鍛錬"></div>
-        <div class="shard-forecast" id="shard-forecast" title="今帰還できた場合と、ここで倒れた場合に灰灯院へ持ち帰る灯片。">
-          <span>持ち帰る灯片</span>
-          <strong><b id="forecast-return">+0</b><small>帰還なら</small></strong>
-          <strong class="is-loss"><b id="forecast-lost">+0</b><small>倒れれば</small></strong>
-        </div>
-        <div class="turn-meter" id="turn-meter" title="灯芯が尽きると黒燭との接続が切れ、探索者は未帰還になる。">
-          <div class="turn-meter-label"><span id="turn-meter-label">灯芯</span><strong id="run-turn">残り0手</strong></div>
-          <div class="turn-meter-track"><i id="turn-meter-fill"></i></div>
-        </div>
-      </div>
-      <div class="topbar-controls">
-        <div class="speed-selector" role="group" aria-label="観測速度">
-          <span class="live-indicator" title="遠征は選択中も進みます">進行中</span>
-          <button type="button" data-speed="0.5" aria-pressed="false">0.5×</button>
-          <button type="button" data-speed="1" class="is-active" aria-pressed="true">1×</button>
-          <button type="button" data-speed="2" aria-pressed="false">2×</button>
-          <button type="button" data-speed="3" aria-pressed="false">3×</button>
-        </div>
-        <button id="new-expedition" class="secondary-button" type="button" title="遠征を終えて灰灯院へ">灰灯院</button>
-      </div>
-    </header>
-
-    <section class="stage" aria-label="黒燭越しの迷宮">
-      <div class="map-stage" id="map-stage">
-        <div id="pixi-root" class="pixi-root"></div>
-        <div class="boss-health" id="boss-health" aria-label="視界内の守り手の命火" hidden></div>
-        <div class="battle-forecast" id="battle-forecast" aria-label="見えている攻撃の予告"></div>
-        <p class="delver-voice sr-only" id="delver-voice" aria-live="polite"></p>
-        <button type="button" id="lantern-call" class="lantern-call" hidden></button>
-        <p id="lantern-toast" class="lantern-toast" aria-live="polite" hidden></p>
-        <div id="floor-card" class="floor-card" aria-hidden="true"><span class="floor-card-no"></span><strong class="floor-card-name"></strong><i></i></div>
-      </div>
-      <section class="lantern-dock" aria-label="灯守の介入">
-        <div class="lantern-embers">
-          <div class="lantern-embers-head"><span>灯火</span><strong id="lantern-count">0/0</strong></div>
-          <div id="lantern-pips" class="lantern-pips" aria-live="polite"></div>
-          <small id="lantern-hint">危機に灯を捧げると、探索者の手番を使わず介入できます。</small>
-        </div>
-        <div id="lantern-rites" class="lantern-rites"></div>
-        <div class="extra-rites">
-          <button type="button" id="place-lantern" class="secondary-button"><span class="extra-rite-icon" aria-hidden="true"></span><strong>置灯</strong><kbd>T</kbd><small>退路を照らし、敵を誘う</small></button>
-          <button type="button" id="borrow-flame" class="secondary-button"><span class="extra-rite-icon" aria-hidden="true"></span><strong>借灯</strong><kbd>F</kbd><small>灯火が尽きた時、未来から借りる</small></button>
-        </div>
-        <p class="expedition-note" id="expedition-note"></p>
-        <p class="expedition-note floor-law" id="floor-law"></p>
-      </section>
-    </section>
-
-    <div class="sidebar">
-      <section class="panel vitals-card" aria-label="探索者">
-        <div class="vitals-heading">
-          <span id="vitals-portrait" class="vitals-portrait" aria-hidden="true"></span>
-          <div><strong id="vitals-name">-</strong><small id="hero-role">-</small></div>
-          <em id="vitals-level">Lv1</em>
-        </div>
-        <div class="vitals-hp" id="vitals-hp">
-          <div class="vitals-hp-label"><span>HP</span><strong id="vitals-hp-value">-</strong></div>
-          <div class="vitals-hp-track"><b id="vitals-hp-trail" aria-hidden="true"></b><i id="vitals-hp-fill"></i></div>
-        </div>
-        <div id="hero-stats" class="stat-row"></div>
-        <div class="vitals-tags"><div id="vitals-conditions" class="tag-row"></div><div id="vitals-tactics" class="tag-row"></div></div>
-      </section>
-      <section class="panel expedition-card" aria-label="今回の目標">
-        <div class="mission-line">
-          <span class="panel-label">今回の目標</span>
-          <em id="run-mission-state">進行中</em>
-        </div>
-        <strong id="run-mission" class="mission-name">-</strong>
-        <p id="run-mission-target" class="mission-target">-</p>
-        <div class="mission-progress-row"><div class="mission-track"><i id="mission-fill"></i></div><em id="run-mission-progress">-</em></div>
-        <p id="run-mission-reward" class="mission-reward-line">-</p>
-        <div class="landmark">
-          <span class="panel-label">次の節目</span>
-          <strong id="landmark-title">-</strong>
-          <p id="landmark-detail">-</p>
-        </div>
-        <div class="expedition-meta">
-          <span>方針 <strong id="run-directive">-</strong></span>
-          <span>啓示 <strong id="run-revelations">-</strong></span>
-          <span>探索 <strong id="explored-ratio">0%</strong></span>
-        </div>
-        <div class="objective">
-          <span class="panel-label">次の動き</span>
-          <strong id="objective-title">未探索を広げる</strong>
-          <p id="objective-detail">黒燭が映す道筋を追っています。</p>
-        </div>
-      </section>
-      <section class="panel inventory-card" aria-label="装備と携行品">
-        <div class="panel-heading"><h2>装備と携行品</h2><span id="inventory-count">0</span></div>
-        <div id="equipment-list" class="equipment-list"></div>
-        <ul id="inventory-list" class="inventory-grid"></ul>
-        <p id="inventory-caption" class="inventory-caption"></p>
-      </section>
-      <section class="panel log-card" aria-label="道中記">
-        <div class="panel-heading"><h2>道中記</h2><span>新しい順</span></div>
-        <ol id="message-list" class="message-list"></ol>
-      </section>
-    </div>
-  </main>
-
-  <section id="candidate-dialog" class="modal-layer prepare-layer">
-    <div class="prepare-screen" role="dialog" aria-modal="true" aria-labelledby="candidate-title">
-      <header class="prepare-header">
-        <div>
-          <p class="eyebrow">灰灯院 · 遠征の支度 · <span id="save-slot-name"></span></p>
-          <h2 id="candidate-title">誰を黒燭の迷宮へ送るか</h2>
-        </div>
-        <div class="prepare-header-actions">
-          <div class="shard-balance" title="遠征から持ち帰る。到達・守り手・任務・真相・生還で増え、施設の強化と療房に使う。"><i id="shard-icon" class="shard-icon" aria-hidden="true"></i><span>灯片</span><strong id="institute-shards">0</strong></div>
-          <button id="resume-run" class="secondary-button" type="button" hidden>観戦に戻る <kbd>Esc</kbd></button>
-          <button id="switch-save" class="secondary-button" type="button" title="タイトルへ戻り、別の記録を選ぶか新しい記録を始める">記録を切り替える</button>
-        </div>
-      </header>
-      <section id="next-goal" class="progress-overview" aria-label="探索全体の進捗"></section>
-      <div class="prepare-body">
-        <div class="prepare-main">
-          <section class="prepare-step prepare-step-delver" aria-labelledby="step-delver">
-            <div class="step-heading"><span class="step-no" aria-hidden="true">I</span><h3 id="step-delver">探索者</h3><small>生還した古参は位階が上がって強くなる。瀕死で帰ると古傷を負い、倒れた者は戻らない。番号キー 1〜4 でも選べる。</small></div>
-            <div class="candidate-group"><strong>遠征団</strong></div>
-            <div id="veteran-list" class="candidate-list"></div>
-            <div class="candidate-group"><strong>新たな志願者</strong><small id="recruit-capacity"></small></div>
-            <div id="candidate-list" class="candidate-list"></div>
-          </section>
-          <section class="prepare-step" aria-labelledby="step-mission">
-            <div class="step-heading"><span class="step-no" aria-hidden="true">II</span><h3 id="step-mission">今回の目標</h3><small>探索者は任務に沿って帰還か続行かを決める。報酬は生きて帰った時に受け取る。</small></div>
-            <div id="mission-list" class="mission-list"></div>
-          </section>
-          <section class="prepare-step" aria-labelledby="step-tactics">
-            <div class="step-heading"><span class="step-no" aria-hidden="true">III</span><h3 id="step-tactics">作戦カード</h3><em id="tactic-count">0/2</em><small>探索者の判断の癖。3階・6階の節目でも組み替えられる。</small></div>
-            <div id="tactic-list" class="tactic-list"></div>
-          </section>
-        </div>
-        <aside class="prepare-side" aria-label="灰灯院">
-          <section class="side-section">
-            <div class="side-heading"><h3>施設</h3><small>灯片で強化すると、以後の遠征すべてに効く。</small></div>
-            <div id="institute-facilities" class="institute-facilities"></div>
-            <div id="institute-infirmary" class="institute-infirmary"></div>
-          </section>
-          <details class="side-section progress-conditions">
-            <summary>章の達成条件 <span id="roadmap-count">0/5</span></summary>
-            <ol id="roadmap-list" class="roadmap-list"></ol>
-          </details>
-          <section class="side-section">
-            <div class="side-heading"><h3>遠征録</h3><span id="archive-count">0件</span></div>
-            <div id="campaign-summary" class="campaign-summary"></div>
-            <ol id="archive-list" class="archive-list"></ol>
-          </section>
-          <section class="side-section">
-            <div id="institute-cycle" class="institute-cycle"></div>
-          </section>
-        </aside>
-      </div>
-      <footer class="prepare-footer">
-        <div id="depart-summary" class="depart-summary"></div>
-        <button id="depart-button" class="primary-button" type="button">出発する</button>
-      </footer>
-    </div>
-  </section>
-
-  <section id="decision-dialog" class="realtime-choice" hidden aria-live="polite">
-    <div class="decision-panel" role="group" aria-labelledby="decision-title">
-      <p class="eyebrow" id="decision-kicker">黒燭からの問い</p>
-      <h2 id="decision-title">灯守の判断</h2>
-      <p id="decision-body" class="modal-lead"></p>
-      <div id="decision-stakes" class="decision-stakes" hidden></div>
-      <div id="decision-options" class="decision-options"></div>
-      <details class="decision-details" id="decision-details">
-        <summary>作戦・装備・長期の先読み（遠征は進み続けます）</summary>
-      <div id="decision-status" class="decision-status" aria-label="探索者の状態"></div>
-      <section id="decision-tactics" class="decision-tactics" aria-label="作戦の組み替え" hidden>
-        <div class="step-heading"><h3>作戦を組み替える</h3><em id="decision-tactic-count">0/2</em><small>組み替えると各案の先読みが更新される。</small></div>
-        <div id="decision-tactic-list" class="tactic-list is-compact"></div>
-      </section>
-        <section id="decision-context" class="decision-context" aria-label="判断材料"></section>
-      </details>
-      <p id="decision-hint" class="modal-hint"></p>
-    </div>
-  </section>
-
-  <section id="end-dialog" class="modal-layer" hidden>
-    <div class="modal-panel result-panel" role="dialog" aria-modal="true" aria-labelledby="end-title">
-      <p id="end-kicker" class="eyebrow">遠征終了</p>
-      <h2 id="end-title">遠征記録</h2>
-      <p id="end-summary" class="modal-lead"></p>
-      <div id="end-milestone" class="end-milestone" hidden></div>
-      <div id="end-stats" class="end-stats"></div>
-      <div id="run-comparison" class="run-comparison"></div>
-      <div class="result-section-heading"><h3>持ち帰った灯片</h3><small id="shard-note"></small></div>
-      <div id="shard-breakdown" class="score-breakdown"></div>
-      <section id="end-roadmap" class="end-roadmap" aria-label="黒燭への道"></section>
-      <section id="run-insights" class="run-insights" aria-label="遠征の軌跡"></section>
-      <div id="decision-history" class="decision-history"></div>
-      <div class="modal-footer">
-        <button id="end-new-expedition" class="primary-button" type="button">灰灯院へ戻り、次の遠征を支度する</button>
-      </div>
-    </div>
-  </section>
-`;
+app.innerHTML = observerShellMarkup;
 
 await loadBrowserGameConfig();
 
@@ -1093,7 +887,7 @@ function render(): void {
     item.innerHTML = `<span>${entry.turn}</span><p>${escapeHtml(entry.text)}</p>`;
     return item;
   }));
-  renderInventory(player.inventory ?? []);
+  renderInventory(player.inventory ?? [], observerShell);
   renderDecision(observation);
   renderEnd();
   syncModalAccessibility();
@@ -1437,11 +1231,6 @@ function renderTacticPicker(container: HTMLElement, selected: string[], slots: n
   }));
 }
 
-function tacticLabels(tactics: string[]): string[] {
-  const definitions = getGameConfig().tactics.definitions;
-  return tactics.map((id) => definitions[id]?.label ?? id);
-}
-
 function loadSelectedTactics(): string[] {
   try {
     const raw = window.localStorage.getItem(TACTICS_STORAGE_KEY);
@@ -1503,59 +1292,6 @@ function renderExpeditionDynamics(observation: ReturnType<typeof observeGame>): 
   setText("#floor-law", floorLawDescription(state.biome));
 }
 
-function renderInventory(inventory: NonNullable<GameState["entities"][number]["inventory"]>): void {
-  const config = getGameConfig();
-  setText("#inventory-count", `${inventory.length}/${config.rules.inventorySlotLimit}`);
-  requireElement<HTMLDivElement>("#equipment-list").innerHTML = (["weapon", "armor", "shield"] as const).map((slot) => {
-    const entry = inventory.find((item) => item.equipped && config.equipment[item.contentId]?.slot === slot);
-    return `<div class="equipment-slot${entry ? "" : " is-empty"}"><span>${equipmentSlotLabel(slot)}</span><strong>${entry ? escapeHtml(getContentName(entry.contentId)) : "なし"}</strong></div>`;
-  }).join("");
-  const list = requireElement<HTMLUListElement>("#inventory-list");
-  const carried = inventory.filter((entry) => !entry.equipped);
-  const signature = carried.map((entry) => `${entry.contentId}:${entry.quantity}`).join("|");
-  if (list.dataset.signature === signature) return;
-  const active = document.activeElement;
-  const focusedItem = active instanceof HTMLElement && list.contains(active) ? active.dataset.itemId : null;
-  list.dataset.signature = signature;
-  if (carried.length === 0) {
-    list.innerHTML = '<li class="empty-state">携行品なし</li>';
-    if (focusedItem) {
-      setText("#inventory-caption", "");
-      observerShell.focus({ preventScroll: true });
-    }
-    return;
-  }
-  list.replaceChildren(...carried.map((entry) => {
-    const item = document.createElement("li");
-    const label = `${getContentName(entry.contentId)} ×${entry.quantity}`;
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = "inventory-slot";
-    button.dataset.itemId = entry.contentId;
-    button.dataset.itemLabel = label;
-    button.title = label;
-    button.setAttribute("aria-label", label);
-    const icon = document.createElement("span");
-    icon.className = "inventory-icon";
-    icon.setAttribute("aria-hidden", "true");
-    applySprite(icon, assetForContent(entry.contentId), 36);
-    button.append(icon);
-    if (entry.quantity > 1) {
-      const quantity = document.createElement("b");
-      quantity.textContent = String(entry.quantity);
-      button.append(quantity);
-    }
-    item.append(button);
-    return item;
-  }));
-  // 遠征が進んで携行品が増減しても、読んでいた品からフォーカスを失わない。
-  if (focusedItem) {
-    const next = list.querySelector<HTMLButtonElement>(`[data-item-id="${CSS.escape(focusedItem)}"]`) ?? list.querySelector<HTMLButtonElement>("button");
-    next?.focus({ preventScroll: true });
-  }
-}
-
-/** 「黒燭への道」。大目標を章で並べ、次の章だけ詳しく書く。 */
 function renderRoadmap(): void {
   const progress = campaignProgress(campaign);
   const done = progress.roadmap.filter((chapter) => chapter.done).length;
@@ -1621,7 +1357,7 @@ function renderDecision(observation: ReturnType<typeof observeGame>): void {
   decisionRenderKey = key;
   decisionTitle.textContent = decision.title;
   decisionBody.textContent = decision.body;
-  renderDecisionContext(observation);
+  renderDecisionContext(observation, state, decisionStatus, decisionContext);
   renderDecisionStakes();
   decisionHint.textContent = decision.kind === "context"
     ? "各案はこの場で効果を発揮します。番号キーでも選べます。"
@@ -1794,86 +1530,6 @@ function percent(value: number): string {
   return `${Math.round(value * 100)}%`;
 }
 
-function renderDecisionContext(observation: ReturnType<typeof observeGame>): void {
-  const player = observation.player;
-  const stats = player.stats;
-  if (!stats) {
-    decisionStatus.innerHTML = '<p class="empty-state">探索者の状態を取得できません。</p>';
-    decisionContext.innerHTML = "";
-    return;
-  }
-
-  const config = getGameConfig();
-  const hpPercent = Math.max(0, Math.min(100, Math.round(stats.hp / stats.maxHp * 100)));
-  const health = hpPercent <= 35
-    ? { label: "危険", tone: "danger" }
-    : hpPercent <= 70
-      ? { label: "消耗", tone: "warning" }
-      : { label: "安定", tone: "safe" };
-  const conditions = player.conditions?.length
-    ? player.conditions.map((condition) => `<span class="tag tag-${conditionTone(condition)}">${conditionLabel(condition)} ${condition.turns}手</span>`).join("")
-    : '<span class="tag tag-quiet">異常なし</span>';
-  decisionStatus.innerHTML = `
-    <span class="decision-portrait" aria-hidden="true"></span>
-    <div class="decision-who"><strong>${escapeHtml(state.runIdentity.name)}</strong><small>${escapeHtml(getContentName(player.contentId))} · Lv${observation.playerProgress.level}</small></div>
-    <div class="decision-hp" data-tone="${health.tone}">
-      <span>HP <b>${stats.hp} / ${stats.maxHp}</b><em>${health.label}</em></span>
-      <div role="progressbar" aria-label="HP残量" aria-valuemin="0" aria-valuemax="${stats.maxHp}" aria-valuenow="${Math.max(0, stats.hp)}"><i style="width: ${hpPercent}%"></i></div>
-    </div>
-    <div class="decision-quick"><span>攻撃 <b>${stats.attack}</b></span><span>防御 <b>${stats.defense}</b></span><span>啓示 <b>${state.revelationsRemaining}/${config.autonomous.revelationsPerRun}</b></span></div>
-    <div class="tag-row">${conditions}</div>
-  `;
-  applySprite(decisionStatus.querySelector<HTMLElement>(".decision-portrait") as HTMLElement, assetForContent(player.contentId), 44);
-
-  const equipment = (["weapon", "armor", "shield"] as const).map((slot) => {
-    const entry = player.inventory?.find((item) => item.equipped && config.equipment[item.contentId]?.slot === slot);
-    const itemConfig = entry ? config.equipment[entry.contentId] : undefined;
-    return `<div class="decision-equipment-item">
-      <span>${equipmentSlotLabel(slot)}</span>
-      <strong>${entry ? escapeHtml(getContentName(entry.contentId)) : "未装備"}</strong>
-      <small>${itemConfig ? equipmentDetail(itemConfig) : "補正なし"}</small>
-    </div>`;
-  }).join("");
-  const forecast = shardForecast(state);
-  decisionContext.innerHTML = `
-    <div class="decision-equipment-grid">${equipment}</div>
-    <div class="decision-meta-grid">
-      <span>気質 <strong>${temperamentLabel(state.runIdentity.temperament)}</strong></span>
-      <span>現在方針 <strong>${directiveLabel(state.directive)}</strong></span>
-      <span>任務 <strong>${missionDefinition(state.story.missionId).label}</strong></span>
-      <span>作戦 <strong>${state.tactics.length ? escapeHtml(tacticLabels(state.tactics).join("・")) : "なし"}</strong></span>
-      <span>所持金 <strong>${observation.playerProgress.gold}</strong></span>
-      <span>灯片の見込み <strong>帰還+${forecast.ifReturned} / 倒れれば+${forecast.ifLost}</strong></span>
-    </div>
-  `;
-}
-
-function equipmentSlotLabel(slot: EquipmentConfig["slot"]): string {
-  if (slot === "weapon") return "武器";
-  if (slot === "armor") return "防具";
-  return "盾";
-}
-
-function equipmentDetail(equipment: EquipmentConfig): string {
-  const details = [`${equipment.slot === "weapon" ? "威力" : "防御"} +${equipment.power}`];
-  if (equipment.rangedDefense) details.push(`遠隔防御 +${equipment.rangedDefense}`);
-  const trapAvoid = (equipment.trapAvoidPercent ?? 0) - (equipment.trapAvoidPenaltyPercent ?? 0);
-  if (trapAvoid !== 0) details.push(`罠回避 ${trapAvoid > 0 ? "+" : ""}${trapAvoid}%`);
-  if (equipment.specialDamage) details.push(`特効 +${equipment.specialDamage.amount}`);
-  return details.join(" / ");
-}
-
-function conditionLabel(condition: StatusCondition): string {
-  if (condition.kind === "guarded") return "護り";
-  if (condition.kind === "dazed") return "怯み";
-  if (condition.kind === "bleeding") return "出血";
-  return "毒";
-}
-
-function conditionTone(condition: StatusCondition): "safe" | "danger" {
-  return condition.kind === "guarded" ? "safe" : "danger";
-}
-
 function renderEnd(): void {
   if (!candidateDialog.hidden || state.status === "playing") {
     endDialog.hidden = true;
@@ -1904,7 +1560,7 @@ function renderEnd(): void {
     ["観測", `${state.runTurn}手`],
     ["灯片", `+${shards.total}`],
   ].map(([label, value]) => `<div${label === "今回の目標" ? ` class="is-${missionDone ? "done" : "missed"}"` : ""}><span>${label}</span><strong>${value}</strong></div>`).join("");
-  renderRunInsights(buildRunInsights(runLog, state, review.deathCause, campaign));
+  renderRunInsights(runInsightsPanel, buildRunInsights(runLog, state, review.deathCause, campaign), selectedTactics);
   const rows: Array<[string, number]> = [
     ["到達", shards.depth], ["守り手", shards.guardians], ["発見", shards.discoveries], ["弔い", shards.graves],
     ["生還", shards.survival], ["持ち帰り", shards.carried], ["任務", shards.mission], ["真相", shards.truth],
@@ -1957,97 +1613,6 @@ function revealResult(): void {
     };
     requestAnimationFrame(tick);
   });
-}
-
-function renderRunInsights(insights: RunInsights): void {
-  const width = 600;
-  const height = 132;
-  const top = 18;
-  const plotHeight = 92;
-  const x = (turn: number) => (turn / insights.totalTurns) * width;
-  const y = (ratio: number) => top + (1 - ratio) * plotHeight;
-  const points = insights.timeline;
-  const floorBands: string[] = [];
-  let bandStart = 0;
-  let bandFloor = points[0]?.floor ?? 1;
-  const flushBand = (end: number) => {
-    const bandWidth = Math.max(0, x(end) - x(bandStart));
-    floorBands.push(`<rect class="floor-band ${bandFloor % 2 === 0 ? "is-even" : ""}" x="${x(bandStart).toFixed(1)}" y="${top}" width="${bandWidth.toFixed(1)}" height="${plotHeight}"/>${bandWidth > 22 ? `<text class="floor-label" x="${(x(bandStart) + 4).toFixed(1)}" y="${top + plotHeight - 5}">F${bandFloor}</text>` : ""}`);
-  };
-  for (const point of points) {
-    if (point.floor !== bandFloor) {
-      flushBand(point.runTurn);
-      bandStart = point.runTurn;
-      bandFloor = point.floor;
-    }
-  }
-  flushBand(insights.totalTurns);
-  const path = points.map((point, index) => `${index === 0 ? "M" : "L"}${x(point.runTurn).toFixed(1)},${y(point.hpRatio).toFixed(1)}`).join(" ");
-  const markerShapes = insights.markers.filter((marker) => marker.kind !== "floor").map((marker) => {
-    const mx = x(marker.runTurn).toFixed(1);
-    if (marker.kind === "death") return `<g class="marker marker-death"><line x1="${mx}" y1="${top}" x2="${mx}" y2="${top + plotHeight}"/><text x="${mx}" y="12">✕</text></g>`;
-    if (marker.kind === "lantern") return `<circle class="marker marker-lantern" cx="${mx}" cy="9" r="4"><title>${escapeHtml(marker.label)}</title></circle>`;
-    return `<rect class="marker marker-decision" x="${(Number(mx) - 4).toFixed(1)}" y="5" width="8" height="8" transform="rotate(45 ${mx} 9)"><title>${escapeHtml(marker.label)}</title></rect>`;
-  }).join("");
-  const chart = points.length > 1
-    ? `<figure class="insight-chart">
-        <figcaption><strong>遠征の軌跡</strong><span>HP の推移 · <i class="key key-decision"></i>判断 <i class="key key-lantern"></i>灯介入</span></figcaption>
-        <div class="insight-plot">
-          <svg viewBox="0 0 ${width} ${height}" preserveAspectRatio="none" role="img" aria-label="遠征中のHP推移">
-            ${floorBands.join("")}
-            <line class="hp-guide" x1="0" x2="${width}" y1="${y(0.3)}" y2="${y(0.3)}"/>
-            <path class="hp-line" pathLength="1" d="${path}"/>
-            ${markerShapes}
-            <line class="hover-line" x1="0" x2="0" y1="${top}" y2="${top + plotHeight}" visibility="hidden"/>
-          </svg>
-          <div class="insight-tooltip" hidden></div>
-        </div>
-      </figure>`
-    : "";
-  const turning = insights.turningPoints.length
-    ? `<ol class="turning-points">${insights.turningPoints.map((point) => `<li class="tone-${point.tone}"><span>F${point.floor} · ${point.runTurn}手</span><strong>${escapeHtml(point.title)}</strong><small>${escapeHtml(point.detail)}</small></li>`).join("")}</ol>`
-    : "";
-  const advice = insights.advice.length
-    ? `<div class="run-advice"><h3>次の遠征への示唆</h3><ul>${insights.advice.map((item) => `<li><span class="advice-icon" style="${adviceIconStyle(item)}">${item.kind === "tactic" ? "作戦" : "灯"}</span><strong>${escapeHtml(item.label)}</strong><small>${escapeHtml(item.reason)}</small>${item.kind === "tactic" ? `<button type="button" class="advice-adopt" data-adopt-tactic="${escapeHtml(item.id)}"${selectedTactics.includes(item.id) ? " disabled" : ""}>${selectedTactics.includes(item.id) ? "採用済み" : "次の遠征で使う"}</button>` : ""}</li>`).join("")}</ul></div>`
-    : "";
-  runInsightsPanel.innerHTML = chart + turning + advice;
-  const plot = runInsightsPanel.querySelector<HTMLElement>(".insight-plot");
-  if (plot) installInsightHover(plot, points, insights.totalTurns, width);
-}
-
-function adviceIconStyle(item: RunInsights["advice"][number]): string {
-  const asset = assetForContent(item.kind === "tactic" ? item.id : `rite.${item.id}`);
-  return asset ? spriteStyle(asset, 34) : "";
-}
-
-function installInsightHover(plot: HTMLElement, points: RunInsights["timeline"], totalTurns: number, width: number): void {
-  const tooltip = plot.querySelector<HTMLElement>(".insight-tooltip");
-  const hoverLine = plot.querySelector<SVGLineElement>(".hover-line");
-  if (!tooltip || !hoverLine) return;
-  const hide = () => {
-    tooltip.hidden = true;
-    hoverLine.setAttribute("visibility", "hidden");
-  };
-  plot.addEventListener("pointerleave", hide);
-  const showPoint = (event: PointerEvent) => {
-    const rect = plot.getBoundingClientRect();
-    const ratio = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width));
-    const turn = ratio * totalTurns;
-    let nearestPoint = points[0];
-    for (const point of points) {
-      if (Math.abs(point.runTurn - turn) < Math.abs(nearestPoint.runTurn - turn)) nearestPoint = point;
-    }
-    const lineX = (nearestPoint.runTurn / totalTurns) * width;
-    hoverLine.setAttribute("x1", String(lineX));
-    hoverLine.setAttribute("x2", String(lineX));
-    hoverLine.setAttribute("visibility", "visible");
-    tooltip.hidden = false;
-    tooltip.innerHTML = `<strong>${nearestPoint.runTurn}手 · F${nearestPoint.floor}</strong><span>HP ${Math.round(nearestPoint.hpRatio * 100)}%</span>`;
-    const left = (nearestPoint.runTurn / totalTurns) * rect.width;
-    tooltip.style.left = `${Math.min(rect.width - 90, Math.max(0, left - 45))}px`;
-  };
-  plot.addEventListener("pointermove", showPoint);
-  plot.addEventListener("pointerdown", showPoint);
 }
 
 /** 結果画面の「黒燭への道」。今回の遠征で進んだ章を光らせ、次の目標を示す。 */
@@ -2311,37 +1876,4 @@ function saveSlotSummaries(): SaveSlotSummary[] {
 
 function nextSeed(): number {
   return Math.floor(Date.now() % 100_000_000);
-}
-
-function spriteStyle(asset: NonNullable<ReturnType<typeof assetForContent>>, size: number): string {
-  const col = asset.sheet.index % asset.sheet.columns;
-  const row = Math.floor(asset.sheet.index / asset.sheet.columns);
-  return `background-image:url(${publicAssetPath(asset.path)});background-size:${asset.sheet.columns * size}px ${asset.sheet.rows * size}px;background-position:-${col * size}px -${row * size}px`;
-}
-
-function applySprite(element: HTMLElement, asset: ReturnType<typeof assetForContent>, size: number): void {
-  if (!asset) return;
-  const col = asset.sheet.index % asset.sheet.columns;
-  const row = Math.floor(asset.sheet.index / asset.sheet.columns);
-  element.style.backgroundImage = `url(${publicAssetPath(asset.path)})`;
-  element.style.backgroundSize = `${asset.sheet.columns * size}px ${asset.sheet.rows * size}px`;
-  element.style.backgroundPosition = `-${col * size}px -${row * size}px`;
-}
-
-function publicAssetPath(path: string): string {
-  return path.startsWith("/") ? `${import.meta.env.BASE_URL}${path.slice(1)}` : path;
-}
-
-function setText(selector: string, value: string): void {
-  requireElement<HTMLElement>(selector).textContent = value;
-}
-
-function escapeHtml(value: string): string {
-  return value.replace(/[&<>"]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[char] ?? char);
-}
-
-function requireElement<T extends Element>(selector: string): T {
-  const element = document.querySelector<T>(selector);
-  if (!element) throw new Error(`Missing element: ${selector}`);
-  return element;
 }

@@ -1,3 +1,4 @@
+import { samePoint } from "./spatial";
 import type { Entity, GameState, Point } from "../types";
 
 /**
@@ -50,8 +51,4 @@ export function deriveVisualEvents(before: GameState, after: GameState): VisualE
 function hpDelta(previous: Entity, current: Entity): number {
   if (!previous.stats || !current.stats) return 0;
   return current.stats.hp - previous.stats.hp;
-}
-
-function samePoint(a: Point, b: Point): boolean {
-  return a.x === b.x && a.y === b.y;
 }

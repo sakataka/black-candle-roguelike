@@ -1,3 +1,4 @@
+import { createActionCounts } from "./actions";
 import { getGameConfig } from "../content/config";
 import { getContentName } from "../content/entities";
 import type {
@@ -48,20 +49,7 @@ export function createRunLog(seed: number, roleId: string, options: RunLogOption
     totalEntries: 0,
     maxEntries: options.maxEntries,
     totals: {
-      actions: {
-        move: 0,
-        wait: 0,
-        pickup: 0,
-        equip: 0,
-        dropItem: 0,
-        useItem: 0,
-        merchantService: 0,
-        descend: 0,
-        resolveDecision: 0,
-        invokeLantern: 0,
-        placeLantern: 0,
-        borrowFlame: 0,
-      },
+      actions: createActionCounts(),
       damageEvents: 0,
       damageTaken: 0,
       healingReceived: 0,
