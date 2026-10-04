@@ -9,6 +9,7 @@ export function createActionCounts(): Record<GameAction["type"], number> {
     dropItem: 0,
     useItem: 0,
     shoot: 0,
+    skill: 0,
     merchantService: 0,
     descend: 0,
     resolveDecision: 0,

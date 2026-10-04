@@ -257,27 +257,31 @@
         "strengths": ["HPと攻撃が高く、初回プレイ向き", "ボス撃破ごとに追加報酬を得る"],
         "traitLabels": ["ボス撃破: 追加報酬", "近接安定"],
         "bossReward": "item.guardian-draught",
-        "weaponMastery": { "types": ["blade"], "attack": 2 }
+        "weaponMastery": { "types": ["blade"], "attack": 2 },
+        "skill": "oath-strike"
       }
     },
     {
       "id": "role.ash-scout",
-      "stats": { "hp": 32, "maxHp": 32, "attack": 6, "defense": 0 },
-      "growth": { "maxHp": 4, "attack": 0.9, "defense": 0.35 },
+      "stats": { "hp": 36, "maxHp": 36, "attack": 6, "defense": 0 },
+      "growth": { "maxHp": 5.5, "attack": 1, "defense": 0.5 },
       "inventory": [
         { "contentId": "item.ashwood-shortbow", "quantity": 1, "equipped": true },
+        { "contentId": "item.bone-javelin", "quantity": 1 },
         { "contentId": "item.ember-dart", "quantity": 2 },
-        { "contentId": "item.glim-map", "quantity": 1 }
+        { "contentId": "item.glim-map", "quantity": 1 },
+        { "contentId": "item.ember-tonic", "quantity": 1 }
       ],
       "traits": {
         "focus": "地図利用、罠回避、遠隔圧への対応",
-        "strengths": ["地図使用で追加探索と投げ針補充", "職業特性で罠回避と遠隔防御が少し高い"],
+        "strengths": ["弓で離れた敵を射て、近づかれたら槍に持ち替える", "職業特性で罠回避と遠隔防御が少し高い"],
         "traitLabels": ["地図使用: 探索+投げ針", "罠回避 +10%", "遠隔防御 +1"],
         "trapAvoidPercent": 10,
         "rangedDefense": 1,
         "scoutRevealRadius": 4,
         "scoutBonusItem": "item.ember-dart",
-        "weaponMastery": { "types": ["bow", "spear"], "attack": 2 }
+        "weaponMastery": { "types": ["bow", "spear"], "attack": 2 },
+        "skill": "disengage"
       }
     },
     {
@@ -295,7 +299,8 @@
         "strengths": ["浄化や治療を護りに変える", "攻撃力は低いが危険状態から立て直しやすい"],
         "traitLabels": ["浄化: 護り8手", "状態異常対策"],
         "priestGuardedTurns": 8,
-        "weaponMastery": { "types": ["mace"], "attack": 2 }
+        "weaponMastery": { "types": ["mace"], "attack": 2 },
+        "skill": "sanctify"
       }
     },
     {
@@ -314,7 +319,8 @@
         "roomRevealRadius": 5,
         "trapAvoidPercent": 8,
         "truthId": "furnace-map",
-        "weaponMastery": { "types": ["mace", "axe"], "attack": 2 }
+        "weaponMastery": { "types": ["mace", "axe"], "attack": 2 },
+        "skill": "appraise"
       }
     },
     {
@@ -333,7 +339,8 @@
         "healPercent": 30,
         "cleansingHeal": 3,
         "truthId": "purified-flame",
-        "weaponMastery": { "types": ["spear"], "attack": 2 }
+        "weaponMastery": { "types": ["spear"], "attack": 2 },
+        "skill": "ash-flask"
       }
     },
     {
@@ -352,7 +359,8 @@
         "trapAvoidPercent": -8,
         "bossReward": "item.guardian-draught",
         "truthId": "shared-oath",
-        "weaponMastery": { "types": ["axe"], "attack": 2 }
+        "weaponMastery": { "types": ["axe"], "attack": 2 },
+        "skill": "charge"
       }
     },
     {
@@ -373,7 +381,8 @@
         "truthId": "furnace-map",
         "weaponMastery": { "types": ["dagger"], "attack": 2 },
         "backstabMultiplier": 3,
-        "stealth": 3
+        "stealth": 3,
+        "skill": "shadowstep"
       }
     }
   ],
@@ -425,6 +434,26 @@
     "monster.ember-hound": { "hp": 14, "attack": 4, "defense": 1 },
     "monster.threefold-gatehound": { "hp": 22, "attack": 5, "defense": 3 },
     "monster.candle-root-knight": { "hp": 24, "attack": 5, "defense": 4 }
+  },
+  "monsterBehaviors": {
+    "monster.ash-rat": { "pack": 1 },
+    "monster.ember-moth": { "explode": { "damage": 3, "perFloor": 0.5 } },
+    "monster.venom-bat": { "fast": true },
+    "monster.bone-thrall": { "revive": { "turns": 4 } },
+    "monster.shadow-imp": { "thief": true },
+    "monster.bramble-packling": { "pack": 1 },
+    "monster.ash-claw": { "fast": true },
+    "monster.rust-footman": { "shielded": 50 },
+    "monster.blackstone-hexer": { "healer": { "every": 4, "percent": 35, "range": 4 } },
+    "monster.vein-gnawer": { "corrode": 50 },
+    "monster.venom-swarm": { "pack": 1 },
+    "monster.acid-ooze": { "split": { "minHp": 4, "max": 2 } },
+    "monster.grave-bloodling": { "fast": true },
+    "monster.coffer-maw": { "ambush": true },
+    "monster.blackstone-sentinel": { "shielded": 50 },
+    "monster.core-ant": { "pack": 1 },
+    "monster.ember-hound": { "pack": 1 },
+    "monster.candle-root-knight": { "regenerate": 2 }
   },
   "itemPools": [
     {
@@ -661,6 +690,24 @@
     "mace": { "label": "鈍器", "description": "防御を打ち抜き、時折敵を怯ませる。", "defenseIgnorePercent": 70, "dazeChancePercent": 15 },
     "bow": { "label": "弓", "description": "離れた敵を射る。近接は苦手。" }
   },
+  "skills": {
+    "oath-strike": { "label": "誓剣", "description": "隣の敵へ誓いを込めた一撃。守り手にはさらに深く、倒せば傷が少し塞がる。", "cooldown": 7, "scale": 2, "bossScale": 2.5, "healOnKill": 6 },
+    "disengage": { "label": "退き足", "description": "隣の敵を怯ませ、2歩退いて間合いを取り直す。弓や槍の間合いを作る。", "cooldown": 6, "range": 2, "turns": 1 },
+    "sanctify": {
+      "label": "聖灯",
+      "description": "周囲3マスの亡者と悪魔を灯で焼き、ほかの敵を怯ませる。",
+      "cooldown": 10,
+      "range": 3,
+      "damage": 6,
+      "damagePerLevel": 1,
+      "turns": 1,
+      "families": ["undead", "demon"]
+    },
+    "appraise": { "label": "看破", "description": "見えている敵の弱点を見抜く。しばらく防御と盾が効かなくなる。", "cooldown": 8, "range": 6, "turns": 6 },
+    "ash-flask": { "label": "灰毒の瓶", "description": "灰毒の瓶を投げ、当たった敵と周りを焼いて毒を残す。", "cooldown": 7, "range": 4, "damage": 4, "damagePerLevel": 0.5, "turns": 4 },
+    "charge": { "label": "突進", "description": "2〜4マス先の敵へ一直線に詰め寄り、重い一撃で怯ませる。", "cooldown": 6, "range": 4, "scale": 1.5, "turns": 1 },
+    "shadowstep": { "label": "影渡り", "description": "見えている敵の陰へ渡り、不意打ちを入れる。", "cooldown": 8, "range": 5 }
+  },
   "seals": {
     "drain": { "glyph": "吸", "label": "吸命", "description": "与えた傷の一部を命火に変える。", "slots": ["weapon"], "weight": 3, "drainPercent": 25 },
     "keen": { "glyph": "会", "label": "会心", "description": "時折、深く斬り込む。", "slots": ["weapon"], "weight": 4, "critPercent": 15, "critMultiplier": 1.8 },
@@ -841,7 +888,9 @@
       "monster.fallen-keeper": { "kind": "sweep", "windup": 3, "cooldown": 4, "recovery": 2, "range": 2, "damageScale": 1.3 },
       "monster.ember-hound": { "kind": "shot", "windup": 2, "recovery": 2, "cooldown": 4, "range": 5, "damageScale": 1.1 },
       "monster.threefold-gatehound": { "kind": "sweep", "windup": 2, "recovery": 2, "cooldown": 4, "range": 2, "damageScale": 1.2 },
-      "monster.candle-root-knight": { "kind": "sweep", "windup": 2, "recovery": 2, "cooldown": 4, "range": 2, "damageScale": 1.2 }
+      "monster.candle-root-knight": { "kind": "sweep", "windup": 2, "recovery": 2, "cooldown": 4, "range": 2, "damageScale": 1.2 },
+      "monster.moss-brute": { "kind": "charge", "windup": 1, "cooldown": 5, "recovery": 2, "range": 4, "damageScale": 1.6 },
+      "monster.iron-reliquary-guard": { "kind": "charge", "windup": 1, "cooldown": 5, "recovery": 2, "range": 4, "damageScale": 1.5 }
     },
     "ai": {
       "dodgeHpRatio": 1,

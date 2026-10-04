@@ -41,6 +41,8 @@ describe("作戦と方針", () => {
     const player = state.entities.find((entity) => entity.id === state.playerId)!;
     player.pos = { x: 5, y: 5 };
     player.inventory = [];
+    // 固有技を待機中にして、通常の踏み込みだけを確かめる。
+    player.skillCooldown = 99;
     state.tiles = state.tiles.map(() => ({ kind: "floor", visible: true, explored: true }));
     const rat = { id: "rat", kind: "monster" as const, contentId: "monster.ash-rat", pos: { x: 6, y: 6 }, hostile: true, blocksMovement: true, stats: { hp: 30, maxHp: 30, attack: 1, defense: 0 } };
     state.entities = [player, rat];

@@ -33,6 +33,8 @@ import { Rng } from "./rng";
 import { clampNumber, hasLineOfSight, message, pushMessage, recordStrike, roleTraits } from "./stateOps";
 import { bowFor, canReach, counterAttack, playerBowShot, playerWeaponAttack, registerDefeatHandler, thornsAttack, tickMonsterAfflictions } from "./combat";
 import { drawEquipment, isEquipmentToken, resolveEquipmentToken, rollEquipmentPiece } from "./loot";
+import { useSkill } from "./skills";
+import { afterMonsterHitsPlayer, behaviorOf, onMonsterDefeated, packBonus, preMonsterTurn, tryRevive } from "./monsterBehaviors";
 import { realtimeConfig } from "../content/realtime";
 import { armDecision, createDynamics, recordLastMoment, repayFlame, telegraphTiles } from "./realtime";
 import {
@@ -189,7 +191,10 @@ function createFloorState(
     const contentId = rng.pick(roomPool.length ? roomPool : monsterPool);
     const spawned = monster(`${contentId}.${floor}.${index}`, contentId, takePoint(inRoom ? themedRoom.points : floorPlan.monsterPoints), statsForMonster(contentId, dangerBoost, floor, carriedRunObjectives, rules));
     // 一部の敵は眠っている。忍び寄れば不意打ちでき、隣で騒げば目を覚ます。
-    if (rng.int(1, 100) <= rules.sleepingMonsterPercent) spawned.asleep = true;
+    if (behaviorOf(contentId).ambush) {
+      spawned.asleep = true;
+      spawned.ambushReady = true;
+    } else if (rng.int(1, 100) <= rules.sleepingMonsterPercent) spawned.asleep = true;
     return spawned;
   });
   const guaranteedItems = [
@@ -321,6 +326,7 @@ export function applyAction(state: GameState, action: GameAction): GameState {
   const previousDecisionId = next.pendingDecision?.id;
   // 選択窓の期限も遠征の手数で進む。敵・探索・状態異常は通常どおり動く。
   const player = getPlayer(next);
+  if (player.skillCooldown) player.skillCooldown -= 1;
 
   switch (action.type) {
     case "move":
@@ -337,6 +343,9 @@ export function applyAction(state: GameState, action: GameAction): GameState {
       break;
     case "shoot":
       next = shootWeapon(next, action.targetId);
+      break;
+    case "skill":
+      next = useSkill(next, action.targetId);
       break;
     case "merchantService":
       next = buyMerchantService(next, action.serviceId);
@@ -375,7 +384,8 @@ export function applyAction(state: GameState, action: GameAction): GameState {
   next = resolveMissionCompletion(next);
 
   if (next.status === "playing" && (!next.pendingDecision || realtimeConfig().enabled)) {
-    next = reevaluateEquipment(next);
+    // 装備の選び直しは拾得・捨てた時だけ。戦闘中の持ち替えは探索者の判断（equip）に任せる。
+    refreshPlayerStats(next);
     next = runMonsterTurn(next);
   }
   if (next.status === "playing" && (!next.pendingDecision || realtimeConfig().enabled)) {
@@ -1443,7 +1453,9 @@ function attack(state: GameState, attacker: Entity, defender: Entity): GameState
   }
 
   const rng = new Rng(state.seed + state.turn * 97 + attacker.id.length * 13);
-  const rawDamage = attacker.stats.attack + rng.int(0, getGameConfig().rules.attackRandomBonusMax) - defender.stats.defense;
+  const ambush = attacker.ambushReady ? 2 : 1;
+  attacker.ambushReady = false;
+  const rawDamage = (attacker.stats.attack + packBonus(state, attacker, defender)) * ambush + rng.int(0, getGameConfig().rules.attackRandomBonusMax) - defender.stats.defense;
   const damage = Math.max(1, rawDamage);
   defender.stats.hp -= damage;
   recordStrike(state, attacker, defender, false);
@@ -1462,6 +1474,8 @@ function attack(state: GameState, attacker: Entity, defender: Entity): GameState
     return state;
   }
   if (defender.kind === "player" && state.status === "playing") {
+    afterMonsterHitsPlayer(state, attacker);
+    refreshPlayerStats(state);
     state = thornsAttack(state, attacker);
     if (state.entities.includes(attacker)) state = counterAttack(state, attacker);
   }
@@ -1469,6 +1483,8 @@ function attack(state: GameState, attacker: Entity, defender: Entity): GameState
 }
 
 function defeatMonster(state: GameState, defeated: Entity): GameState {
+  if (tryRevive(state, defeated)) return state;
+  onMonsterDefeated(state, defeated);
   const reward = bossRewardFor(defeated.contentId);
   const defeatedPos = { ...defeated.pos };
   state = awardXp(state, defeated.contentId);
@@ -2237,12 +2253,18 @@ function isRangedMonster(contentId: string): boolean {
 function runMonsterTurn(state: GameState): GameState {
   state = tickMonsterAfflictions(state);
   const player = getPlayer(state);
-  const monsters = state.entities.filter((entity) => entity.kind === "monster" && entity.stats);
+  // 倍速の敵は1手に2回動く。ただし噛みつくのは1手に1回まで。
+  const monsters = state.entities.filter((entity) => entity.kind === "monster" && entity.stats).flatMap((entity) => behaviorOf(entity.contentId).fast ? [entity, entity] : [entity]);
+  const struck = new Set<Entity>();
   for (const monsterEntity of monsters) {
     if (state.status !== "playing") {
       break;
     }
     if (!state.entities.includes(monsterEntity)) continue;
+    if (struck.has(monsterEntity)) continue;
+    const pre = preMonsterTurn(state, monsterEntity, () => stepMonsterAwayFromPlayer(state, monsterEntity, player.pos));
+    state = pre.state;
+    if (pre.acted) continue;
     if (monsterEntity.conditions?.some((condition) => condition.kind === "dazed")) {
       monsterEntity.telegraph = undefined;
       monsterEntity.conditions = monsterEntity.conditions
@@ -2254,6 +2276,10 @@ function runMonsterTurn(state: GameState): GameState {
     const special = realtimeConfig().enabled ? realtimeConfig().telegraphs[monsterEntity.contentId] : undefined;
     if (monsterEntity.telegraph && special) {
       monsterEntity.telegraph.remaining -= 1;
+      if (monsterEntity.telegraph.remaining <= 0 && monsterEntity.telegraph.kind === "charge") {
+        state = resolveCharge(state, monsterEntity, player, special);
+        continue;
+      }
       if (monsterEntity.telegraph.remaining <= 0) {
         const hits = monsterEntity.telegraph.tiles.some((p) => samePoint(p, player.pos));
         const originClear = hasLineOfSight(state, monsterEntity.pos, player.pos);
@@ -2284,7 +2310,8 @@ function runMonsterTurn(state: GameState): GameState {
     if (!updateAwareness(state, monsterEntity, player, distance)) continue;
     const specialReady = (monsterEntity.attackCooldown ?? 0) <= 0;
     monsterEntity.attackCooldown = Math.max(0, (monsterEntity.attackCooldown ?? 0) - 1);
-    if (special && specialReady && distance <= special.range && (special.kind === "sweep" || distance > 1) && hasLineOfSight(state, monsterEntity.pos, player.pos)) {
+    if (special && specialReady && distance <= special.range && (special.kind === "sweep" || distance > 1) && hasLineOfSight(state, monsterEntity.pos, player.pos)
+      && (special.kind !== "charge" || isChargeLane(monsterEntity.pos, player.pos))) {
       monsterEntity.telegraph = { kind: special.kind, origin: { ...monsterEntity.pos }, remaining: special.windup,
         tiles: telegraphTiles(special.kind, monsterEntity.pos, player.pos, state.expedition?.lawPhase ?? 0).filter((p) => inBounds(state, p) && isWalkable(tileAt(state, p).kind)) };
       if (state.expedition) state.expedition.stats.telegraphs += 1;
@@ -2314,6 +2341,7 @@ function runMonsterTurn(state: GameState): GameState {
       }
     }
     if (distance <= 1) {
+      struck.add(monsterEntity);
       state = attack(state, monsterEntity, player);
       continue;
     }
@@ -2335,6 +2363,45 @@ function runMonsterTurn(state: GameState): GameState {
       }
     }
   }
+  return state;
+}
+
+/** 突進は縦・横・斜めの一直線にいる時だけ構える。 */
+function isChargeLane(from: Point, to: Point): boolean {
+  const dx = Math.abs(to.x - from.x);
+  const dy = Math.abs(to.y - from.y);
+  return dx === 0 || dy === 0 || dx === dy;
+}
+
+/** 突進の解決。線上に残っていれば探索者の手前まで詰めて当て、外れれば走り抜けて隙を見せる。 */
+function resolveCharge(state: GameState, monsterEntity: Entity, player: Entity, special: { damageScale: number; recovery: number; cooldown: number }): GameState {
+  const path = monsterEntity.telegraph!.tiles;
+  const blocked = (p: Point) => !inBounds(state, p) || !isWalkable(tileAt(state, p).kind) || state.entities.some((entity) => entity !== monsterEntity && entity.blocksMovement && samePoint(entity.pos, p));
+  const hitIndex = path.findIndex((p) => samePoint(p, player.pos));
+  monsterEntity.telegraph = undefined;
+  monsterEntity.recoveryTurns = special.recovery;
+  monsterEntity.attackCooldown = special.cooldown;
+  if (hitIndex >= 0) {
+    const lane = path.slice(0, hitIndex);
+    if (lane.some(blocked)) return state;
+    const stop = lane.at(-1);
+    if (stop) monsterEntity.pos = { ...stop };
+    const damage = Math.max(1, Math.ceil((monsterEntity.stats!.attack - (player.stats?.defense ?? 0)) * special.damageScale));
+    if (player.stats) player.stats.hp -= damage;
+    recordStrike(state, monsterEntity, player, false);
+    state.messages = pushMessage(state, `${getContentName(monsterEntity.contentId)}が突進し、${damage}ダメージを受けた。`, "combat");
+    if ((player.stats?.hp ?? 1) <= 0) {
+      state.status = "lost";
+      state.story.killedBy = { cause: "combat", contentId: monsterEntity.contentId };
+    }
+    return state;
+  }
+  for (const p of path) {
+    if (blocked(p) || samePoint(p, player.pos)) break;
+    monsterEntity.pos = { ...p };
+  }
+  if (state.expedition) state.expedition.stats.dodges += 1;
+  if (tileAt(state, monsterEntity.pos).visible) state.messages = pushMessage(state, `${getContentName(monsterEntity.contentId)}の突進が空を切り、勢いのまま体勢を崩した。`, "combat");
   return state;
 }
 
@@ -2367,7 +2434,8 @@ function updateAwareness(state: GameState, monsterEntity: Entity, player: Entity
 
 function shouldKeepDistance(contentId: string): boolean {
   if (getGameConfig().expansion?.monsterTraits[contentId]?.keepDistance) return true;
-  return contentId === "monster.hollow-archer" || contentId === "monster.cinder-cultist" || contentId === "monster.ash-warlock" || contentId === "monster.shadow-imp";
+  // 影小鬼は盗人になったので距離を取らず、盗んでから逃げる。
+  return contentId === "monster.hollow-archer" || contentId === "monster.cinder-cultist" || contentId === "monster.ash-warlock";
 }
 
 function stepMonsterAwayFromPlayer(state: GameState, monsterEntity: Entity, playerPos: Point): GameState | null {

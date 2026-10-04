@@ -45,6 +45,7 @@ export function weaponTypeLabels(types: string[] = []): string {
 export function conditionLabel(condition: StatusCondition): string {
   if (condition.kind === "guarded") return "護り";
   if (condition.kind === "dazed") return "怯み";
+  if (condition.kind === "exposed") return "看破";
   if (condition.kind === "bleeding") return "出血";
   return "毒";
 }

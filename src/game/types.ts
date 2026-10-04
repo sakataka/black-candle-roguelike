@@ -323,7 +323,7 @@ export type Stats = {
   defense: number;
 };
 
-export type ConditionKind = "guarded" | "bleeding" | "venomed" | "dazed";
+export type ConditionKind = "guarded" | "bleeding" | "venomed" | "dazed" | "exposed";
 
 export type StatusCondition = {
   kind: ConditionKind;
@@ -361,6 +361,50 @@ type RoleTraits = {
   backstabMultiplier?: number;
   /** 敵に気づかれにくくなる距離。 */
   stealth?: number;
+  /** 職業の固有技。 */
+  skill?: SkillId;
+};
+
+export type SkillId = "oath-strike" | "disengage" | "sanctify" | "appraise" | "ash-flask" | "charge" | "shadowstep";
+
+export type SkillConfig = {
+  label: string;
+  description: string;
+  cooldown: number;
+  range?: number;
+  scale?: number;
+  bossScale?: number;
+  healOnKill?: number;
+  damage?: number;
+  damagePerLevel?: number;
+  turns?: number;
+  families?: EnemyFamily[];
+};
+
+/** 敵の振る舞い。数値の強さとは別に、戦い方そのものを変える。 */
+export type MonsterBehavior = {
+  /** 1手に2回動く。 */
+  fast?: boolean;
+  /** 同じ敵が探索者の隣にいる数だけ攻撃が上がる。 */
+  pack?: number;
+  /** 鈍器以外の正面からの攻撃を軽減する割合。隙や不意打ちには効かない。 */
+  shielded?: number;
+  /** 一度倒れても、鈍器か浄化の武器でなければ数手後に起き上がる。 */
+  revive?: { turns: number };
+  /** 殴った時に携行品を盗んで逃げる。 */
+  thief?: boolean;
+  /** 傷ついた仲間を癒やす。 */
+  healer?: { every: number; percent: number; range: number };
+  /** 殴った時に装備の修正値を下げる確率。 */
+  corrode?: number;
+  /** 傷を受けると分かれる。 */
+  split?: { minHp: number; max: number };
+  /** 倒れる時に周囲を焼く。 */
+  explode?: { damage: number; perFloor: number };
+  /** 毎手の再生。毒を受けている間は止まる。 */
+  regenerate?: number;
+  /** 必ず眠った状態で置かれ、起きた直後の一撃が重い。 */
+  ambush?: boolean;
 };
 
 /** 職業の基礎能力。stats は装備を含まない素の値で、growth はレベルごとの伸び。 */
@@ -642,6 +686,8 @@ export type GameConfig = {
   /** 階ごとに必ず置く装備の枠。中身は格と部位から抽選し、探索者の得意な型へ寄せる確率を持つ。 */
   guaranteedEquipment: Array<FloorRule & { slot: EquipmentSlot; tier: "early" | "mid" | "late"; favoredChancePercent?: number }>;
   weaponTypes: Record<WeaponType, WeaponTypeConfig>;
+  skills: Record<SkillId, SkillConfig>;
+  monsterBehaviors: Record<string, MonsterBehavior>;
   seals: Record<string, SealConfig>;
   equipmentRolls: {
     plus: Array<{ maxFloor: number; weights: Record<string, number> }>;
@@ -699,6 +745,16 @@ export type Entity = {
   alerted?: boolean;
   /** 眠っている敵。隣で騒ぐか攻撃されるまで動かない。 */
   asleep?: boolean;
+  /** 崩れて蠢いている亡者。残り手数で起き上がる。 */
+  dormant?: number;
+  revived?: boolean;
+  splitGeneration?: number;
+  /** 盗みを働いて逃げている敵。 */
+  fleeing?: boolean;
+  /** 待ち伏せの敵が起きた直後の重い一撃。 */
+  ambushReady?: boolean;
+  /** 探索者の固有技が再び使えるまでの手数。 */
+  skillCooldown?: number;
 };
 
 export type PlayerProgress = {
@@ -759,6 +815,8 @@ export type GameAction =
   | { type: "dropItem"; contentId: string }
   | { type: "useItem"; contentId: string; targetId?: string }
   | { type: "shoot"; targetId: string }
+  /** 職業の固有技。対象が要らない技では targetId を省く。 */
+  | { type: "skill"; targetId?: string }
   | { type: "merchantService"; serviceId: MerchantServiceId }
   | { type: "descend" }
   | { type: "resolveDecision"; optionId: string; tactics?: string[] }
@@ -767,7 +825,7 @@ export type GameAction =
   | { type: "placeLantern"; pos?: Point }
   | { type: "borrowFlame" };
 
-type VisibleEntity = Pick<Entity, "id" | "kind" | "contentId" | "pos" | "stats" | "hostile" | "blocksMovement" | "goldAmount" | "conditions" | "telegraph" | "recoveryTurns" | "awakened" | "plus" | "seals" | "alerted" | "asleep">;
+type VisibleEntity = Pick<Entity, "id" | "kind" | "contentId" | "pos" | "stats" | "hostile" | "blocksMovement" | "goldAmount" | "conditions" | "telegraph" | "recoveryTurns" | "awakened" | "plus" | "seals" | "alerted" | "asleep" | "dormant" | "fleeing">;
 
 type ExplorationObjective = "explore" | "findStairs" | "defeatBoss" | "descend" | "resolveStall";
 
@@ -824,7 +882,7 @@ export type DeathCause = "combat" | "rangedCombat" | "trap" | "bleeding" | "veno
 
 export type LessonId = "ranged" | "care" | "traps";
 export type LastMoment = { action: string; hp: number; pos: Point };
-export type AttackTelegraph = { kind: "shot" | "sweep" | "hex"; tiles: Point[]; remaining: number; origin: Point };
+export type AttackTelegraph = { kind: "shot" | "sweep" | "hex" | "charge"; tiles: Point[]; remaining: number; origin: Point };
 export type ExpeditionDynamics = {
   lights: Array<{ pos: Point; turns: number }>;
   borrowed: boolean;

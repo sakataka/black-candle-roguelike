@@ -7,6 +7,7 @@ import { Rng } from "./rng";
 import { chebyshev, inBounds, isWalkable, samePoint, tileAt } from "./spatial";
 import { getPlayer } from "./state";
 import { hasLineOfSight, pushMessage, recordStrike, roleTraits } from "./stateOps";
+import { maybeSplit, shieldScale } from "./monsterBehaviors";
 import type { Entity, GameState, Point } from "../types";
 
 // 探索者の攻撃と、武器の型・印の効果。撃破の後始末（経験値・報酬・守り手の判断）は game.ts へ委ねる。
@@ -23,7 +24,7 @@ export function isOpenToBackstab(target: Pick<Entity, "alerted" | "asleep" | "re
   return !target.alerted || !!target.asleep || (target.recoveryTurns ?? 0) > 0 || !!target.telegraph || (target.conditions?.some((condition) => condition.kind === "dazed" && condition.turns > 0) ?? false);
 }
 
-type HitOptions = { scale?: number; allowBackstab?: boolean; base?: number; procs?: boolean };
+type HitOptions = { scale?: number; allowBackstab?: boolean; forceBackstab?: boolean; base?: number; procs?: boolean };
 type HitResult = { damage: number; notes: string[] };
 
 function combatRng(state: GameState, salt: number): Rng {
@@ -44,16 +45,27 @@ function computeHit(player: Entity, target: Entity, rng: Rng, options: HitOption
   const special = equippedWeaponSpecialDamage(player, target.contentId);
   if (special > 0) notes.push("特効");
   let raw = ((options.base ?? player.stats?.attack ?? 1) + rng.int(0, getGameConfig().rules.attackRandomBonusMax) + special + opening) * (options.scale ?? 1);
-  if (options.allowBackstab && weapon?.backstabMultiplier && isOpenToBackstab(target)) {
-    raw *= roleTraits(player.contentId)?.backstabMultiplier ?? weapon.backstabMultiplier;
+  const open = isOpenToBackstab(target);
+  if (options.forceBackstab || (options.allowBackstab && weapon?.backstabMultiplier && open)) {
+    raw *= roleTraits(player.contentId)?.backstabMultiplier ?? weapon?.backstabMultiplier ?? 2;
     notes.push("不意打ち");
+  }
+  const shield = shieldScale(target, player, open || !!options.forceBackstab);
+  if (shield < 1) {
+    raw *= shield;
+    notes.push("盾に阻まれる");
+  }
+  const exposed = hasCondition(target, "exposed");
+  if (exposed) {
+    raw += 2;
+    notes.push("看破");
   }
   const keen = weaponSeals(player).find((seal) => seal.critPercent);
   if (keen && rng.int(1, 100) <= (keen.critPercent ?? 0)) {
     raw *= keen.critMultiplier ?? 1.5;
     notes.push("会心");
   }
-  const defense = Math.round((target.stats?.defense ?? 0) * (1 - (weapon?.defenseIgnorePercent ?? 0) / 100));
+  const defense = exposed ? 0 : Math.round((target.stats?.defense ?? 0) * (1 - (weapon?.defenseIgnorePercent ?? 0) / 100));
   return { damage: Math.max(1, Math.round(raw) - defense), notes };
 }
 
@@ -65,6 +77,7 @@ function applyHit(state: GameState, player: Entity, target: Entity, result: HitR
   recordStrike(state, player, target, options.ranged ?? false);
   const notes = result.notes.length ? `（${result.notes.join("・")}）` : "";
   state.messages = pushMessage(state, `${getContentName(target.contentId)}${options.verb}${result.damage}ダメージ${notes}。`, "combat");
+  if (target.stats.hp > 0) maybeSplit(state, target);
   if (!options.procs || target.stats.hp <= 0) {
     if (options.procs) drainLife(state, player, result.damage);
     return;
@@ -149,6 +162,30 @@ export function playerWeaponAttack(state: GameState, target: Entity): GameState 
   return settleDefeats(state, victims);
 }
 
+/** 技から使う一撃。倍率や不意打ちの強制を指定し、撃破まで解決する。 */
+export function playerStrike(state: GameState, target: Entity, options: { scale?: number; forceBackstab?: boolean; verb?: string }): GameState {
+  const player = getPlayer(state);
+  if (!player.stats || !target.stats) return state;
+  const rng = combatRng(state, target.id.length + 41);
+  applyHit(state, player, target, computeHit(player, target, rng, { scale: options.scale, allowBackstab: true, forceBackstab: options.forceBackstab }), rng, { procs: true, verb: options.verb ?? "に" });
+  return settleDefeats(state, [target]);
+}
+
+/** 技や毒の瓶など、防御を無視した固定の傷。撃破まで解決する。 */
+export function applyFixedDamage(state: GameState, targets: Entity[], damage: number, verb: string): GameState {
+  const player = getPlayer(state);
+  for (const target of targets) {
+    if (!target.stats) continue;
+    target.stats.hp -= damage;
+    target.alerted = true;
+    target.asleep = false;
+    recordStrike(state, player, target, true);
+    state.messages = pushMessage(state, `${getContentName(target.contentId)}${verb}${damage}ダメージ。`, "combat");
+    if (target.stats.hp > 0) maybeSplit(state, target);
+  }
+  return settleDefeats(state, targets);
+}
+
 export function bowFor(player: Entity) {
   const weapon = equippedEntry(player, "weapon");
   return weapon ? getGameConfig().equipment[weapon.contentId]?.rangedAttack : undefined;
@@ -189,6 +226,11 @@ export function thornsAttack(state: GameState, attacker: Entity): GameState {
 /** 敵に残った毒の進行。探索者の印や技で付いた毒だけが対象。 */
 export function tickMonsterAfflictions(state: GameState): GameState {
   const victims: Entity[] = [];
+  for (const monster of state.entities.filter((entity) => entity.kind === "monster" && hasCondition(entity, "exposed"))) {
+    monster.conditions = monster.conditions
+      ?.map((condition) => condition.kind === "exposed" ? { ...condition, turns: condition.turns - 1 } : condition)
+      .filter((condition) => condition.turns > 0);
+  }
   for (const monster of state.entities.filter((entity) => entity.kind === "monster" && entity.stats && hasCondition(entity, "venomed"))) {
     const damage = 1 + Math.floor(state.floor / 3);
     monster.stats!.hp -= damage;

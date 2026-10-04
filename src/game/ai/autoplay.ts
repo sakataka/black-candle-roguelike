@@ -3,6 +3,8 @@ import { DIRECTION_DELTAS, chebyshev as distance, isWalkable, linePoints, pointK
 import { getGameConfig, runRules } from "../content/config";
 import { contentEntities } from "../content/entities";
 import { equippedEntry, preferredEquipment, upgradeGain, weaponTypeOf } from "../core/inventory";
+import { planSkill, roleSkill, skillViewFromObservation } from "../core/skills";
+import { behaviorOf } from "../core/monsterBehaviors";
 import { realtimeConfig } from "../content/realtime";
 import { visibleDangerTiles } from "../core/realtime";
 import type { AutoplayPolicyValues, Direction, GameAction, GameObservation, Point, PolicyModifier } from "../types";
@@ -89,7 +91,16 @@ export function chooseAutoplayAction(observation: GameObservation): GameAction {
     return { type: "useItem", contentId: potion.contentId };
   }
 
-  const preferred = preferredEquipment(observation.player);
+  const skillAction = chooseSkillAction(observation, hpRatio, policy.combatHp, weaponType);
+  if (skillAction) return skillAction;
+
+  // 持ち替え。弓で引き撃ちできない距離まで詰められたら近接武器へ、敵が離れたら普段の装備へ戻す。
+  const equippedBow = observation.player.inventory?.find((entry) => entry.equipped && getGameConfig().equipment[entry.contentId]?.rangedAttack);
+  const closeHostiles = visibleHostiles.filter((entity) => distance(entity.pos, observation.player.pos) <= 2);
+  const cornered = closeHostiles.some((entity) => distance(entity.pos, observation.player.pos) <= 1)
+    && (!equippedBow || !kiteStep(observation, visibleHostiles, getGameConfig().equipment[equippedBow.contentId].rangedAttack!.range));
+  const holdingMelee = !equippedBow && closeHostiles.length > 0;
+  const preferred = preferredEquipment(observation.player, cornered || holdingMelee ? "melee" : "auto");
   const upgrade = observation.player.inventory?.find((entry) => !entry.equipped && entry.quantity > 0 && preferred.has(entry.contentId));
   if (upgrade) return { type: "equip", contentId: upgrade.contentId };
 
@@ -559,6 +570,53 @@ function chooseMerchantService(observation: GameObservation, hpRatio: number, ha
   }
   if (observation.knownTiles.length < observation.width * observation.height * 0.5 && offers.some((offer) => offer.serviceId === "map")) {
     return { type: "merchantService", serviceId: "map" };
+  }
+  return null;
+}
+
+/**
+ * 職業の固有技を使う場面。核と同じ planSkill で可否を確かめ、技ごとの使いどころだけをここで決める。
+ */
+function chooseSkillAction(observation: GameObservation, hpRatio: number, combatHp: number, weaponType: string | null): GameAction | null {
+  const skill = roleSkill(observation.player.contentId);
+  if (!skill || (observation.player.skillCooldown ?? 0) > 0) return null;
+  const me = observation.player.pos;
+  const view = skillViewFromObservation(observation, (from, to) => hasKnownLineOfSight(observation, from, to), (point) => isKnownWalkable(observation, point), (point) => isVisibleBlockerAt(observation, point));
+  const hostiles = observation.visibleEntities.filter((entity) => entity.kind === "monster" && entity.hostile && entity.stats);
+  const awake = hostiles.filter((entity) => !entity.asleep && !entity.dormant);
+  const attack = observation.player.stats?.attack ?? 8;
+  const strong = (entity: (typeof hostiles)[number]) => contentEntities[entity.contentId]?.tier === "boss"
+    || (entity.stats?.hp ?? 0) >= attack * 1.5 || (entity.stats?.defense ?? 0) >= 3 || !!behaviorOf(entity.contentId).shielded || !!behaviorOf(entity.contentId).regenerate;
+  const use = (targetId?: string): GameAction | null => planSkill(view, targetId) ? { type: "skill", targetId } : null;
+  const near = (range: number) => awake.filter((entity) => distance(entity.pos, me) <= range);
+  switch (skill.id) {
+    case "oath-strike": {
+      const target = near(1).find((entity) => strong(entity) || (entity.recoveryTurns ?? 0) > 0);
+      if (target?.recoveryTurns) tacticalIntents.set(observation, "opening");
+      return target ? use(target.id) : null;
+    }
+    case "disengage":
+      return near(1).length > 0 && (weaponType === "bow" || weaponType === "spear" || hpRatio < 0.5) ? use() : null;
+    case "sanctify":
+      return near(3).length >= 2 || near(3).some((entity) => ["undead", "demon"].includes(contentEntities[entity.contentId]?.family ?? "")) ? use() : null;
+    case "appraise": {
+      const target = near(6).find((entity) => strong(entity) && !entity.conditions?.some((condition) => condition.kind === "exposed"));
+      return target ? use(target.id) : null;
+    }
+    case "ash-flask": {
+      const target = near(4).find((entity) => strong(entity) || awake.filter((other) => other !== entity && distance(other.pos, entity.pos) <= 1).length >= 1);
+      return target ? use(target.id) : null;
+    }
+    case "charge": {
+      if (hpRatio <= combatHp) return null;
+      const target = near(4).filter((entity) => distance(entity.pos, me) >= 2).sort((a, b) => Number(isRangedThreat(b.contentId)) - Number(isRangedThreat(a.contentId)) || Number(strong(b)) - Number(strong(a)))[0];
+      return target ? use(target.id) : null;
+    }
+    case "shadowstep": {
+      if (hpRatio <= combatHp) return null;
+      const target = hostiles.filter((entity) => distance(entity.pos, me) <= 5 && distance(entity.pos, me) >= 2 && (isRangedThreat(entity.contentId) || entity.asleep || !entity.alerted || strong(entity)))[0];
+      return target ? use(target.id) : null;
+    }
   }
   return null;
 }
@@ -1139,12 +1197,19 @@ export type AutoplayIntent = {
  * 判断そのものには使わず、吹き出しやログ表示に使う。
  */
 export function describeAutoplayIntent(observation: GameObservation, action: GameAction): AutoplayIntent | null {
-  if (action.type === "shoot") return { text: "射線を確かめ、矢を放つ", tone: "combat" };
+  if (action.type === "shoot") {
+    const bow = observation.player.inventory?.some((entry) => entry.equipped && getGameConfig().equipment[entry.contentId]?.rangedAttack);
+    return { text: bow ? "射線を確かめ、矢を放つ" : "間合いの外から突く", tone: "combat" };
+  }
   const tactical = tacticalIntents.get(observation);
   if (tactical === "dodge") return { text: "構えの外へ抜ける", tone: "survival", topic: "dodge" };
   if (tactical === "lure") return { text: "罠の向こうへ誘い込む", tone: "combat", topic: "lure" };
   if (tactical === "cover") return { text: "狭い道へ引きつける", tone: "survival", topic: "cover" };
   if (tactical === "opening") return { text: "今なら踏み込める", tone: "combat", topic: "opening" };
+  if (action.type === "skill") {
+    const skill = roleSkill(observation.player.contentId);
+    return skill ? { text: `${skill.config.label}を放つ`, tone: "combat" } : null;
+  }
   const player = observation.player;
   const hpRatio = (player.stats?.hp ?? 1) / (player.stats?.maxHp ?? 1);
   if (action.type === "useItem") {

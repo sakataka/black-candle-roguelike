@@ -1399,6 +1399,10 @@ body::after {
 .stat-row > span:first-child { padding-left: 0; }
 .stat-row > span + span::before { content: ""; position: absolute; top: 9px; bottom: 9px; left: 0; width: 1px; background: var(--line); }
 .stat-row strong { font-family: var(--latin); font-size: 1.35rem; font-weight: 600; letter-spacing: 0.02em; line-height: 1.1; }
+/* 固有技は能力の下に一行で置き、待機中かどうかだけを示す。 */
+.stat-row > .hero-skill { grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: baseline; padding-left: 0; border-top: 1px solid var(--line-soft); color: var(--gold); }
+.stat-row > .hero-skill::before { display: none; }
+.stat-row > .hero-skill strong { font-family: var(--display); font-size: var(--fs-xs); letter-spacing: 0.08em; color: var(--ink-soft); }
 
 .mission-line strong { font-family: var(--display); font-size: var(--fs-md); font-weight: 600; letter-spacing: 0.08em; }
 .mission-line em { font-family: var(--latin); font-size: 1rem; font-weight: 600; }

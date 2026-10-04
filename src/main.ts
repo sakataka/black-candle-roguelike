@@ -2,6 +2,7 @@ import { renderDecisionContext } from "./ui/decisionContext";
 import { renderInventory } from "./ui/inventory";
 import { conditionLabel, conditionTone, tacticLabels, weaponTypeLabels } from "./ui/labels";
 import { defenseBonus, weaponBonus } from "./game/core/inventory";
+import { roleSkill } from "./game/core/skills";
 import { renderRunInsights } from "./ui/runInsights";
 import { observerShellMarkup } from "./ui/shell";
 import { applySprite, spriteStyle } from "./ui/sprites";
@@ -584,7 +585,7 @@ function renderCandidateSelection(): void {
       name: escapeHtml(identity.name),
       meta: getContentName(role.id),
       temperament: identity.temperament,
-      extra: `<small>${temperamentDescription(identity.temperament)}</small><small class="role-focus">${escapeHtml(role.traits.focus)}</small><small class="role-focus">得意武器: ${escapeHtml(weaponTypeLabels(role.traits.weaponMastery?.types))}</small>`,
+      extra: `<small>${temperamentDescription(identity.temperament)}</small><small class="role-focus">${escapeHtml(role.traits.focus)}</small><small class="role-focus">得意武器: ${escapeHtml(weaponTypeLabels(role.traits.weaponMastery?.types))} · 技: ${escapeHtml(roleSkill(role.id)?.config.label ?? "なし")}</small>`,
       stats: startingStats(role.id),
     });
   }));
@@ -1096,11 +1097,14 @@ function renderVitals(observation: ReturnType<typeof observeGame>): void {
   const scarLabels = state.modifiers.scars.map((id) => getGameConfig().scars[id]?.label ?? id);
   requireElement<HTMLElement>("#vitals-tactics").innerHTML = tacticLabels(state.tactics).map((label) => `<span class="tag tag-tactic">${escapeHtml(label)}</span>`).join("")
     + scarLabels.map((label) => `<span class="tag tag-danger" title="古傷">${escapeHtml(label)}</span>`).join("");
+  const skill = roleSkill(player.contentId);
+  const cooldown = player.skillCooldown ?? 0;
   requireElement<HTMLDivElement>("#hero-stats").innerHTML = [
     ["攻撃", String(player.stats?.attack ?? "-")],
     ["防御", String(player.stats?.defense ?? "-")],
     ["所持金", String(progress.gold)],
-  ].map(([label, value]) => `<span>${label}<strong>${value}</strong></span>`).join("");
+  ].map(([label, value]) => `<span>${label}<strong>${value}</strong></span>`).join("")
+    + (skill ? `<span class="hero-skill" title="${escapeHtml(skill.config.description)}">${escapeHtml(skill.config.label)}<strong>${cooldown > 0 ? `あと${cooldown}手` : "使える"}</strong></span>` : "");
 }
 
 function lanternRiteDescription(rite: LanternRiteId): string {
@@ -1291,7 +1295,7 @@ function renderExpeditionDynamics(observation: ReturnType<typeof observeGame>): 
   const openings = observation.visibleEntities.filter((e) => (e.recoveryTurns ?? 0) > 0);
   const forecast = requireElement<HTMLElement>("#battle-forecast");
   forecast.textContent = threats.length
-    ? threats.slice(0, 2).map((e) => `${getContentName(e.contentId)} · ${e.telegraph!.remaining}手後に${e.telegraph!.kind === "shot" ? "斉射" : e.telegraph!.kind === "sweep" ? "薙ぎ払い" : "呪印"}`).join(" ／ ")
+    ? threats.slice(0, 2).map((e) => `${getContentName(e.contentId)} · ${e.telegraph!.remaining}手後に${e.telegraph!.kind === "shot" ? "斉射" : e.telegraph!.kind === "sweep" ? "薙ぎ払い" : e.telegraph!.kind === "charge" ? "突進" : "呪印"}`).join(" ／ ")
     : openings.length ? `${getContentName(openings[0].contentId)}に隙 · あと${openings[0].recoveryTurns}手` : "";
   forecast.hidden = !forecast.textContent;
   const place = requireElement<HTMLButtonElement>("#place-lantern");

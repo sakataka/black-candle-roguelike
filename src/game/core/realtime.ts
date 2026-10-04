@@ -25,6 +25,11 @@ export function telegraphTiles(kind: AttackTelegraph["kind"], from: Point, targe
       ? [{ x: target.x + d, y: target.y + d }, { x: target.x + d, y: target.y - d }]
       : [{ x: target.x + d, y: target.y }, { x: target.x, y: target.y + d }])];
   }
+  if (kind === "charge") {
+    // 突進は探索者の位置を1マス越えるまで一直線に走る。横へ外れれば空を切る。
+    const step = { x: Math.sign(target.x - from.x), y: Math.sign(target.y - from.y) };
+    return [...telegraphTiles("shot", from, target, phase), { x: target.x + step.x, y: target.y + step.y }];
+  }
   const points: Point[] = [];
   let x = from.x, y = from.y;
   const dx = Math.abs(target.x - x), dy = Math.abs(target.y - y), sx = Math.sign(target.x - x), sy = Math.sign(target.y - y);

@@ -158,12 +158,15 @@ export function upgradeGain(player: Pick<Entity, "inventory" | "contentId">, con
 }
 
 /** 盾の価値も含め、両手武器との排他を満たす装備の組合せを選ぶ。 */
-export function preferredEquipment(player: Pick<Entity, "inventory" | "contentId">): Set<string> {
+export function preferredEquipment(player: Pick<Entity, "inventory" | "contentId">, mode: "auto" | "melee" = "auto"): Set<string> {
   const inventory = player.inventory ?? [];
   const score = (entry: InventoryEntry) => equipmentScore(entry, player.contentId);
   const best = (slot: EquipmentConfig["slot"]) => inventory.filter((entry) => entry.quantity > 0 && equipmentSlot(entry.contentId) === slot).sort((a, b) => score(b) - score(a))[0];
   const shield = best("shield");
-  const weapons = inventory.filter((entry) => equipmentSlot(entry.contentId) === "weapon" && entry.quantity > 0);
+  const allWeapons = inventory.filter((entry) => equipmentSlot(entry.contentId) === "weapon" && entry.quantity > 0);
+  // 接近戦では弓を外し、近接武器があればそちらを選ぶ。
+  const meleeWeapons = allWeapons.filter((entry) => !getGameConfig().equipment[entry.contentId].rangedAttack);
+  const weapons = mode === "melee" && meleeWeapons.length ? meleeWeapons : allWeapons;
   const withShield = (entry: InventoryEntry) => score(entry) + (getGameConfig().equipment[entry.contentId].twoHanded ? 0 : shield ? score(shield) : 0);
   const weapon = weapons.sort((a, b) => withShield(b) - withShield(a))[0];
   const selected = [weapon, best("armor"), best("ring")];

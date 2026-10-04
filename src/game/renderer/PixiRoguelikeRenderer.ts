@@ -45,6 +45,9 @@ type EntityView = {
   flashUntil: number;
   lunge: { dx: number; dy: number; start: number } | null;
   dazed: boolean;
+  /** 眠り・崩れた骨・看破。敵の状態を小さな印と色で示す。 */
+  mood: "asleep" | "dormant" | "exposed" | null;
+  badge: Text | null;
 };
 
 type Mote = {
@@ -434,6 +437,7 @@ export class PixiRoguelikeRenderer {
         drawHpBar(view.hpBar, entity.stats.hp / entity.stats.maxHp, "#c75644");
       }
       view.dazed = entity.conditions?.some((condition) => condition.kind === "dazed") ?? false;
+      if (entity.kind === "monster") this.syncMood(view, entity);
     }
     const dying = new Set(events.flatMap((event) => event.kind === "death" ? [event.entityId] : []));
     for (const [id, view] of this.views) {
@@ -446,6 +450,29 @@ export class PixiRoguelikeRenderer {
       }
     }
     this.actorLayer.children.sort((a, b) => a.y - b.y);
+  }
+
+  private syncMood(view: EntityView, entity: Entity): void {
+    const mood = (entity.dormant ?? 0) > 0 ? "dormant" : entity.asleep ? "asleep" : entity.conditions?.some((condition) => condition.kind === "exposed") ? "exposed" : null;
+    if (mood === view.mood) return;
+    view.mood = mood;
+    if (!mood) {
+      view.badge?.destroy();
+      view.badge = null;
+      return;
+    }
+    const label = mood === "asleep" ? "Zz" : mood === "dormant" ? "骨" : "破";
+    const fill = mood === "asleep" ? 0xb9c8ff : mood === "dormant" ? 0xd8cbb0 : 0xffa070;
+    if (!view.badge) {
+      view.badge = new Text({ text: label, style: { fontFamily: "sans-serif", fontSize: 13, fontWeight: "bold", fill, stroke: { color: 0x120d0a, width: 3 } } });
+      view.badge.anchor.set(0.5, 1);
+      view.badge.x = TILE_SIZE * 0.78;
+      view.badge.y = 14;
+      view.root.addChild(view.badge);
+    } else {
+      view.badge.text = label;
+      view.badge.style.fill = fill;
+    }
   }
 
   private createView(entity: Entity, key: TextureKey): EntityView {
@@ -487,6 +514,8 @@ export class PixiRoguelikeRenderer {
       flashUntil: 0,
       lunge: null,
       dazed: false,
+      mood: null,
+      badge: null,
     };
   }
 
@@ -671,8 +700,11 @@ export class PixiRoguelikeRenderer {
         }
       }
       if (view.sprite.tint !== 0x6f6660) {
-        view.sprite.tint = this.clock < view.flashUntil ? 0xff8a78 : view.dazed ? 0x9fb4ff : 0xffffff;
-        view.sprite.alpha = view.dazed ? 0.72 + Math.sin(this.clock / 120) * 0.12 : 1;
+        const moodTint = view.mood === "dormant" ? 0x8c8272 : view.mood === "asleep" ? 0xc4cadb : view.mood === "exposed" ? 0xffc2a0 : 0xffffff;
+        view.sprite.tint = this.clock < view.flashUntil ? 0xff8a78 : view.dazed ? 0x9fb4ff : moodTint;
+        view.sprite.alpha = view.dazed ? 0.72 + Math.sin(this.clock / 120) * 0.12 : view.mood === "dormant" ? 0.78 : 1;
+        if (view.mood === "dormant") view.sprite.scale.set(view.baseScale.x * 1.05, view.baseScale.y * 0.62);
+        if (view.badge && !this.reducedMotion && view.mood === "asleep") view.badge.y = 14 - (Math.sin(this.clock / 700 + view.phase) + 1) * 2;
       }
     }
 

@@ -352,6 +352,7 @@ function summarizeRuns(runResults: SimulationRunResult[]): AggregateSummary {
       dropItem: ratio(actionTotals.dropItem, count),
       useItem: ratio(actionTotals.useItem, count),
       shoot: ratio(actionTotals.shoot, count),
+      skill: ratio(actionTotals.skill, count),
       merchantService: ratio(actionTotals.merchantService, count),
       descend: ratio(actionTotals.descend, count),
       resolveDecision: ratio(actionTotals.resolveDecision, count),
