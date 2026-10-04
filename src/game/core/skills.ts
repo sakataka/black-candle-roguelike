@@ -55,20 +55,10 @@ export function planSkill(view: SkillView, targetId?: string): SkillPlan | null 
     const target = pick(view.hostiles.filter((entity) => chebyshev(entity.pos, me) <= 1));
     return target ? { skillId: id, target } : null;
   }
-  if (id === "disengage") {
-    const adjacent = view.hostiles.filter((entity) => chebyshev(entity.pos, me) <= 1);
-    if (!adjacent.length) return null;
-    const options = neighbors(me).flatMap((first) => free(view, first) ? [first, { x: first.x + (first.x - me.x), y: first.y + (first.y - me.y) }] : [])
-      .filter((point) => free(view, point))
-      .map((point) => ({ point, gap: Math.min(...view.hostiles.map((entity) => chebyshev(entity.pos, point))) }))
-      .filter((option) => option.gap >= 2)
-      .sort((a, b) => b.gap - a.gap || chebyshev(b.point, me) - chebyshev(a.point, me));
-    return options[0] ? { skillId: id, destination: options[0].point } : null;
-  }
   if (id === "sanctify") {
     return view.hostiles.some((entity) => chebyshev(entity.pos, me) <= (config.range ?? 3)) ? { skillId: id } : null;
   }
-  if (id === "appraise" || id === "ash-flask") {
+  if (id === "appraise" || id === "ash-flask" || id === "pin-shot") {
     const target = pick(view.hostiles.filter((entity) => chebyshev(entity.pos, me) <= (config.range ?? 4) && view.clearLine(me, entity.pos)
       && (id !== "appraise" || !entity.conditions?.some((condition) => condition.kind === "exposed"))));
     return target ? { skillId: id, target } : null;
@@ -135,21 +125,30 @@ export function useSkill(state: GameState, targetId?: string): GameState {
     }
     return state;
   }
-  if (plan.skillId === "disengage" && plan.destination) {
-    for (const enemy of state.entities.filter((entity) => entity.kind === "monster" && entity.hostile && chebyshev(entity.pos, player.pos) <= 1)) daze(enemy, config.turns ?? 1);
-    player.pos = { ...plan.destination };
-    state.messages = pushMessage(state, "敵の目をくらませ、間合いを取り直した。", "combat");
+  if (plan.skillId === "pin-shot" && target) {
+    state = playerStrike(state, target, { scale: config.scale, verb: "を縫い止め、", ranged: true });
+    if (state.entities.includes(target)) daze(target, config.turns ?? 2);
     return state;
   }
   if (plan.skillId === "sanctify") {
+    // 祈祷者は灯で周りを焼きながら、自分の傷を塞いで穢れを払う。亡者と悪魔には深く効く。
     const inRange = state.entities.filter((entity) => entity.kind === "monster" && entity.hostile && entity.stats && chebyshev(entity.pos, player.pos) <= (config.range ?? 3) && hasLineOfSight(state, player.pos, entity.pos));
     const unholy = inRange.filter((entity) => config.families?.includes(contentEntities[entity.contentId]?.family ?? "beast"));
-    for (const enemy of inRange.filter((entity) => !unholy.includes(entity))) daze(enemy, config.turns ?? 1);
-    return applyFixedDamage(state, unholy, Math.floor((config.damage ?? 6) + level * (config.damagePerLevel ?? 1)), "を聖灯が焼き、");
+    const damage = Math.floor((config.damage ?? 6) + level * (config.damagePerLevel ?? 1));
+    for (const enemy of inRange) daze(enemy, config.turns ?? 1);
+    if (player.stats) {
+      const healed = Math.min(player.stats.maxHp - player.stats.hp, Math.floor((config.heal ?? 4) + level / 2));
+      player.stats.hp += healed;
+      player.conditions = player.conditions?.filter((condition) => condition.kind !== "venomed" && condition.kind !== "bleeding");
+      if (healed > 0) state.messages = pushMessage(state, `灯の温もりで傷が塞がった（+${healed}）。`, "loot");
+    }
+    state = applyFixedDamage(state, unholy, damage * 2, "を聖灯が焼き、");
+    return applyFixedDamage(state, inRange.filter((entity) => !unholy.includes(entity) && state.entities.includes(entity)), damage, "を灯が照らし、");
   }
   if (plan.skillId === "appraise" && target) {
-    target.conditions = upsertCondition(target.conditions, "exposed", config.turns ?? 6);
-    state.messages = pushMessage(state, `${getContentName(target.contentId)}の継ぎ目を見抜いた。しばらく守りが効かない。`, "combat");
+    const marked = state.entities.filter((entity) => entity.kind === "monster" && entity.hostile && chebyshev(entity.pos, target.pos) <= (config.radius ?? 2));
+    for (const enemy of marked) enemy.conditions = upsertCondition(enemy.conditions, "exposed", config.turns ?? 6);
+    state.messages = pushMessage(state, `${getContentName(target.contentId)}${marked.length > 1 ? `たち${marked.length}体` : ""}の継ぎ目を見抜いた。しばらく守りが効かない。`, "combat");
     return state;
   }
   if (plan.skillId === "ash-flask" && target) {

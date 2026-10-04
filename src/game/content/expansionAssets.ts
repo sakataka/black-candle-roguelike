@@ -245,3 +245,11 @@ sheet("brushup-v1/bc-weapon-types-v1.png", 3, 3, [
   ["icon.item.twinfang-daggers", "item.twinfang-daggers"],
   ["icon.item.blackiron-warhammer", "item.blackiron-warhammer"],
 ]);
+
+// ブラッシュアップv1。守り手の候補。どの守り手が待つかは遠征ごとに変わる。
+sheet("brushup-v1/bc-guardians-brushup-v1.png", 2, 2, [
+  ["monster.brood-mother", "monster.brood-mother"],
+  ["monster.gnawer-maw", "monster.gnawer-maw"],
+  ["monster.bone-paladin", "monster.bone-paladin"],
+  ["monster.candle-eater", "monster.candle-eater"],
+]);

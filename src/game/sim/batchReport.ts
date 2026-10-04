@@ -700,6 +700,33 @@ export function renderMarkdownReport(report: BatchSimulationReport): string {
     }
   }
 
+  lines.push("", "## Floor Curve", "", "到達した遠征のうち、その階で倒れた割合と最低HP率の平均。領域の終わりに山場があり、次の入口で戻る形を目指す。", "");
+  lines.push("| Label | " + Array.from({ length: 10 }, (_, index) => `F${index + 1}`).join(" | ") + " |", "| --- |" + " ---: |".repeat(10));
+  for (const config of report.inputs.configs) {
+    const runs = report.runs.filter((run) => run.label === config.label);
+    const cells = Array.from({ length: 10 }, (_, index) => {
+      const floor = index + 1;
+      const arrived = runs.filter((run) => run.floorProfile?.some((entry) => entry.floor === floor));
+      if (!arrived.length) return "-";
+      const died = arrived.filter((run) => run.status === "lost" && run.floor === floor).length;
+      const minHp = average(arrived, (run) => run.floorProfile.find((entry) => entry.floor === floor)?.minHpRatio ?? 1);
+      return `${formatNumber(died / arrived.length * 100)}% / ${formatNumber(minHp)}`;
+    });
+    lines.push(`| ${config.label} | ${cells.join(" | ")} |`);
+  }
+  lines.push("", "## Variety", "", "7階到達時の武器。最頻の武器の割合が低いほど、遠征ごとに装備が変わっている。", "", "| Label | Runs at F7 | Top weapon share | Top weapons | Omens seen | Elites/floor |", "| --- | ---: | ---: | --- | --- | ---: |");
+  for (const config of report.inputs.configs) {
+    const runs = report.runs.filter((run) => run.label === config.label);
+    const weapons = runs.flatMap((run) => run.weaponAtFloor7 ? [run.weaponAtFloor7] : []);
+    const counts: Record<string, number> = {};
+    for (const weapon of weapons) counts[weapon] = (counts[weapon] ?? 0) + 1;
+    const top = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+    const omens: Record<string, number> = {};
+    const entries = runs.flatMap((run) => run.floorProfile ?? []);
+    for (const entry of entries) if (entry.omen) omens[entry.omen] = (omens[entry.omen] ?? 0) + 1;
+    lines.push(`| ${config.label} | ${weapons.length} | ${weapons.length ? formatNumber((top[0]?.[1] ?? 0) / weapons.length * 100) : "-"}% | ${top.slice(0, 4).map(([id, count]) => `${id.replace("item.", "")}:${count}`).join(", ")} | ${formatCounts(omens)} | ${formatNumber(entries.length ? entries.reduce((sum, entry) => sum + entry.elites, 0) / entries.length : 0)} |`);
+  }
+
   lines.push("", "## Realtime Dynamics", "", "| Label | Telegraphs | Dodges | Trap Lures | Awakened | Heat Hits | Placed Lights | Borrowed Flame | Unpaid Debt | Rites | Overflowed Embers |", "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |");
   for (const [label, summary] of Object.entries(report.byLabel)) {
     const d = summary.averageDynamics;

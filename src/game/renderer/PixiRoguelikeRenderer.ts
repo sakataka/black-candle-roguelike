@@ -492,6 +492,13 @@ export class PixiRoguelikeRenderer {
       root.addChild(shadow);
     }
     root.addChild(sprite);
+    if (entity.kind === "monster" && entity.elite) {
+      // 精鋭は足元に金の輪を敷き、通常の敵と見分ける。
+      const aura = new Graphics();
+      aura.ellipse(TILE_SIZE / 2, TILE_SIZE - 7, 25, 8).stroke({ color: 0xe0b45a, width: 2, alpha: 0.85 });
+      aura.ellipse(TILE_SIZE / 2, TILE_SIZE - 7, 19, 5.5).fill({ color: 0xe0b45a, alpha: 0.16 });
+      root.addChild(aura);
+    }
     let hpBar: Graphics | null = null;
     if (entity.kind === "monster") {
       hpBar = new Graphics();

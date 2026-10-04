@@ -1,4 +1,5 @@
 import { floorRuleMatches, getGameConfig } from "./config";
+import { Rng } from "../core/rng";
 import type { BiomeTheme } from "../types";
 
 export function biomeThemeForFloor(floor: number): BiomeTheme {
@@ -39,6 +40,9 @@ export function trapPoolForFloor(floor: number): string[] {
   return getGameConfig().trapPools.find((rule) => floorRuleMatches(rule, floor, biome))?.traps ?? ["trap.blood-needle"];
 }
 
-export function bossForFloor(floor: number): string | null {
-  return getGameConfig().bosses.find((boss) => boss.floor === floor)?.contentId ?? null;
+/** その階の守り手。候補が複数あれば遠征の種から一体を選ぶ。 */
+export function bossForFloor(floor: number, seed?: number): string | null {
+  const candidates = getGameConfig().bosses.filter((boss) => boss.floor === floor && !boss.overrideOnly);
+  if (!candidates.length) return null;
+  return seed === undefined ? candidates[0].contentId : new Rng(seed * 31 + floor * 977).pick(candidates).contentId;
 }

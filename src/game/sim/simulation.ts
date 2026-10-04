@@ -3,7 +3,7 @@ import { chooseAutoplayAction, getAutoplayDebugState, resetAutoplayState } from 
 import { chooseWatcherAction, type WatcherPolicy } from "../ai/watcher";
 import { realtimeConfig } from "../content/realtime";
 import { isInstantIntervention } from "../core/realtime";
-import { loadBunGameConfig } from "../content/config";
+import { getGameConfig, loadBunGameConfig } from "../content/config";
 import { applyAction, createInitialGame, observeGame } from "../core/game";
 import { paceDelayMs, paceKindFor, type PaceKind } from "../core/pacing";
 import { analyzeRun, createRunLog, recordTurn } from "../core/runLog";
@@ -67,7 +67,12 @@ type CompactRunReview = {
   }>;
 };
 
+/** 階ごとの滞在と危うさ。難しさの波を測るために使う。 */
+export type FloorProfileEntry = { floor: number; turns: number; minHpRatio: number; damage: number; omen?: string; elites: number };
+
 export type SimulationRunResult = {
+  floorProfile: FloorProfileEntry[];
+  weaponAtFloor7?: string;
   dynamics?: ExpeditionDynamics["stats"];
   unpaidFlameDebt?: number;
   overflowedEmbers?: number;
@@ -133,6 +138,10 @@ export async function runSimulation(input: SimulationRunInput): Promise<Simulati
   let turnsWithoutKnownTileGrowth = 0;
   let maxTurnsWithoutKnownTileGrowth = 0;
   let stagnantWindows = 0;
+  const floorProfile: FloorProfileEntry[] = [];
+  const openFloor = (current: GameState): FloorProfileEntry => ({ floor: current.floor, turns: current.runTurn, minHpRatio: 1, damage: 0, omen: current.floorOmen, elites: current.entities.filter((entity) => entity.elite).length });
+  let floorEntry = openFloor(state);
+  let weaponAtFloor7: string | undefined;
   addProfileMs(profile, "initMs", performance.now() - initStartMs);
 
   const loopStartMs = performance.now();
@@ -154,6 +163,16 @@ export async function runSimulation(input: SimulationRunInput): Promise<Simulati
     state = timeProfile(profile, "applyAction", () => applyAction(state, action));
     const afterObservation = timeProfile(profile, "observeGame", () => observeGame(state));
     const logEntry = timeProfile(profile, "recordTurn", () => recordTurn({ log: runLog, before, action, after: state, actor: "ai", aiDebug: debug, beforeObservation, afterObservation }));
+    const hpBefore = before.entities.find((entity) => entity.id === before.playerId)?.stats;
+    const hpAfter = state.entities.find((entity) => entity.id === state.playerId)?.stats;
+    if (state.floor !== before.floor) {
+      floorProfile.push({ ...floorEntry, turns: before.runTurn - floorEntry.turns });
+      floorEntry = openFloor(state);
+      if (state.floor === 7 && !weaponAtFloor7) weaponAtFloor7 = state.entities.find((entity) => entity.id === state.playerId)?.inventory?.find((entry) => entry.equipped && getGameConfig().equipment[entry.contentId]?.slot === "weapon")?.contentId ?? "none";
+    } else if (hpBefore && hpAfter) {
+      floorEntry.damage += Math.max(0, hpBefore.hp - hpAfter.hp);
+      floorEntry.minHpRatio = Math.min(floorEntry.minHpRatio, Math.max(0, hpAfter.hp) / hpAfter.maxHp);
+    }
 
     const knownTiles = afterObservation.knownTiles.length;
     if (state.floor !== before.floor || knownTiles > lastKnownTiles) {
@@ -219,7 +238,10 @@ export async function runSimulation(input: SimulationRunInput): Promise<Simulati
     profile.totalMeasuredMs = roundProfileMs(performance.now() - startMs);
   }
 
+  floorProfile.push({ ...floorEntry, turns: state.runTurn - floorEntry.turns });
   const result: SimulationRunResult = {
+    floorProfile,
+    weaponAtFloor7,
     dynamics: state.expedition?.stats,
     unpaidFlameDebt: state.expedition?.debt ?? 0,
     overflowedEmbers: state.lantern.overflowed ?? 0,

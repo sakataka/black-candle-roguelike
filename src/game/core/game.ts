@@ -34,6 +34,7 @@ import { clampNumber, hasLineOfSight, message, pushMessage, recordStrike, roleTr
 import { bowFor, canReach, counterAttack, playerBowShot, playerWeaponAttack, registerDefeatHandler, thornsAttack, tickMonsterAfflictions } from "./combat";
 import { drawEquipment, isEquipmentToken, resolveEquipmentToken, rollEquipmentPiece } from "./loot";
 import { useSkill } from "./skills";
+import { applyElite, behaviorFor, entityName, statsForMonster } from "./bestiary";
 import { afterMonsterHitsPlayer, behaviorOf, onMonsterDefeated, packBonus, preMonsterTurn, tryRevive } from "./monsterBehaviors";
 import { realtimeConfig } from "../content/realtime";
 import { armDecision, createDynamics, recordLastMoment, repayFlame, telegraphTiles } from "./realtime";
@@ -174,9 +175,16 @@ function createFloorState(
   const floorPlan = buildFloorPlan(floorWalkable, roomCenters, start, stairs);
   const takePoint = createPointTaker(spawnPoints, rng, start);
 
-  const bossId = run.modifiers.bossOverride?.floor === floor ? run.modifiers.bossOverride.contentId : bossForFloor(floor);
+  const bossId = run.modifiers.bossOverride?.floor === floor ? run.modifiers.bossOverride.contentId : bossForFloor(floor, seed);
+  const omenId = chooseOmen(seed, floor, !!bossId);
+  const omen = omenId ? config.omens.definitions[omenId] : undefined;
   const trial = bossTrialDefinition(run.modifiers.bossTrial);
   const bossStats = bossId ? statsForMonster(bossId, dangerBoost, floor, carriedRunObjectives, rules) : null;
+  const bossScaling = config.bossFloorScaling?.[String(floor)];
+  if (bossStats && bossScaling) {
+    bossStats.hp = bossStats.maxHp = Math.round(bossStats.maxHp * bossScaling.hpPercent / 100);
+    bossStats.attack += bossScaling.attackBonus;
+  }
   if (bossStats && trial && floor >= 6) {
     bossStats.hp = bossStats.maxHp = Math.round(bossStats.maxHp * trial.hpScale);
     bossStats.attack += trial.attack;
@@ -184,30 +192,59 @@ function createFloorState(
   }
   const spawnedBoss = bossId && bossStats ? [monster(`${bossId}.${floor}`, bossId, bossPointNearStairs(spawnPoints, stairs, rng) ?? takePoint(), bossStats)] : [];
   const monsterPool = monsterPoolForFloor(floor);
-  const itemPool = itemPoolForFloor(floor);
-  const spawnedMonsters = Array.from({ length: bossId ? Math.ceil((rules.monsterCountBase + Math.min(floor, rules.monsterCountFloorCap)) / 2) : rules.monsterCountBase + Math.min(floor, rules.monsterCountFloorCap) }, (_, index) => {
-    const inRoom = themedRoom && index < (config.expansion?.roomMonsterCount ?? 0);
-    const roomPool = inRoom ? themedRoom.definition.monsters.filter((id) => floor >= (config.expansion?.monsterTraits[id]?.minFloor ?? 1)) : [];
-    const contentId = rng.pick(roomPool.length ? roomPool : monsterPool);
-    const spawned = monster(`${contentId}.${floor}.${index}`, contentId, takePoint(inRoom ? themedRoom.points : floorPlan.monsterPoints), statsForMonster(contentId, dangerBoost, floor, carriedRunObjectives, rules));
+  const baseMonsterCount = rules.monsterCountBase + Math.min(floor, rules.monsterCountFloorCap);
+  const monsterBudget = Math.max(2, (bossId ? Math.ceil(baseMonsterCount / 2) : baseMonsterCount) + (omen?.monsterCountDelta ?? 0));
+  const sleepPercent = rules.sleepingMonsterPercent + (omen?.sleepPercentDelta ?? 0);
+  const makeMonster = (contentId: string, pos: Point, key: string, asleep?: boolean): Entity => {
+    const spawned = monster(`${contentId}.${floor}.${key}`, contentId, pos, statsForMonster(contentId, dangerBoost, floor, carriedRunObjectives, rules));
+    spawned.stats!.attack += omen?.monsterAttackBonus ?? 0;
     // 一部の敵は眠っている。忍び寄れば不意打ちでき、隣で騒げば目を覚ます。
     if (behaviorOf(contentId).ambush) {
       spawned.asleep = true;
       spawned.ambushReady = true;
-    } else if (rng.int(1, 100) <= rules.sleepingMonsterPercent) spawned.asleep = true;
+    } else if (asleep ?? rng.int(1, 100) <= sleepPercent) spawned.asleep = true;
     return spawned;
-  });
+  };
+  const spawnedMonsters: Entity[] = [];
+  for (let index = 0; spawnedMonsters.length < monsterBudget && index < monsterBudget * 2; index += 1) {
+    const inRoom = themedRoom && index < (config.expansion?.roomMonsterCount ?? 0);
+    const roomPool = inRoom ? themedRoom.definition.monsters.filter((id) => floor >= (config.expansion?.monsterTraits[id]?.minFloor ?? 1)) : [];
+    const contentId = rng.pick(roomPool.length ? roomPool : monsterPool);
+    const leader = makeMonster(contentId, takePoint(inRoom ? themedRoom.points : floorPlan.monsterPoints), String(index));
+    spawnedMonsters.push(leader);
+    // 群れの獣は仲間を連れて現れる。
+    if (behaviorOf(contentId).pack && !inRoom) {
+      for (let companion = rng.int(1, 2); companion > 0 && spawnedMonsters.length < monsterBudget + 2; companion -= 1) {
+        const near = spawnPoints.filter((point) => chebyshev(point, leader.pos) <= 2);
+        if (!near.length) break;
+        spawnedMonsters.push(makeMonster(contentId, takePoint(near), `${index}.${companion}`, leader.asleep));
+      }
+    }
+  }
+  const eliteRoll = rng.int(1, 100) <= floorChance(config.elites.chanceByFloor, floor) ? 1 : 0;
+  const affixes = Object.keys(config.elites.affixes);
+  for (let count = eliteRoll + (omen?.eliteBonus ?? 0); count > 0 && affixes.length; count -= 1) {
+    const candidates = spawnedMonsters.filter((entity) => !entity.elite && !behaviorOf(entity.contentId).ambush);
+    if (!candidates.length) break;
+    applyElite(rng.pick(candidates), rng.pick(affixes));
+  }
+  const tierForFloor = floor <= 3 ? "early" : floor <= 6 ? "mid" : "late";
+  const itemPool = itemPoolForFloor(floor).filter((contentId) => !omen?.noHealingItems || !getGameConfig().consumables[contentId]?.heal);
   const guaranteedItems = [
-    ...guaranteedItemsForFloor(floor),
+    ...guaranteedItemsForFloor(floor).filter((contentId) => !omen?.noHealingItems || !getGameConfig().consumables[contentId]?.heal),
     ...config.guaranteedEquipment.filter((rule) => floorRuleMatches(rule, floor, biome)).map((rule) => drawEquipment(rng, { tier: rule.tier, slot: rule.slot, favoredRoleId: player.contentId, favoredChancePercent: rule.favoredChancePercent })),
   ];
-  const randomItems = Array.from({ length: rules.itemCountBase + Math.floor(Math.min(floor, rules.itemCountFloorCap) / rules.itemCountFloorDivisor) }, () => rng.pick(itemPool));
+  const randomItemCount = Math.max(1, rules.itemCountBase + Math.floor(Math.min(floor, rules.itemCountFloorCap) / rules.itemCountFloorDivisor) + (omen?.itemCountDelta ?? 0));
+  const randomItems = Array.from({ length: randomItemCount }, () => rng.int(1, 100) <= (omen?.equipmentSharePercent ?? 0) ? `equipment:${tierForFloor}` : rng.pick(itemPool.length ? itemPool : ["item.coin-pouch"]));
   const spawnedItems = [...guaranteedItems, ...randomItems].map((contentId, index) => item(`${contentId}.${floor}.${index}`, contentId, takePoint(index < guaranteedItems.length ? floorPlan.guaranteedLootPoints : floorPlan.lootPoints), floor, rng));
   const eventPool = eventPoolForFloor(floor);
   const spawnedEvents = Array.from({ length: rules.eventCountBase + (rng.int(1, 100) <= rules.eventExtraChancePercent ? 1 : 0) }, (_, index) => {
     const contentId = rng.pick(eventPool);
     return event(`${contentId}.${floor}.${index}`, contentId, takePoint(floorPlan.eventPoints));
   });
+  for (const [index, contentId] of (omen?.extraEvents ?? []).entries()) {
+    spawnedEvents.push(event(`${contentId}.omen.${floor}.${index}`, contentId, takePoint(floorPlan.eventPoints)));
+  }
   if (themedRoom) {
     for (const contentId of themedRoom.definition.events) {
       const point = themedRoom.points.find((p) => spawnPoints.some((available) => samePoint(p, available)));
@@ -220,7 +257,8 @@ function createFloorState(
     spawnedEvents.push(event(`event.grave-marker.${grave.id}`, "event.grave-marker", takePoint(floorPlan.eventPoints)));
   }
   const trapPool = trapPoolForFloor(floor);
-  const spawnedTraps = Array.from({ length: Math.min(rules.trapCountBase + Math.floor(floor / rules.trapCountFloorDivisor), rules.trapCountMax) }, (_, index) => {
+  const trapCount = Math.max(0, Math.min(rules.trapCountBase + Math.floor(floor / rules.trapCountFloorDivisor), rules.trapCountMax) + (omen?.trapCountDelta ?? 0));
+  const spawnedTraps = Array.from({ length: trapCount }, (_, index) => {
     const contentId = rng.pick(trapPool);
     return trap(`${contentId}.${floor}.${index}`, contentId, takePoint(floorPlan.trapPoints));
   });
@@ -255,9 +293,12 @@ function createFloorState(
     messages: [
       ...carriedMessages,
       message(0, floor === 1 ? `黒燭の迷宮、${biomeThemeName(biome)}に足を踏み入れた。` : `地下${floor}階、${biomeThemeName(biome)}へ降りた。`, "system"),
+      ...(omen ? [message(0, `兆し「${omen.label}」。${omen.description}`, "danger")] : []),
       message(0, "探索者は自らの判断で歩き始めた。灯守は黒燭越しに見守る。", "explore"),
     ].slice(-80),
     status: "playing",
+    floorOmen: omenId ?? undefined,
+    floorBossId: bossId ?? undefined,
   });
   if (trial && floor >= 6 && bossId) next.messages = pushMessage(next, `${trial.label}。守り手が覚醒している。灰灯院の鍛錬を重ねて突破せよ。`, "danger");
   if (run.modifiers.bossOverride?.floor === floor && run.modifiers.keeperName) {
@@ -822,6 +863,7 @@ export function observeGame(state: GameState): GameObservation {
     status: state.status,
     bossAlive: aliveBoss,
     merchantServices: availableMerchantServices(state),
+    floorOmen: state.floorOmen,
   };
 }
 
@@ -876,20 +918,26 @@ function createInitialRunObjectives(): RunObjectiveFlags {
 }
 
 function bossAlive(state: GameState): boolean {
-  const bossId = state.modifiers.bossOverride?.floor === state.floor ? state.modifiers.bossOverride.contentId : bossForFloor(state.floor);
-  return !!bossId && state.entities.some((entity) => entity.kind === "monster" && entity.contentId === bossId);
+  return state.entities.some((entity) => entity.kind === "monster" && contentEntities[entity.contentId]?.tier === "boss");
 }
 
-function statsForMonster(contentId: string, dangerBoost: number, floor = 1, runObjectives: RunObjectiveFlags = createInitialRunObjectives(), rules = getGameConfig().rules): Stats {
-  const config = getGameConfig();
-  const base = config.monsterStats[contentId] ?? { hp: 5, attack: 1, defense: 0 };
-  let hp = base.hp + Math.round(dangerBoost * (base.hpPerDanger ?? 1) * rules.monsterHpScale);
-  let attack = base.attack + Math.floor(dangerBoost * rules.monsterAttackPerFloor);
-  if (runObjectives.lateEnemiesWeakened && floor >= 7 && contentEntities[contentId]?.tier !== "boss") {
-    hp = Math.max(1, Math.floor(hp * 0.85));
-    attack = Math.max(1, attack - 1);
+function floorChance(table: Array<{ maxFloor: number; percent: number }>, floor: number): number {
+  return table.find((entry) => floor <= entry.maxFloor)?.percent ?? 0;
+}
+
+/** 階の兆しを一つ引く。浅い階ほど何も起きない確率が高い。 */
+function chooseOmen(seed: number, floor: number, bossFloor: boolean): string | null {
+  const { omens } = getGameConfig();
+  const rng = new Rng(seed * 7 + floor * 7919 + 17);
+  if (rng.int(1, 100) > floorChance(omens.chanceByFloor, floor)) return null;
+  const candidates = Object.entries(omens.definitions).filter(([, omen]) => floor >= (omen.minFloor ?? 1) && floor <= (omen.maxFloor ?? 99) && !(bossFloor && omen.notBossFloor));
+  const total = candidates.reduce((sum, [, omen]) => sum + omen.weight, 0);
+  let roll = rng.next() * total;
+  for (const [id, omen] of candidates) {
+    roll -= omen.weight;
+    if (roll < 0) return id;
   }
-  return { hp, maxHp: hp, attack, defense: base.defense };
+  return candidates.at(-1)?.[0] ?? null;
 }
 
 function rangedDefenseBonus(state: GameState, actor: Entity): number {
@@ -1460,7 +1508,7 @@ function attack(state: GameState, attacker: Entity, defender: Entity): GameState
   defender.stats.hp -= damage;
   recordStrike(state, attacker, defender, false);
   const defenderName = defender.kind === "player" ? "あなた" : getContentName(defender.contentId);
-  state.messages = pushMessage(state, `${getContentName(attacker.contentId)}は${defenderName}に${damage}ダメージを与えた。`, "combat");
+  state.messages = pushMessage(state, `${entityName(attacker)}は${defenderName}に${damage}ダメージを与えた。`, "combat");
   state = applyAttackSideEffect(state, attacker, defender);
 
   if (defender.stats.hp <= 0) {
@@ -1487,7 +1535,7 @@ function defeatMonster(state: GameState, defeated: Entity): GameState {
   onMonsterDefeated(state, defeated);
   const reward = bossRewardFor(defeated.contentId);
   const defeatedPos = { ...defeated.pos };
-  state = awardXp(state, defeated.contentId);
+  state = awardXp(state, defeated);
   state.entities = state.entities.filter((entity) => entity.id !== defeated.id);
   if (state.expedition) {
     state.expedition.floorKills += 1;
@@ -1504,7 +1552,13 @@ function defeatMonster(state: GameState, defeated: Entity): GameState {
       }
     }
   }
-  state.messages = pushMessage(state, `${getContentName(defeated.contentId)}を倒した。`, "combat");
+  state.messages = pushMessage(state, `${entityName(defeated)}を倒した。`, "combat");
+  if (defeated.elite) {
+    // 精鋭は印つきの装備を抱えている。
+    const relic = item(`equipment.elite.${state.floor}.${state.turn}`, `equipment:${state.floor <= 3 ? "mid" : "late"}`, defeatedPos, state.floor + 1, rngForFloor(state.seed + state.turn + 3, state.floor), { minSeals: 1 });
+    state.entities.push(relic);
+    state.messages = pushMessage(state, `${entityName(defeated)}が${pieceName(relic)}を落とした。`, "loot");
+  }
   if (reward) {
     state.entities.push(item(`${reward}.boss.${state.floor}.${state.turn}`, reward, defeatedPos, state.floor, rngForFloor(state.seed + state.turn, state.floor)));
     state.messages = pushMessage(state, `${getContentName(reward)}が残された。`, "loot");
@@ -1990,8 +2044,10 @@ function equipItem(state: GameState, contentId: string): GameState {
   return state;
 }
 
-function awardXp(state: GameState, defeatedContentId: string): GameState {
-  const reward = contentEntities[defeatedContentId]?.xpReward ?? 5;
+function awardXp(state: GameState, defeated: Entity): GameState {
+  const eliteScale = defeated.elite ? getGameConfig().elites.affixes[defeated.elite]?.xpScale ?? 1 : 1;
+  const omenPercent = state.floorOmen ? getGameConfig().omens.definitions[state.floorOmen]?.xpPercent ?? 100 : 100;
+  const reward = Math.round((contentEntities[defeated.contentId]?.xpReward ?? 5) * eliteScale * omenPercent / 100);
   state.playerProgress = normalizeProgress({ ...state.playerProgress, xp: state.playerProgress.xp + reward });
   state.messages = pushMessage(state, `${reward} XPを得た。`, "loot");
   return applyLevelUps(state);
@@ -2157,7 +2213,9 @@ function applyLevelUps(state: GameState): GameState {
   const growth = roleDefinition(player.contentId)?.growth ?? { maxHp: 5, attack: 1, defense: 0.5 };
   while (state.playerProgress.level + 1 < rules.xpThresholds.length && state.playerProgress.xp >= rules.xpThresholds[state.playerProgress.level + 1]) {
     state.playerProgress = { ...state.playerProgress, level: state.playerProgress.level + 1 };
-    player.stats.maxHp += growth.maxHp;
+    // 端数の成長は積み上げてから整数にする。HPに小数を出さない。
+    const gained = state.playerProgress.level - 1;
+    player.stats.maxHp += Math.floor(gained * growth.maxHp) - Math.floor((gained - 1) * growth.maxHp);
     player.stats.hp = Math.min(player.stats.maxHp, player.stats.hp + rules.levelUpHeal);
     refreshPlayerStats(state);
     state.messages = pushMessage(state, `Lv${state.playerProgress.level}に上がった。最大HPと戦闘力が伸びた。`, "system");
@@ -2254,7 +2312,7 @@ function runMonsterTurn(state: GameState): GameState {
   state = tickMonsterAfflictions(state);
   const player = getPlayer(state);
   // 倍速の敵は1手に2回動く。ただし噛みつくのは1手に1回まで。
-  const monsters = state.entities.filter((entity) => entity.kind === "monster" && entity.stats).flatMap((entity) => behaviorOf(entity.contentId).fast ? [entity, entity] : [entity]);
+  const monsters = state.entities.filter((entity) => entity.kind === "monster" && entity.stats).flatMap((entity) => behaviorFor(entity).fast ? [entity, entity] : [entity]);
   const struck = new Set<Entity>();
   for (const monsterEntity of monsters) {
     if (state.status !== "playing") {
@@ -2505,13 +2563,14 @@ function tickPlayerConditions(state: GameState): GameState {
 
   const beforeGuarded = hasCondition(player, "guarded");
   const activeConditions = player.conditions;
+  const depthBonus = rules.conditionDamageFloors ? Math.floor(state.floor / rules.conditionDamageFloors) : 0;
   if (hasCondition(player, "bleeding")) {
-    player.stats.hp -= rules.bleedingDamage;
-    state.messages = pushMessage(state, `出血で${rules.bleedingDamage}ダメージを受けた。`, "danger");
+    player.stats.hp -= rules.bleedingDamage + depthBonus;
+    state.messages = pushMessage(state, `出血で${rules.bleedingDamage + depthBonus}ダメージを受けた。`, "danger");
   }
   if (hasCondition(player, "venomed")) {
-    player.stats.hp -= rules.venomedDamage;
-    state.messages = pushMessage(state, `毒で${rules.venomedDamage}ダメージを受けた。`, "danger");
+    player.stats.hp -= rules.venomedDamage + depthBonus;
+    state.messages = pushMessage(state, `毒で${rules.venomedDamage + depthBonus}ダメージを受けた。`, "danger");
   }
   player.conditions = activeConditions.map((condition) => ({ ...condition, turns: condition.turns - 1 })).filter((condition) => condition.turns > 0);
   const afterGuarded = hasCondition(player, "guarded");
@@ -2630,7 +2689,8 @@ function nextStepToward(state: GameState, from: Point, to: Point): Point | null 
 
 function updateVisibility(state: GameState): GameState {
   for (const tile of state.tiles) tile.visible = false;
-  revealVisibleArea(state, getPlayer(state).pos, runRules(state.modifiers).fovRadius);
+  const omenFov = state.floorOmen ? getGameConfig().omens.definitions[state.floorOmen]?.fovDelta ?? 0 : 0;
+  revealVisibleArea(state, getPlayer(state).pos, Math.max(3, runRules(state.modifiers).fovRadius + omenFov));
   for (const light of state.expedition?.lights ?? []) {
     revealVisibleArea(state, light.pos, realtimeConfig().light.radius);
   }

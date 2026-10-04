@@ -43,7 +43,7 @@ export function deriveVisualEvents(before: GameState, after: GameState): VisualE
         const effect = condition.kind === "guarded" ? "ward-aura" : condition.kind === "venomed" ? "venom-impact" : condition.kind === "dazed" ? "frost-bind" : null;
         if (effect && condition.turns > oldTurns) events.push({ kind: "statusFx", effect, pos: { ...current.pos } });
       }
-      // 押し戻された敵と、突進・影渡り・退き足で一気に動いた探索者。
+      // 押し戻された敵と、突進・影渡りで一気に動いた探索者。
       if ((current.kind === "monster" || current.kind === "player") && chebyshev(previous.pos, current.pos) > 1) events.push({ kind: "statusFx", effect: "repulsion-gust", pos: { ...previous.pos } });
     }
     if (delta < 0) {

@@ -2,12 +2,13 @@ import { getGameConfig } from "../content/config";
 import { contentEntities, getContentName } from "../content/entities";
 import { realtimeConfig } from "../content/realtime";
 import { hasCondition, upsertCondition } from "./conditions";
-import { equippedEntry, equippedSeals, equippedWeaponSpecialDamage, equippedWeaponType, masteryBonus, pieceSeals } from "./inventory";
+import { equippedEntry, equippedSeals, equippedWeaponSpecialDamage, equippedWeaponType, pieceSeals } from "./inventory";
 import { Rng } from "./rng";
 import { chebyshev, inBounds, isWalkable, samePoint, tileAt } from "./spatial";
 import { getPlayer } from "./state";
 import { hasLineOfSight, pushMessage, recordStrike, roleTraits } from "./stateOps";
 import { maybeSplit, shieldScale } from "./monsterBehaviors";
+import { entityName } from "./bestiary";
 import type { Entity, GameState, Point } from "../types";
 
 // 探索者の攻撃と、武器の型・印の効果。撃破の後始末（経験値・報酬・守り手の判断）は game.ts へ委ねる。
@@ -57,7 +58,7 @@ function computeHit(player: Entity, target: Entity, rng: Rng, options: HitOption
   }
   const exposed = hasCondition(target, "exposed");
   if (exposed) {
-    raw += 2;
+    raw *= getGameConfig().rules.exposedDamagePercent / 100;
     notes.push("看破");
   }
   const keen = weaponSeals(player).find((seal) => seal.critPercent);
@@ -76,7 +77,7 @@ function applyHit(state: GameState, player: Entity, target: Entity, result: HitR
   target.asleep = false;
   recordStrike(state, player, target, options.ranged ?? false);
   const notes = result.notes.length ? `（${result.notes.join("・")}）` : "";
-  state.messages = pushMessage(state, `${getContentName(target.contentId)}${options.verb}${result.damage}ダメージ${notes}。`, "combat");
+  state.messages = pushMessage(state, `${entityName(target)}${options.verb}${result.damage}ダメージ${notes}。`, "combat");
   if (target.stats.hp > 0) maybeSplit(state, target);
   if (!options.procs || target.stats.hp <= 0) {
     if (options.procs) drainLife(state, player, result.damage);
@@ -86,7 +87,7 @@ function applyHit(state: GameState, player: Entity, target: Entity, result: HitR
   for (const seal of weaponSeals(player)) {
     if (seal.inflict && rng.int(1, 100) <= seal.inflict.chancePercent) {
       target.conditions = upsertCondition(target.conditions, seal.inflict.kind, seal.inflict.turns);
-      state.messages = pushMessage(state, `${getContentName(target.contentId)}に${seal.label}の印が残った。`, "combat");
+      state.messages = pushMessage(state, `${entityName(target)}に${seal.label}の印が残った。`, "combat");
     }
   }
   const dazeChance = (equippedWeaponType(player)?.config.dazeChancePercent ?? 0) + weaponSeals(player).reduce((sum, seal) => sum + (seal.dazeChancePercent ?? 0), 0);
@@ -94,7 +95,7 @@ function applyHit(state: GameState, player: Entity, target: Entity, result: HitR
   if (dazeChance > 0 && rng.int(1, 100) <= (isBoss ? Math.floor(dazeChance / 2) : dazeChance)) {
     target.conditions = upsertCondition(target.conditions, "dazed", 1);
     target.telegraph = undefined;
-    state.messages = pushMessage(state, `${getContentName(target.contentId)}がよろめいた。`, "combat");
+    state.messages = pushMessage(state, `${entityName(target)}がよろめいた。`, "combat");
   }
 }
 
@@ -163,11 +164,11 @@ export function playerWeaponAttack(state: GameState, target: Entity): GameState 
 }
 
 /** 技から使う一撃。倍率や不意打ちの強制を指定し、撃破まで解決する。 */
-export function playerStrike(state: GameState, target: Entity, options: { scale?: number; forceBackstab?: boolean; verb?: string }): GameState {
+export function playerStrike(state: GameState, target: Entity, options: { scale?: number; forceBackstab?: boolean; verb?: string; ranged?: boolean }): GameState {
   const player = getPlayer(state);
   if (!player.stats || !target.stats) return state;
   const rng = combatRng(state, target.id.length + 41);
-  applyHit(state, player, target, computeHit(player, target, rng, { scale: options.scale, allowBackstab: true, forceBackstab: options.forceBackstab }), rng, { procs: true, verb: options.verb ?? "に" });
+  applyHit(state, player, target, computeHit(player, target, rng, { scale: options.scale, allowBackstab: true, forceBackstab: options.forceBackstab }), rng, { procs: true, verb: options.verb ?? "に", ranged: options.ranged });
   return settleDefeats(state, [target]);
 }
 
@@ -180,7 +181,7 @@ export function applyFixedDamage(state: GameState, targets: Entity[], damage: nu
     target.alerted = true;
     target.asleep = false;
     recordStrike(state, player, target, true);
-    state.messages = pushMessage(state, `${getContentName(target.contentId)}${verb}${damage}ダメージ。`, "combat");
+    state.messages = pushMessage(state, `${entityName(target)}${verb}${damage}ダメージ。`, "combat");
     if (target.stats.hp > 0) maybeSplit(state, target);
   }
   return settleDefeats(state, targets);
@@ -197,7 +198,8 @@ export function playerBowShot(state: GameState, target: Entity): GameState {
   const bow = bowFor(player);
   if (!bow || !target.stats) return state;
   const rng = combatRng(state, target.id.length + 7);
-  const base = bow.damage + (equippedEntry(player, "weapon")?.plus ?? 0) + masteryBonus(player) + Math.floor((state.playerProgress.level - 1) / 2);
+  // 矢の威力は探索者の攻撃（弓の修正値と得意補正を含む）に、弓ごとの張りの強さを足す。
+  const base = (player.stats?.attack ?? 1) + bow.damage - getGameConfig().rules.bowDamageOffset;
   applyHit(state, player, target, computeHit(player, target, rng, { base }), rng, { procs: true, verb: "へ矢を放ち、", ranged: true });
   return settleDefeats(state, [target]);
 }
@@ -219,7 +221,7 @@ export function thornsAttack(state: GameState, attacker: Entity): GameState {
   const thorns = equippedSeals(player).reduce((sum, seal) => sum + (seal.thorns ?? 0), 0);
   if (!thorns || !attacker.stats || attacker.stats.hp <= 0) return state;
   attacker.stats.hp -= thorns;
-  state.messages = pushMessage(state, `棘が${getContentName(attacker.contentId)}へ${thorns}ダメージを返した。`, "combat");
+  state.messages = pushMessage(state, `棘が${entityName(attacker)}へ${thorns}ダメージを返した。`, "combat");
   return settleDefeats(state, [attacker]);
 }
 
@@ -237,7 +239,7 @@ export function tickMonsterAfflictions(state: GameState): GameState {
     monster.conditions = monster.conditions
       ?.map((condition) => condition.kind === "venomed" ? { ...condition, turns: condition.turns - 1 } : condition)
       .filter((condition) => condition.turns > 0);
-    if (tileAt(state, monster.pos).visible) state.messages = pushMessage(state, `${getContentName(monster.contentId)}が毒に蝕まれ、${damage}ダメージ。`, "combat");
+    if (tileAt(state, monster.pos).visible) state.messages = pushMessage(state, `${entityName(monster)}が毒に蝕まれ、${damage}ダメージ。`, "combat");
     victims.push(monster);
   }
   return settleDefeats(state, victims);

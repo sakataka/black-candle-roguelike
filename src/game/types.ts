@@ -365,7 +365,7 @@ type RoleTraits = {
   skill?: SkillId;
 };
 
-export type SkillId = "oath-strike" | "disengage" | "sanctify" | "appraise" | "ash-flask" | "charge" | "shadowstep";
+export type SkillId = "oath-strike" | "pin-shot" | "sanctify" | "appraise" | "ash-flask" | "charge" | "shadowstep";
 
 export type SkillConfig = {
   label: string;
@@ -375,6 +375,8 @@ export type SkillConfig = {
   scale?: number;
   bossScale?: number;
   healOnKill?: number;
+  heal?: number;
+  radius?: number;
   damage?: number;
   damagePerLevel?: number;
   turns?: number;
@@ -405,6 +407,45 @@ export type MonsterBehavior = {
   regenerate?: number;
   /** 必ず眠った状態で置かれ、起きた直後の一撃が重い。 */
   ambush?: boolean;
+  /** 殴った傷から命を吸う量。 */
+  drain?: number;
+  /** 一定の手ごとに手下を呼ぶ。 */
+  summon?: { contentId: string; every: number; max: number };
+  /** 命が減ると怒り、攻撃が上がる。fast なら倍速にもなる。 */
+  enrage?: { hpPercent: number; attackBonus: number; fast?: boolean };
+};
+
+/** 階の兆し。入った時に一つ引かれ、その階の性格を変える。 */
+export type OmenConfig = {
+  label: string;
+  description: string;
+  weight: number;
+  minFloor?: number;
+  maxFloor?: number;
+  /** 守り手の階には出さない。 */
+  notBossFloor?: boolean;
+  fovDelta?: number;
+  monsterCountDelta?: number;
+  trapCountDelta?: number;
+  itemCountDelta?: number;
+  noHealingItems?: boolean;
+  extraEvents?: string[];
+  eliteBonus?: number;
+  monsterAttackBonus?: number;
+  xpPercent?: number;
+  sleepPercentDelta?: number;
+  /** 拾える品のうち装備に置き換わる割合。 */
+  equipmentSharePercent?: number;
+};
+
+/** 精鋭の銘。既存の敵に一つの性質を足し、良い品を抱えさせる。 */
+export type EliteAffixConfig = {
+  prefix: string;
+  hpScale: number;
+  attackBonus: number;
+  defenseBonus: number;
+  xpScale: number;
+  behavior: MonsterBehavior;
 };
 
 /** 職業の基礎能力。stats は装備を含まない素の値で、growth はレベルごとの伸び。 */
@@ -596,6 +637,12 @@ export type GameConfig = {
     moonlitMailRegenAmount: number;
     bleedingDamage: number;
     venomedDamage: number;
+    /** 看破された敵が受ける傷の倍率（%）。 */
+    exposedDamagePercent: number;
+    /** 矢の威力 = 攻撃 + 弓の張り - この値。 */
+    bowDamageOffset: number;
+    /** この階数ごとに出血・毒のダメージが1増える。 */
+    conditionDamageFloors?: number;
     runTurnWarning: number;
     runTurnLimit: number;
   };
@@ -677,7 +724,7 @@ export type GameConfig = {
       danger: number;
     };
   };
-  biomes: Array<{ theme: BiomeTheme; minFloor: number; nameJa: string; roomWidth?: [number, number]; roomHeight?: [number, number]; density?: number }>;
+  biomes: Array<{ theme: BiomeTheme; minFloor: number; nameJa: string; roomWidth?: [number, number]; roomHeight?: [number, number]; density?: number; monsterHpPercent?: number; monsterAttackBonus?: number }>;
   roles: RoleDefinition[];
   monsterSpawnRules: MonsterSpawnRule[];
   monsterStats: Record<string, MonsterStatsConfig>;
@@ -688,6 +735,8 @@ export type GameConfig = {
   weaponTypes: Record<WeaponType, WeaponTypeConfig>;
   skills: Record<SkillId, SkillConfig>;
   monsterBehaviors: Record<string, MonsterBehavior>;
+  omens: { chanceByFloor: Array<{ maxFloor: number; percent: number }>; definitions: Record<string, OmenConfig> };
+  elites: { chanceByFloor: Array<{ maxFloor: number; percent: number }>; affixes: Record<string, EliteAffixConfig> };
   seals: Record<string, SealConfig>;
   equipmentRolls: {
     plus: Array<{ maxFloor: number; weights: Record<string, number> }>;
@@ -698,7 +747,10 @@ export type GameConfig = {
   };
   eventPools: Array<FloorRule & { events: string[] }>;
   trapPools: Array<FloorRule & { traps: string[] }>;
-  bosses: Array<{ floor: number; contentId: string; reward?: string; equipmentTier?: "early" | "mid" | "late" }>;
+  /** 守り手の候補。同じ階の候補から遠征ごとに一体を選ぶ。overrideOnly は周期の余波でだけ現れる。 */
+  bosses: Array<{ floor: number; contentId: string; reward?: string; equipmentTier?: "early" | "mid" | "late"; overrideOnly?: boolean }>;
+  /** 守り手の階ごとの締め付け。候補の違いに関わらず、その階の山場の高さをそろえる。 */
+  bossFloorScaling?: Record<string, { hpPercent: number; attackBonus: number }>;
   equipment: Record<string, EquipmentConfig>;
   consumables: Record<string, ConsumableConfig>;
   events: Record<string, EventConfig>;
@@ -753,6 +805,11 @@ export type Entity = {
   fleeing?: boolean;
   /** 待ち伏せの敵が起きた直後の重い一撃。 */
   ambushReady?: boolean;
+  /** 精鋭の銘。 */
+  elite?: string;
+  enraged?: boolean;
+  /** 呼び出された手下。 */
+  summonedBy?: string;
   /** 探索者の固有技が再び使えるまでの手数。 */
   skillCooldown?: number;
 };
@@ -797,6 +854,10 @@ export type GameState = {
   /** 直前の1アクションで起きた攻撃。描画演出専用で、ルール判定には使わない。 */
   strikes?: StrikeRecord[];
   expedition?: ExpeditionDynamics;
+  /** この階の兆し。 */
+  floorOmen?: string;
+  /** この階の守り手。 */
+  floorBossId?: string;
 };
 
 export type StrikeRecord = {
@@ -825,7 +886,7 @@ export type GameAction =
   | { type: "placeLantern"; pos?: Point }
   | { type: "borrowFlame" };
 
-type VisibleEntity = Pick<Entity, "id" | "kind" | "contentId" | "pos" | "stats" | "hostile" | "blocksMovement" | "goldAmount" | "conditions" | "telegraph" | "recoveryTurns" | "awakened" | "plus" | "seals" | "alerted" | "asleep" | "dormant" | "fleeing">;
+type VisibleEntity = Pick<Entity, "id" | "kind" | "contentId" | "pos" | "stats" | "hostile" | "blocksMovement" | "goldAmount" | "conditions" | "telegraph" | "recoveryTurns" | "awakened" | "plus" | "seals" | "alerted" | "asleep" | "dormant" | "fleeing" | "elite" | "enraged">;
 
 type ExplorationObjective = "explore" | "findStairs" | "defeatBoss" | "descend" | "resolveStall";
 
@@ -876,6 +937,7 @@ export type GameObservation = {
   bossAlive: boolean;
   /** 足元の旅商人が今引き受けてくれる取引。商人の上にいない時は空。 */
   merchantServices: MerchantServiceId[];
+  floorOmen?: string;
 };
 
 export type DeathCause = "combat" | "rangedCombat" | "trap" | "bleeding" | "venom" | "signalLoss" | "unknown";

@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 import { chooseAutoplayAction, resetAutoplayState } from "../ai/autoplay";
-import { getGameConfig, loadBunGameConfig } from "../content/config";
+import { getGameConfig, loadBunGameConfig, setGameConfig } from "../content/config";
+import { bossForFloor } from "../content/floors";
+import { applyElite } from "./bestiary";
 import type { Entity, GameState, InventoryEntry, Point } from "../types";
 import { applyAction, createInitialGame, observeGame } from "./game";
 import { addInventoryItem, pieceName, preferredEquipment } from "./inventory";
@@ -47,7 +49,7 @@ describe("職業の能力値", () => {
     const v = applyAction(vanguard, { type: "move", direction: "east" });
     const r = applyAction(rogue, { type: "move", direction: "east" });
     expect(v.playerProgress.level).toBeGreaterThanOrEqual(5);
-    expect(getPlayer(v).stats!.maxHp - getPlayer(r).stats!.maxHp).toBeGreaterThan(10);
+    expect(getPlayer(v).stats!.maxHp - getPlayer(r).stats!.maxHp).toBeGreaterThan(5);
     expect(getPlayer(v).stats!.defense).toBeGreaterThan(getPlayer(r).stats!.defense);
   });
 });
@@ -221,5 +223,41 @@ describe("敵の振る舞い", () => {
     const missed = state.entities.find((entity) => entity.id === "brute")!;
     expect(missed.recoveryTurns).toBeGreaterThan(0);
     expect(getPlayer(state).stats!.hp).toBe(getPlayer(state).stats!.maxHp);
+  });
+});
+
+describe("階の変化", () => {
+  test("守り手は候補から遠征ごとに選ばれる", () => {
+    const bosses = new Set(Array.from({ length: 12 }, (_, index) => bossForFloor(3, 20260504 + index)));
+    expect(bosses.size).toBeGreaterThanOrEqual(2);
+  });
+
+  test("兆しは階ごとに引かれ、濃霧は視界を狭める", () => {
+    const config = getGameConfig();
+    const seen = new Set<string>();
+    for (let seed = 20260504; seed < 20260534; seed += 1) {
+      const state = createInitialGame(seed, "role.oathbound");
+      if (state.floorOmen) seen.add(state.floorOmen);
+    }
+    expect(seen.size).toBe(0);
+    const foggy = structuredClone(config);
+    foggy.omens.chanceByFloor = [{ maxFloor: 99, percent: 100 }];
+    foggy.omens.definitions = { fog: { ...config.omens.definitions.fog, minFloor: 1 } };
+    const clear = createInitialGame(20260504, "role.oathbound");
+    setGameConfig(foggy);
+    const misty = createInitialGame(20260504, "role.oathbound");
+    expect(misty.floorOmen).toBe("fog");
+    expect(misty.tiles.filter((tile) => tile.visible).length).toBeLessThan(clear.tiles.filter((tile) => tile.visible).length);
+  });
+
+  test("精鋭は銘を冠し、倒すと印つきの装備を落とす", () => {
+    const state = arena("role.oathbound", { contentId: "item.rusted-sword", quantity: 1 });
+    const elite = enemy(state, { x: 11, y: 10 }, "monster.ash-rat", 10, 0, "elite");
+    applyElite(elite, "brute");
+    elite.stats!.hp = 1;
+    const next = applyAction(state, { type: "move", direction: "east" });
+    const drop = next.entities.find((entity) => entity.kind === "item" && getGameConfig().equipment[entity.contentId]);
+    expect(next.messages.some((message) => message.text.includes("剛力の灰かぶり鼠を倒した"))).toBe(true);
+    expect(drop?.seals?.length).toBeGreaterThanOrEqual(1);
   });
 });

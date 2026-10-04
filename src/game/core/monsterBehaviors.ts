@@ -1,5 +1,6 @@
-import { getGameConfig } from "../content/config";
+import { getGameConfig, runRules } from "../content/config";
 import { getContentName } from "../content/entities";
+import { behaviorFor, entityName, statsForMonster } from "./bestiary";
 import { hasCondition } from "./conditions";
 import { equipmentSlot, equippedEntry, pieceName, pieceSeals, weaponTypeOf } from "./inventory";
 import { Rng } from "./rng";
@@ -13,6 +14,8 @@ import type { Entity, GameState, MonsterBehavior, Point } from "../types";
 export function behaviorOf(contentId: string): MonsterBehavior {
   return getGameConfig().monsterBehaviors?.[contentId] ?? {};
 }
+
+export { behaviorFor };
 
 function visible(state: GameState, pos: Point): boolean {
   return tileAt(state, pos).visible;
@@ -31,7 +34,7 @@ function freeAdjacent(state: GameState, center: Point, rng: Rng): Point | null {
 
 /** 群れ。同じ敵が探索者の隣にいるほど噛みつきが重くなる。 */
 export function packBonus(state: GameState, attacker: Entity, defender: Entity): number {
-  const pack = behaviorOf(attacker.contentId).pack;
+  const pack = behaviorFor(attacker).pack;
   if (!pack) return 0;
   const allies = state.entities.filter((entity) => entity !== attacker && entity.kind === "monster" && entity.contentId === attacker.contentId && chebyshev(entity.pos, defender.pos) <= 1).length;
   return allies * pack;
@@ -39,14 +42,14 @@ export function packBonus(state: GameState, attacker: Entity, defender: Entity):
 
 /** 盾持ち。鈍器以外の正面からの打撃を軽減する。隙・不意打ち・看破には効かない。 */
 export function shieldScale(target: Entity, player: Entity, open: boolean): number {
-  const shielded = behaviorOf(target.contentId).shielded;
+  const shielded = behaviorFor(target).shielded;
   if (!shielded || open || hasCondition(target, "exposed")) return 1;
   return weaponTypeOf(equippedEntry(player, "weapon")?.contentId) === "mace" ? 1 : 1 - shielded / 100;
 }
 
 /** 敵の近接が探索者に当たった後。盗みと錆び。 */
 export function afterMonsterHitsPlayer(state: GameState, monster: Entity): void {
-  const behavior = behaviorOf(monster.contentId);
+  const behavior = behaviorFor(monster);
   const player = getPlayer(state);
   const rng = new Rng(state.seed + state.turn * 61 + monster.id.length * 19);
   if (behavior.thief && !monster.fleeing) {
@@ -56,16 +59,23 @@ export function afterMonsterHitsPlayer(state: GameState, monster: Entity): void 
       entry.quantity -= 1;
       player.inventory = player.inventory?.filter((candidate) => candidate.quantity > 0);
       monster.inventory = [...(monster.inventory ?? []), { contentId: entry.contentId, quantity: 1 }];
-      state.messages = pushMessage(state, `${getContentName(monster.contentId)}に${getContentName(entry.contentId)}を盗まれた。倒せば取り返せる。`, "danger");
+      state.messages = pushMessage(state, `${entityName(monster)}に${getContentName(entry.contentId)}を盗まれた。倒せば取り返せる。`, "danger");
     } else if (state.playerProgress.gold > 0) {
       const amount = Math.min(state.playerProgress.gold, 10 + state.floor * 3);
       state.playerProgress = { ...state.playerProgress, gold: state.playerProgress.gold - amount };
       monster.goldAmount = (monster.goldAmount ?? 0) + amount;
-      state.messages = pushMessage(state, `${getContentName(monster.contentId)}に古銭を${amount}枚かすめ取られた。`, "danger");
+      state.messages = pushMessage(state, `${entityName(monster)}に古銭を${amount}枚かすめ取られた。`, "danger");
     } else {
       return;
     }
     monster.fleeing = true;
+  }
+  if (behavior.drain && monster.stats) {
+    const healed = Math.min(behavior.drain, monster.stats.maxHp - monster.stats.hp);
+    if (healed > 0) {
+      monster.stats.hp += healed;
+      state.messages = pushMessage(state, `${entityName(monster)}が傷口から命を吸った。`, "combat");
+    }
   }
   if (behavior.corrode && rng.int(1, 100) <= behavior.corrode) {
     const targets = (["armor", "shield", "weapon"] as const)
@@ -76,14 +86,14 @@ export function afterMonsterHitsPlayer(state: GameState, monster: Entity): void 
     if (targets.length) {
       const entry = targets[0];
       entry.plus = (entry.plus ?? 0) - 1;
-      state.messages = pushMessage(state, `${getContentName(monster.contentId)}にかじられ、${pieceName(entry)}になった。`, "danger");
+      state.messages = pushMessage(state, `${entityName(monster)}にかじられ、${pieceName(entry)}になった。`, "danger");
     }
   }
 }
 
 /** 分裂。傷を受けて生き残ると、残りの命を分けて隣に増える。 */
 export function maybeSplit(state: GameState, target: Entity): void {
-  const split = behaviorOf(target.contentId).split;
+  const split = behaviorFor(target).split;
   if (!split || !target.stats || target.stats.hp < split.minHp || (target.splitGeneration ?? 0) >= split.max) return;
   const rng = new Rng(state.seed + state.turn * 71 + target.pos.x * 3 + target.pos.y);
   const point = freeAdjacent(state, target.pos, rng);
@@ -102,12 +112,12 @@ export function maybeSplit(state: GameState, target: Entity): void {
     splitGeneration: target.splitGeneration,
     stats: { ...target.stats, hp: half },
   });
-  if (visible(state, target.pos)) state.messages = pushMessage(state, `${getContentName(target.contentId)}が裂けて二つに分かれた。`, "combat");
+  if (visible(state, target.pos)) state.messages = pushMessage(state, `${entityName(target)}が裂けて二つに分かれた。`, "combat");
 }
 
 /** 蘇り。鈍器や浄化の刃でなければ、一度だけ崩れたまま蠢き、数手後に起き上がる。 */
 export function tryRevive(state: GameState, defeated: Entity): boolean {
-  const revive = behaviorOf(defeated.contentId).revive;
+  const revive = behaviorFor(defeated).revive;
   if (!revive || defeated.revived || !defeated.stats) return false;
   const player = getPlayer(state);
   const weapon = equippedEntry(player, "weapon");
@@ -118,18 +128,18 @@ export function tryRevive(state: GameState, defeated: Entity): boolean {
   defeated.stats.hp = Math.ceil(defeated.stats.maxHp / 2);
   defeated.conditions = [];
   defeated.telegraph = undefined;
-  if (visible(state, defeated.pos)) state.messages = pushMessage(state, `${getContentName(defeated.contentId)}は崩れたが、骨がまだ蠢いている。砕くなら今だ。`, "combat");
+  if (visible(state, defeated.pos)) state.messages = pushMessage(state, `${entityName(defeated)}は崩れたが、骨がまだ蠢いている。砕くなら今だ。`, "combat");
   return true;
 }
 
 /** 倒れた時の置き土産。爆ぜる敵と、盗んだ品を抱えた敵。 */
 export function onMonsterDefeated(state: GameState, defeated: Entity): void {
-  const behavior = behaviorOf(defeated.contentId);
+  const behavior = behaviorFor(defeated);
   const player = getPlayer(state);
   if (behavior.explode && chebyshev(player.pos, defeated.pos) <= 1 && player.stats) {
     const damage = behavior.explode.damage + Math.floor(state.floor * behavior.explode.perFloor);
     player.stats.hp -= damage;
-    state.messages = pushMessage(state, `${getContentName(defeated.contentId)}が爆ぜ、${damage}ダメージを受けた。`, "danger");
+    state.messages = pushMessage(state, `${entityName(defeated)}が爆ぜ、${damage}ダメージを受けた。`, "danger");
     if (player.stats.hp <= 0) {
       state.status = "lost";
       state.story.killedBy = { cause: "combat", contentId: defeated.contentId };
@@ -150,11 +160,27 @@ export function onMonsterDefeated(state: GameState, defeated: Entity): void {
  * 崩れた亡者の待機、再生、癒し手の祈り、盗人の逃走を扱う。
  */
 export function preMonsterTurn(state: GameState, monster: Entity, stepAway: () => GameState | null): { acted: boolean; state: GameState } {
-  const behavior = behaviorOf(monster.contentId);
+  const behavior = behaviorFor(monster);
   if ((monster.dormant ?? 0) > 0) {
     monster.dormant! -= 1;
-    if (monster.dormant === 0 && visible(state, monster.pos)) state.messages = pushMessage(state, `${getContentName(monster.contentId)}が再び起き上がった。`, "combat");
+    if (monster.dormant === 0 && visible(state, monster.pos)) state.messages = pushMessage(state, `${entityName(monster)}が再び起き上がった。`, "combat");
     return { acted: true, state };
+  }
+  if (behavior.enrage && !monster.enraged && monster.stats && monster.stats.hp <= monster.stats.maxHp * behavior.enrage.hpPercent / 100) {
+    monster.enraged = true;
+    monster.stats.attack += behavior.enrage.attackBonus;
+    if (visible(state, monster.pos)) state.messages = pushMessage(state, `${entityName(monster)}が怒りに燃え上がった。${behavior.enrage.fast ? "動きが速くなった。" : "一撃が重くなった。"}`, "danger");
+  }
+  if (behavior.summon && monster.alerted && state.turn % behavior.summon.every === 0) {
+    const minions = state.entities.filter((entity) => entity.summonedBy === monster.id).length;
+    const rng = new Rng(state.seed + state.turn * 83 + monster.pos.x);
+    const point = minions < behavior.summon.max ? freeAdjacent(state, monster.pos, rng) : null;
+    if (point) {
+      const stats = statsForMonster(behavior.summon.contentId, state.floor - 1, state.floor, state.runObjectives, runRules(state.modifiers));
+      state.entities.push({ id: `${behavior.summon.contentId}.summoned.${state.floor}.${state.turn}.${state.entities.length}`, kind: "monster", contentId: behavior.summon.contentId, pos: point, blocksMovement: true, hostile: true, alerted: true, summonedBy: monster.id, stats });
+      if (visible(state, monster.pos) || visible(state, point)) state.messages = pushMessage(state, `${entityName(monster)}が${getContentName(behavior.summon.contentId)}を呼び出した。`, "combat");
+      return { acted: true, state };
+    }
   }
   if (behavior.regenerate && monster.stats && monster.stats.hp < monster.stats.maxHp && !hasCondition(monster, "venomed")) {
     monster.stats.hp = Math.min(monster.stats.maxHp, monster.stats.hp + behavior.regenerate);
@@ -166,7 +192,7 @@ export function preMonsterTurn(state: GameState, monster: Entity, stepAway: () =
     if (patient?.stats) {
       const healed = Math.min(patient.stats.maxHp - patient.stats.hp, Math.ceil(patient.stats.maxHp * behavior.healer.percent / 100));
       patient.stats.hp += healed;
-      if (visible(state, monster.pos) || visible(state, patient.pos)) state.messages = pushMessage(state, `${getContentName(monster.contentId)}が${getContentName(patient.contentId)}の傷を塞いだ（+${healed}）。`, "combat");
+      if (visible(state, monster.pos) || visible(state, patient.pos)) state.messages = pushMessage(state, `${entityName(monster)}が${getContentName(patient.contentId)}の傷を塞いだ（+${healed}）。`, "combat");
       return { acted: true, state };
     }
   }

@@ -1305,7 +1305,8 @@ function renderExpeditionDynamics(observation: ReturnType<typeof observeGame>): 
   borrow.disabled = !canBorrowFlame(state);
   borrow.title = `一遠征一回。命火${realtimeConfig().loan.healPercent}%回復・護り${realtimeConfig().loan.guardedTurns}手・灯火+${realtimeConfig().loan.embers}。次に得る灯火${realtimeConfig().loan.debt}つを返す。未返済分は次の遠征へ。`;
   setText("#expedition-note", dynamics?.debt ? `借灯の返済：次に得る灯火${dynamics.debt}つ` : "");
-  setText("#floor-law", floorLawDescription(state.biome));
+  const omen = state.floorOmen ? getGameConfig().omens.definitions[state.floorOmen] : undefined;
+  setText("#floor-law", omen ? `兆し「${omen.label}」${omen.description} ／ ${floorLawDescription(state.biome)}` : floorLawDescription(state.biome));
 }
 
 function renderRoadmap(): void {

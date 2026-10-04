@@ -96,7 +96,8 @@ export function chooseAutoplayAction(observation: GameObservation): GameAction {
 
   // 持ち替え。弓で引き撃ちできない距離まで詰められたら近接武器へ、敵が離れたら普段の装備へ戻す。
   const equippedBow = observation.player.inventory?.find((entry) => entry.equipped && getGameConfig().equipment[entry.contentId]?.rangedAttack);
-  const closeHostiles = visibleHostiles.filter((entity) => distance(entity.pos, observation.player.pos) <= 2);
+  // 弓へ戻すのは、起きた敵が4マス以内にいなくなってから。持ち替えの往復で手番を失わない。
+  const closeHostiles = visibleHostiles.filter((entity) => distance(entity.pos, observation.player.pos) <= 4);
   const cornered = closeHostiles.some((entity) => distance(entity.pos, observation.player.pos) <= 1)
     && (!equippedBow || !kiteStep(observation, visibleHostiles, getGameConfig().equipment[equippedBow.contentId].rangedAttack!.range));
   const holdingMelee = !equippedBow && closeHostiles.length > 0;
@@ -595,8 +596,12 @@ function chooseSkillAction(observation: GameObservation, hpRatio: number, combat
       if (target?.recoveryTurns) tacticalIntents.set(observation, "opening");
       return target ? use(target.id) : null;
     }
-    case "disengage":
-      return near(1).length > 0 && (weaponType === "bow" || weaponType === "spear" || hpRatio < 0.5) ? use() : null;
+    case "pin-shot": {
+      // 迫ってくる強敵か射手を縫い止め、その間に射る・突く。
+      const target = near(5).filter((entity) => strong(entity) || isRangedThreat(entity.contentId) || distance(entity.pos, me) <= 1)
+        .sort((a, b) => Number(strong(b)) - Number(strong(a)) || distance(a.pos, me) - distance(b.pos, me))[0];
+      return target ? use(target.id) : null;
+    }
     case "sanctify":
       return near(3).length >= 2 || near(3).some((entity) => ["undead", "demon"].includes(contentEntities[entity.contentId]?.family ?? "")) ? use() : null;
     case "appraise": {
