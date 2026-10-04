@@ -1,4 +1,5 @@
 import { bossTrialDefinition, journeyProgress } from "./game/core/journey";
+import { candleRoadMarkup, growthMarkup } from "./ui/progress";
 import "@fontsource/shippori-mincho-b1/500.css";
 import "@fontsource/shippori-mincho-b1/600.css";
 import "@fontsource/shippori-mincho-b1/800.css";
@@ -158,6 +159,7 @@ app.innerHTML = `
           <div class="route-track-label"><span>道のり</span><strong id="route-next">-</strong></div>
           <ol id="route-nodes" class="route-nodes"></ol>
         </div>
+        <div id="live-progress" class="live-progress" aria-label="今回の目標と鍛錬"></div>
         <div class="shard-forecast" id="shard-forecast" title="今帰還できた場合と、ここで倒れた場合に灰灯院へ持ち帰る灯片。">
           <span>持ち帰る灯片</span>
           <strong><b id="forecast-return">+0</b><small>帰還なら</small></strong>
@@ -264,7 +266,6 @@ app.innerHTML = `
         <div>
           <p class="eyebrow">灰灯院 · 遠征の支度 · <span id="save-slot-name"></span></p>
           <h2 id="candidate-title">誰を黒燭の迷宮へ送るか</h2>
-          <div id="next-goal" class="next-goal"></div>
         </div>
         <div class="prepare-header-actions">
           <div class="shard-balance" title="遠征から持ち帰る。到達・守り手・任務・真相・生還で増え、施設の強化と療房に使う。"><i id="shard-icon" class="shard-icon" aria-hidden="true"></i><span>灯片</span><strong id="institute-shards">0</strong></div>
@@ -272,6 +273,7 @@ app.innerHTML = `
           <button id="switch-save" class="secondary-button" type="button" title="タイトルへ戻り、別の記録を選ぶか新しい記録を始める">記録を切り替える</button>
         </div>
       </header>
+      <section id="next-goal" class="progress-overview" aria-label="探索全体の進捗"></section>
       <div class="prepare-body">
         <div class="prepare-main">
           <section class="prepare-step prepare-step-delver" aria-labelledby="step-delver">
@@ -296,10 +298,10 @@ app.innerHTML = `
             <div id="institute-facilities" class="institute-facilities"></div>
             <div id="institute-infirmary" class="institute-infirmary"></div>
           </section>
-          <section class="side-section">
-            <div class="side-heading"><h3>黒燭への道</h3><span id="roadmap-count">0/5</span></div>
+          <details class="side-section progress-conditions">
+            <summary>章の達成条件 <span id="roadmap-count">0/5</span></summary>
             <ol id="roadmap-list" class="roadmap-list"></ol>
-          </section>
+          </details>
           <section class="side-section">
             <div class="side-heading"><h3>遠征録</h3><span id="archive-count">0件</span></div>
             <div id="campaign-summary" class="campaign-summary"></div>
@@ -1133,6 +1135,15 @@ function renderRunGoal(observation: ReturnType<typeof observeGame>): void {
   const missionFill = requireElement<HTMLElement>("#mission-fill");
   missionFill.style.width = `${progress.completed ? 100 : Math.min(100, progress.current / Math.max(1, progress.target) * 100)}%`;
   missionFill.dataset.tone = progress.completed ? "done" : progress.missed ? "missed" : "active";
+  const journey = journeyProgress(campaign);
+  const live = requireElement<HTMLElement>("#live-progress");
+  const signature = `${mission.id}:${progress.label}:${progress.current}:${progress.completed}:${missionState}:${journey.rank}:${journey.shardsToNextRank}`;
+  if (live.dataset.state !== signature) {
+    live.dataset.state = signature;
+    // 第十階へ到達しても番人を倒すまでは、最後の印を灯さない。
+    const marks = progress.completed ? progress.target : mission.id === "black-core" ? Math.min(progress.current, progress.target - 1) : progress.current;
+    live.innerHTML = `<div class="live-mission"><span>今回 <strong>${escapeHtml(mission.label)}</strong></span><div class="mission-beads" role="img" aria-label="${escapeHtml(progress.label)} · ${escapeHtml(missionState)}">${Array.from({ length: progress.target }, (_, i) => `<i class="${i < marks ? "is-filled" : ""}"></i>`).join("")}<b class="${progress.completed && survived ? "is-filled" : ""}" title="${survived && progress.completed ? "任務達成・生還済み" : "生還して確定"}">${progress.completed && survived ? "◆" : "◇"}</b></div><small>${progress.completed && playing ? "条件達成 → 生還で確定" : missionState}</small></div><div class="live-power"><span>鍛錬 <b>Lv${journey.rank}</b></span><small>${journey.shardsToNextRank ? `次まで ${journey.shardsToNextRank} 灯片` : "最大"}</small></div>`;
+  }
   const embers = realtimeConfig().missions.rewardEmbers;
   setText("#run-mission-reward", progress.completed && playing
     ? `生きて帰れば灯片+${missionShards(mission.id)}（灯火+${embers}は受け取り済み）`
@@ -1526,20 +1537,8 @@ function renderRoadmap(): void {
   setText("#roadmap-count", `${done}/${progress.roadmap.length}`);
   requireElement<HTMLOListElement>("#roadmap-list").innerHTML = roadmapMarkup(progress.roadmap, progress.nextChapter?.id ?? null, new Set());
   const banner = requireElement<HTMLElement>("#next-goal");
-  const next = progress.nextChapter;
-  const journey = journeyProgress(campaign);
-  banner.innerHTML = next
-    ? `<span class="next-goal-kicker">黒燭への道 ${done}/${progress.roadmap.length} · 次の目標</span><strong>${escapeHtml(next.label)}</strong><small>${escapeHtml(next.hint)}</small>`
-    : `<span class="next-goal-kicker">黒燭への道 · 第${campaign.cycle.number}周期</span><strong>結末を迎えた。新しい周期の迷宮へ</strong><small>燭階を上げて第十層を踏破すると、さらに深い燭階が開く。真相が揃っていれば、再び結末を選べる。</small>`;
-  banner.insertAdjacentHTML("beforeend", `<section class="journey-panel${journey.trial ? " is-trial" : ""}" aria-label="踏破と鍛錬の進み">
-    <div class="journey-heading"><span>${journey.trial ? "守り手の覚醒 · 挑戦中" : "踏破の先へ"}</span><b>踏破 ${journey.victories}回</b></div>
-    <strong>${journey.trial ? escapeHtml(journey.nextTrial!.label) : journey.nextTrial ? `あと${journey.victoriesToTrial}回の踏破で「${escapeHtml(journey.nextTrial.label)}」` : "三つの覚醒を突破した"}</strong>
-    <div class="journey-stages">${(getGameConfig().campaign.journey?.trials ?? []).map((trial, i) => `<span class="${i < journey.trialsCleared ? "is-cleared" : i + 1 === journey.trial ? "is-active" : ""}">${i < journey.trialsCleared ? "◆" : "◇"} ${escapeHtml(trial.label)}<small>${trial.victories}回踏破</small></span>`).join("")}</div>
-    <p>${journey.trial ? "第六階の中ボスと第十層の大ボスが壁になる。帰還・敗北でも鍛錬は積み重なる。第十層を踏破すると突破。" : "普段の遠征で力を蓄え、節目で強敵に挑む。突破後は通常の遠征へ戻る。"}</p>
-    <div class="foundation-line"><b>灰灯院の鍛錬 ${journey.rank}</b><span>全探索者の命火 +${journey.maxHp} · 攻撃 +${journey.attack}</span></div>
-    <div class="foundation-meter" role="progressbar" aria-label="次の鍛錬までの灯片" aria-valuemin="0" aria-valuemax="${getGameConfig().campaign.journey?.shardsPerRank ?? 60}" aria-valuenow="${journey.shardsToNextRank ? (getGameConfig().campaign.journey?.shardsPerRank ?? 60) - journey.shardsToNextRank : getGameConfig().campaign.journey?.shardsPerRank ?? 60}"><i style="width:${journey.shardsToNextRank ? 100 * (1 - journey.shardsToNextRank / (getGameConfig().campaign.journey?.shardsPerRank ?? 60)) : 100}%"></i></div>
-    <small>${journey.shardsToNextRank ? `次の鍛錬まで灯片${journey.shardsToNextRank}。使った灯片も累計に残る。` : "鍛錬は最大。古参と作戦、灯の使い方でさらに力を引き出せる。"}</small>
-  </section>`);
+  banner.innerHTML = `${candleRoadMarkup(campaign)}${growthMarkup(campaign)}
+    <details class="progress-help"><summary>進め方</summary><p>${escapeHtml(progress.nextChapter?.hint ?? "結末を選ぶと新しい周期へ。真相と鍛錬は引き継がれる。")}</p><p>帰還・敗北で得た灯片も鍛錬に積み重なる。第十層を踏破すると覚醒への印が灯る。</p></details>`;
 }
 
 function roadmapMarkup(chapters: ReturnType<typeof campaignProgress>["roadmap"], nextId: string | null, fresh: Set<string>, freshTruths: RoleTruthId[] = []): string {
@@ -2044,7 +2043,8 @@ function renderEndRoadmap(): void {
       : "この遠征では道は進まなかった。";
   endRoadmap.innerHTML = `
     <div class="result-section-heading"><h3>黒燭への道 ${done}/${after.roadmap.length}</h3><small>${escapeHtml(note)}</small></div>
-    <ol class="roadmap-list is-compact">${roadmapMarkup(after.roadmap, next?.id ?? null, fresh, freshTruths)}</ol>
+    ${candleRoadMarkup(campaign, fresh, freshTruths)}
+    ${growthMarkup(campaign, campaignBeforeRun)}
     ${next ? `<p class="end-next-goal">次の目標: <strong>${escapeHtml(next.label)}</strong> — ${escapeHtml(next.hint)}</p>` : ""}
   `;
 }
