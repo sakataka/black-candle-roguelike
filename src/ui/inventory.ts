@@ -1,6 +1,6 @@
 import { getGameConfig } from "../game/content/config";
 import { assetForContent } from "../game/content/assets";
-import { getContentName } from "../game/content/entities";
+import { pieceName } from "../game/core/inventory";
 import type { Entity } from "../game/types";
 import { escapeHtml, requireElement, setText } from "./dom";
 import { equipmentDetail, equipmentSlotLabel } from "./labels";
@@ -11,7 +11,7 @@ export function renderInventory(inventory: NonNullable<Entity["inventory"]>, obs
   setText("#inventory-count", `${inventory.length}/${config.rules.inventorySlotLimit}`);
   requireElement<HTMLDivElement>("#equipment-list").innerHTML = (["weapon", "armor", "shield", "ring"] as const).map((slot) => {
     const entry = inventory.find((item) => item.equipped && config.equipment[item.contentId]?.slot === slot);
-    return `<div class="equipment-slot${entry ? "" : " is-empty"}"${entry ? ` title="${escapeHtml(equipmentDetail(config.equipment[entry.contentId]))}"` : ""}><span>${equipmentSlotLabel(slot)}</span><i class="equipment-icon" data-equipped-slot="${slot}" aria-hidden="true"></i><strong>${entry ? escapeHtml(getContentName(entry.contentId)) : "なし"}</strong></div>`;
+    return `<div class="equipment-slot${entry ? "" : " is-empty"}"${entry ? ` title="${escapeHtml(equipmentDetail(entry.contentId, entry))}"` : ""}><span>${equipmentSlotLabel(slot)}</span><i class="equipment-icon" data-equipped-slot="${slot}" aria-hidden="true"></i><strong>${entry ? escapeHtml(pieceName(entry)) : "なし"}</strong></div>`;
   }).join("");
   for (const icon of document.querySelectorAll<HTMLElement>("[data-equipped-slot]")) {
     const entry = inventory.find((item) => item.equipped && config.equipment[item.contentId]?.slot === icon.dataset.equippedSlot);
@@ -19,7 +19,7 @@ export function renderInventory(inventory: NonNullable<Entity["inventory"]>, obs
   }
   const list = requireElement<HTMLUListElement>("#inventory-list");
   const carried = inventory.filter((entry) => !entry.equipped);
-  const signature = carried.map((entry) => `${entry.contentId}:${entry.quantity}`).join("|");
+  const signature = carried.map((entry) => `${entry.contentId}:${entry.quantity}:${entry.plus ?? 0}:${entry.seals?.join(",") ?? ""}`).join("|");
   if (list.dataset.signature === signature) return;
   const active = document.activeElement;
   const focusedItem = active instanceof HTMLElement && list.contains(active) ? active.dataset.itemId : null;
@@ -35,7 +35,7 @@ export function renderInventory(inventory: NonNullable<Entity["inventory"]>, obs
   list.replaceChildren(...carried.map((entry) => {
     const item = document.createElement("li");
     const equipment = config.equipment[entry.contentId];
-    const label = `${getContentName(entry.contentId)} ×${entry.quantity}${equipment ? ` / ${equipmentDetail(equipment)}` : ""}`;
+    const label = `${pieceName(entry)}${equipment ? ` / ${equipmentDetail(entry.contentId, entry)}` : ` ×${entry.quantity}`}`;
     const button = document.createElement("button");
     button.type = "button";
     button.className = "inventory-slot";

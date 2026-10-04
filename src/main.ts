@@ -1,6 +1,7 @@
 import { renderDecisionContext } from "./ui/decisionContext";
 import { renderInventory } from "./ui/inventory";
-import { conditionLabel, conditionTone, tacticLabels } from "./ui/labels";
+import { conditionLabel, conditionTone, tacticLabels, weaponTypeLabels } from "./ui/labels";
+import { defenseBonus, weaponBonus } from "./game/core/inventory";
 import { renderRunInsights } from "./ui/runInsights";
 import { observerShellMarkup } from "./ui/shell";
 import { applySprite, spriteStyle } from "./ui/sprites";
@@ -583,8 +584,8 @@ function renderCandidateSelection(): void {
       name: escapeHtml(identity.name),
       meta: getContentName(role.id),
       temperament: identity.temperament,
-      extra: `<small>${temperamentDescription(identity.temperament)}</small><small class="role-focus">${escapeHtml(role.traits.focus)}</small>`,
-      stats: { hp: role.stats.maxHp, attack: role.stats.attack, defense: role.stats.defense },
+      extra: `<small>${temperamentDescription(identity.temperament)}</small><small class="role-focus">${escapeHtml(role.traits.focus)}</small><small class="role-focus">得意武器: ${escapeHtml(weaponTypeLabels(role.traits.weaponMastery?.types))}</small>`,
+      stats: startingStats(role.id),
     });
   }));
   renderDepartSummary(delver);
@@ -787,9 +788,20 @@ function renderVeterans(): void {
       meta: `${getContentName(veteran.identity.roleId)} · 遠征${veteran.expeditions}回`,
       temperament: veteran.identity.temperament,
       extra: veteran.scars.length ? `<span class="scar-tags">${veteran.scars.map((id) => `<i title="${escapeHtml(scars[id]?.description ?? "")}">${escapeHtml(scars[id]?.label ?? id)}</i>`).join("")}</span>` : "",
-      stats: { hp: (role?.stats.maxHp ?? 0) + bonus.maxHp * veteran.rank, attack: (role?.stats.attack ?? 0) + bonus.attack * veteran.rank, defense: role?.stats.defense ?? 0 },
+      stats: (() => {
+        const base = startingStats(veteran.identity.roleId);
+        return { hp: base.hp + bonus.maxHp * veteran.rank, attack: base.attack + bonus.attack * veteran.rank, defense: base.defense };
+      })(),
     });
   }));
+}
+
+/** 支度画面に出す出発時の能力。職業の素の値に初期装備と得意武器の補正を足す。 */
+function startingStats(roleId: string): { hp: number; attack: number; defense: number } {
+  const role = playableRoles().find((candidate) => candidate.id === roleId);
+  if (!role) return { hp: 0, attack: 0, defense: 0 };
+  const delver = { id: "preview", kind: "player", contentId: role.id, pos: { x: 0, y: 0 }, blocksMovement: true, inventory: role.inventory } as const;
+  return { hp: role.stats.maxHp, attack: role.stats.attack + weaponBonus(delver), defense: role.stats.defense + defenseBonus({ ...delver, inventory: [...role.inventory] }) };
 }
 
 function stepAutoplay(): void {

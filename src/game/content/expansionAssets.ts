@@ -5,7 +5,7 @@ export const expansionAssets: Record<string, AssetDefinition> = {};
 
 function sheet(file: string, columns: number, rows: number, cells: Array<[string, string]>): void {
   cells.forEach(([id, contentId], index) => {
-    expansionAssets[id] = { contentId, path: `/assets/sprites/expansion-v1/${file}`, sheet: { columns, rows, index } };
+    expansionAssets[id] = { contentId, path: file.includes("/") ? `/assets/sprites/${file}` : `/assets/sprites/expansion-v1/${file}`, sheet: { columns, rows, index } };
   });
 }
 
@@ -231,4 +231,17 @@ sheet("bc-fx-frost-bind-v1.png", 2, 2, [
   ["effect.frost-bind.frame-1", "effect.frost-bind"],
   ["effect.frost-bind.frame-2", "effect.frost-bind"],
   ["effect.frost-bind.frame-3", "effect.frost-bind"],
+]);
+
+// ブラッシュアップv1。武器の型ごとに序盤・終盤の品をそろえる。
+sheet("brushup-v1/bc-weapon-types-v1.png", 3, 3, [
+  ["icon.item.studded-club", "item.studded-club"],
+  ["icon.item.hatchet", "item.hatchet"],
+  ["icon.item.ashwood-shortbow", "item.ashwood-shortbow"],
+  ["icon.item.bone-javelin", "item.bone-javelin"],
+  ["icon.item.shadowstitch-dagger", "item.shadowstitch-dagger"],
+  ["icon.item.candle-glaive", "item.candle-glaive"],
+  ["icon.item.phosphor-greatbow", "item.phosphor-greatbow"],
+  ["icon.item.twinfang-daggers", "item.twinfang-daggers"],
+  ["icon.item.blackiron-warhammer", "item.blackiron-warhammer"],
 ]);

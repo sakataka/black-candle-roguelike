@@ -2,6 +2,7 @@ import { getGameConfig } from "../game/content/config";
 import { assetForContent } from "../game/content/assets";
 import { getContentName } from "../game/content/entities";
 import { directiveLabel, missionDefinition, shardForecast, temperamentLabel } from "../game/core/autonomous";
+import { pieceName } from "../game/core/inventory";
 import type { GameObservation, GameState } from "../game/types";
 import { escapeHtml } from "./dom";
 import { applySprite } from "./sprites";
@@ -40,11 +41,10 @@ export function renderDecisionContext(observation: GameObservation, state: GameS
 
   const equipment = (["weapon", "armor", "shield"] as const).map((slot) => {
     const entry = player.inventory?.find((item) => item.equipped && config.equipment[item.contentId]?.slot === slot);
-    const itemConfig = entry ? config.equipment[entry.contentId] : undefined;
     return `<div class="decision-equipment-item">
       <span>${equipmentSlotLabel(slot)}</span>
-      <strong>${entry ? escapeHtml(getContentName(entry.contentId)) : "未装備"}</strong>
-      <small>${itemConfig ? equipmentDetail(itemConfig) : "補正なし"}</small>
+      <strong>${entry ? escapeHtml(pieceName(entry)) : "未装備"}</strong>
+      <small>${entry ? escapeHtml(equipmentDetail(entry.contentId, entry)) : "補正なし"}</small>
     </div>`;
   }).join("");
   const forecast = shardForecast(state);

@@ -1,5 +1,6 @@
 import { getGameConfig } from "../game/content/config";
-import type { EquipmentConfig, StatusCondition } from "../game/types";
+import { pieceSeals } from "../game/core/inventory";
+import type { EquipmentConfig, InventoryEntry, StatusCondition } from "../game/types";
 
 export function equipmentSlotLabel(slot: EquipmentConfig["slot"]): string {
   if (slot === "weapon") return "武器";
@@ -8,8 +9,21 @@ export function equipmentSlotLabel(slot: EquipmentConfig["slot"]): string {
   return "盾";
 }
 
-export function equipmentDetail(equipment: EquipmentConfig): string {
-  const details = [`${equipment.slot === "weapon" ? "威力" : "防御"} +${equipment.power}`];
+/** 装備の説明。個体の修正値と印があれば合わせて示す。 */
+export function equipmentDetail(contentId: string, piece: Pick<InventoryEntry, "plus" | "seals"> = {}): string {
+  const equipment = getGameConfig().equipment[contentId];
+  if (!equipment) return "";
+  const plus = piece.plus ?? 0;
+  const type = equipment.weaponType ? getGameConfig().weaponTypes[equipment.weaponType] : undefined;
+  const details = [`${type ? `${type.label}・` : ""}${equipment.slot === "weapon" ? "威力" : "防御"} +${equipment.power + plus}`];
+  if (type) details.push(type.description);
+  for (const seal of pieceSeals({ contentId, ...piece })) details.push(`［${seal.glyph}］${seal.description}`);
+  details.push(...baseEquipmentDetail(equipment));
+  return details.join(" / ");
+}
+
+function baseEquipmentDetail(equipment: EquipmentConfig): string[] {
+  const details: string[] = [];
   if (equipment.rangedDefense) details.push(`遠隔防御 +${equipment.rangedDefense}`);
   const trapAvoid = (equipment.trapAvoidPercent ?? 0) - (equipment.trapAvoidPenaltyPercent ?? 0);
   if (trapAvoid !== 0) details.push(`罠回避 ${trapAvoid > 0 ? "+" : ""}${trapAvoid}%`);
@@ -20,7 +34,12 @@ export function equipmentDetail(equipment: EquipmentConfig): string {
   if (equipment.regen) details.push(`${equipment.regen.everyTurns}手ごとHP+${equipment.regen.amount}`);
   if (equipment.revealRadius) details.push(`周囲${equipment.revealRadius}マスを調査`);
   if (equipment.reflectDamage) details.push(`遠隔反撃 ${equipment.reflectDamage}`);
-  return details.join(" / ");
+  return details;
+}
+
+export function weaponTypeLabels(types: string[] = []): string {
+  const config = getGameConfig().weaponTypes as Record<string, { label: string }>;
+  return types.map((type) => config[type]?.label ?? type).join("・");
 }
 
 export function conditionLabel(condition: StatusCondition): string {

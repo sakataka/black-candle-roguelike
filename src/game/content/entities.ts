@@ -14,7 +14,7 @@ export const contentEntities: Record<string, ContentEntity> = {
   "monster.shadow-imp": { name: "影小鬼", tier: "mid", danger: 5, xpReward: 10, family: "demon" },
   "monster.moss-brute": { name: "苔むした巨躯", tier: "mid", danger: 7, xpReward: 14, family: "beast" },
   "monster.blackstone-sentinel": { name: "黒石の番兵", tier: "late", danger: 9, xpReward: 20, family: "construct" },
-  "item.rusted-sword": { name: "錆びた短剣", tier: "early", economyValue: 5 },
+  "item.rusted-sword": { name: "錆びた剣", tier: "early", economyValue: 5 },
   "item.ember-tonic": { name: "燠火の薬瓶", tier: "early", economyValue: 20 },
   "item.iron-axe": { name: "鉄の戦斧", tier: "mid", economyValue: 55 },
   "item.hunter-spear": { name: "狩人の長槍", tier: "mid", economyValue: 50 },
@@ -74,6 +74,15 @@ export const contentEntities: Record<string, ContentEntity> = {
   "trap.blood-needle": { name: "血針罠", tier: "early", danger: 4 },
   "trap.venom-mist": { name: "毒霧床", tier: "mid", danger: 5 },
   "trap.crumbling-floor": { name: "崩れ床", tier: "mid", danger: 5 },
+  "item.studded-club": { name: "鉄鋲の棍棒", tier: "early", economyValue: 24 },
+  "item.hatchet": { name: "薪割りの手斧", tier: "early", economyValue: 30 },
+  "item.ashwood-shortbow": { name: "灰木の短弓", tier: "early", economyValue: 32 },
+  "item.bone-javelin": { name: "骨穂の手槍", tier: "early", economyValue: 26 },
+  "item.shadowstitch-dagger": { name: "影縫いの短刀", tier: "mid", economyValue: 78 },
+  "item.candle-glaive": { name: "黒燭の長柄", tier: "late", economyValue: 150 },
+  "item.phosphor-greatbow": { name: "燐火の大弓", tier: "late", economyValue: 150 },
+  "item.twinfang-daggers": { name: "双牙の短剣", tier: "late", economyValue: 140 },
+  "item.blackiron-warhammer": { name: "黒鉄の戦鎚", tier: "late", economyValue: 160 },
 };
 
 export function getContentName(contentId: string): string {

@@ -2,7 +2,7 @@ import { isKnownWalkable, isVisibleBlockerAt, observationIndex, walkKnownPaths, 
 import { DIRECTION_DELTAS, chebyshev as distance, isWalkable, linePoints, pointKey, samePoint } from "../core/spatial";
 import { getGameConfig, runRules } from "../content/config";
 import { contentEntities } from "../content/entities";
-import { preferredEquipment } from "../core/inventory";
+import { equippedEntry, preferredEquipment, upgradeGain, weaponTypeOf } from "../core/inventory";
 import { realtimeConfig } from "../content/realtime";
 import { visibleDangerTiles } from "../core/realtime";
 import type { AutoplayPolicyValues, Direction, GameAction, GameObservation, Point, PolicyModifier } from "../types";
@@ -63,7 +63,10 @@ export function chooseAutoplayAction(observation: GameObservation): GameAction {
   const hpRatio = hp / maxHp;
   const policy = resolveAutoplayPolicy(observation);
   const allowRiskyTraversal = progress.stagnantTurns >= Math.max(LOOP_ESCAPE_TURNS, policy.trapPatience) && hpRatio > policy.riskyTraversalHp;
-  const visibleHostiles = observation.visibleEntities.filter((entity) => entity.kind === "monster" && entity.hostile);
+  // 眠っている敵は戦闘の圧として数えない。起こさずに通り過ぎるか、不意打ちを狙うかは武器で決める。
+  const visibleHostiles = observation.visibleEntities.filter((entity) => entity.kind === "monster" && entity.hostile && !entity.asleep);
+  const sleepingHostiles = observation.visibleEntities.filter((entity) => entity.kind === "monster" && entity.hostile && entity.asleep);
+  const weaponType = weaponTypeOf(equippedEntry(observation.player, "weapon")?.contentId);
   const visibleRangedThreats = visibleHostiles.filter((entity) => isRangedThreat(entity.contentId) && distance(entity.pos, observation.player.pos) <= 6);
   const visibleRangedThreat = nearest(visibleRangedThreats, observation.player.pos);
   const nearbyEnemies = visibleHostiles.filter((entity) => distance(entity.pos, observation.player.pos) <= 3);
@@ -135,9 +138,17 @@ export function chooseAutoplayAction(observation: GameObservation): GameAction {
     return { type: "useItem", contentId: "item.colossus-heart" };
   }
 
+  const bow = observation.player.inventory?.filter((entry) => entry.equipped).map((entry) => getGameConfig().equipment[entry.contentId]?.rangedAttack).find(Boolean);
+  const clearShot = (pos: Point) => linePoints(observation.player.pos, pos).every((point) => observation.knownTiles.some((tile) => samePoint(tile, point) && tile.kind !== "wall" && tile.kind !== "cover"));
+  const adjacentAwake = visibleHostiles.filter((entity) => distance(entity.pos, observation.player.pos) <= 1);
+  // 弓は隣に来た敵から一歩退き、射線の通る位置から撃ち直す。
+  if (bow && adjacentAwake.length > 0 && hpRatio > 0.2) {
+    const kite = kiteStep(observation, visibleHostiles, bow.range);
+    if (kite) return kite;
+  }
   const adjacentEnemy = observation.visibleEntities
     .filter((entity) => entity.kind === "monster" && entity.hostile)
-    .find((entity) => distance(entity.pos, observation.player.pos) <= 1);
+    .find((entity) => distance(entity.pos, observation.player.pos) <= 1 && (!entity.asleep || weaponType === "dagger" || adjacentAwake.length === 0 && policy.huntWeakEnemies));
   if (adjacentEnemy) {
     if (adjacentEnemy.recoveryTurns) tacticalIntents.set(observation, "opening");
     return { type: "move", direction: directionFromDelta(adjacentEnemy.pos.x - observation.player.pos.x, adjacentEnemy.pos.y - observation.player.pos.y) };
@@ -166,8 +177,17 @@ export function chooseAutoplayAction(observation: GameObservation): GameAction {
     if (gateSearch) return gateSearch;
   }
 
-  const bow = observation.player.inventory?.filter((entry) => entry.equipped).map((entry) => getGameConfig().equipment[entry.contentId]?.rangedAttack).find(Boolean);
-  const clearShot = (pos: Point) => linePoints(observation.player.pos, pos).every((point) => observation.knownTiles.some((tile) => samePoint(tile, point) && tile.kind !== "wall" && tile.kind !== "cover"));
+  // 槍は2マス先の敵を、近づかれる前に突く。
+  if (weaponType === "spear") {
+    const reachTarget = visibleHostiles.find((enemy) => canReachInObservation(observation, enemy.pos));
+    if (reachTarget) return { type: "shoot", targetId: reachTarget.id };
+  }
+  // 短剣は眠った敵や気づいていない敵へ忍び寄り、不意打ちを狙う。
+  if (weaponType === "dagger" && hpRatio > policy.combatHp) {
+    const unaware = nearest([...sleepingHostiles, ...visibleHostiles.filter((enemy) => !enemy.alerted)], observation.player.pos);
+    const sneak = unaware ? stepTowardAdjacentTarget(observation, unaware.pos) : null;
+    if (sneak) return sneak;
+  }
   if (bow) {
     const target = nearest(visibleHostiles.filter((enemy) => distance(enemy.pos, observation.player.pos) > 1 && distance(enemy.pos, observation.player.pos) <= bow.range && clearShot(enemy.pos)), observation.player.pos);
     if (target) return { type: "shoot", targetId: target.id };
@@ -494,14 +514,6 @@ export function getAutoplayDebugState(observation: GameObservation): AutoplayDeb
   };
 }
 
-function weaponValue(contentId?: string): number {
-  if (!contentId) {
-    return 0;
-  }
-  const equipment = getGameConfig().equipment[contentId];
-  return equipment?.slot === "weapon" ? equipment.power : 0;
-}
-
 function bestHealingPotion(observation: GameObservation) {
   return [...(observation.player.inventory ?? [])]
     .filter((entry) => healingValue(entry.contentId) > 0 && entry.quantity > 0)
@@ -539,10 +551,9 @@ function chooseMerchantService(observation: GameObservation, hpRatio: number, ha
   if (hpRatio <= 0.72 && offers.some((offer) => offer.serviceId === "heal")) {
     return { type: "merchantService", serviceId: "heal" };
   }
-  const currentWeapon = observation.player.inventory?.find((entry) => entry.equipped && weaponValue(entry.contentId) > 0)?.contentId;
   const betterEquipment = offers
     .filter((offer) => offer.serviceId === "equipment" && offer.contentId)
-    .some((offer) => weaponValue(offer.contentId) > weaponValue(currentWeapon) || defensiveValue(offer.contentId) > equippedDefensiveValue(observation, offer.contentId));
+    .some((offer) => upgradeGain(observation.player, offer.contentId!) > 0);
   if (betterEquipment) {
     return { type: "merchantService", serviceId: "equipment" };
   }
@@ -552,25 +563,28 @@ function chooseMerchantService(observation: GameObservation, hpRatio: number, ha
   return null;
 }
 
-function defensiveValue(contentId?: string): number {
-  if (!contentId) {
-    return 0;
-  }
-  const equipment = getGameConfig().equipment[contentId];
-  return equipment?.slot === "armor" || equipment?.slot === "shield" ? equipment.power : 0;
+/** 弓を持った時、隣の敵から離れつつ射線の通るマスへ退く一歩。 */
+function kiteStep(observation: GameObservation, enemies: GameObservation["visibleEntities"], range: number): GameAction | null {
+  const traps = observation.knownEntities.filter((entity) => entity.kind === "trap");
+  const candidates = directions.flatMap(({ action, delta }) => {
+    const point = { x: observation.player.pos.x + delta.x, y: observation.player.pos.y + delta.y };
+    if (!isKnownWalkable(observation, point) || isVisibleBlockerAt(observation, point) || traps.some((trap) => samePoint(trap.pos, point))) return [];
+    if (enemies.some((enemy) => distance(enemy.pos, point) <= 1)) return [];
+    const shootable = enemies.some((enemy) => distance(enemy.pos, point) <= range && hasKnownLineOfSight(observation, point, enemy.pos));
+    if (!shootable) return [];
+    const nearestEnemy = Math.min(...enemies.map((enemy) => distance(enemy.pos, point)));
+    return [{ action, score: nearestEnemy * 2 - visitScore(observation, point) / 100 }];
+  }).sort((a, b) => b.score - a.score);
+  return candidates[0]?.action ?? null;
 }
 
-function equippedDefensiveValue(observation: GameObservation, contentId?: string): number {
-  if (!contentId) {
-    return 0;
-  }
-  const slot = getGameConfig().equipment[contentId]?.slot;
-  if (slot !== "armor" && slot !== "shield") {
-    return 0;
-  }
-  return observation.player.inventory
-    ?.filter((entry) => entry.equipped && getGameConfig().equipment[entry.contentId]?.slot === slot)
-    .reduce((sum, entry) => sum + defensiveValue(entry.contentId), 0) ?? 0;
+/** 槍が届くか。核の canReach と同じ条件を、見えている情報だけで判定する。 */
+function canReachInObservation(observation: GameObservation, target: Point): boolean {
+  const dx = target.x - observation.player.pos.x;
+  const dy = target.y - observation.player.pos.y;
+  if (![0, 2, -2].includes(dx) || ![0, 2, -2].includes(dy) || (dx === 0 && dy === 0)) return false;
+  const middle = { x: observation.player.pos.x + Math.sign(dx), y: observation.player.pos.y + Math.sign(dy) };
+  return isKnownWalkable(observation, middle) && !isVisibleBlockerAt(observation, middle);
 }
 
 function healingValue(contentId: string): number {

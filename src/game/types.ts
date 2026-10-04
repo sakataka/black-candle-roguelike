@@ -15,9 +15,14 @@ type EntityKind = "player" | "monster" | "item" | "event" | "trap";
 
 export type TrapKind = "blood-needle" | "venom-mist" | "crumbling-floor";
 
-type EnemyFamily = "beast" | "undead" | "cult" | "demon" | "construct";
+export type EnemyFamily = "beast" | "undead" | "cult" | "demon" | "construct";
 
-type Tier = "early" | "mid" | "late" | "boss";
+export type Tier = "early" | "mid" | "late" | "boss";
+
+/** 武器の型。威力の大小ではなく、攻撃の振る舞いを変える。 */
+export type WeaponType = "blade" | "spear" | "axe" | "dagger" | "mace" | "bow";
+
+export type EquipmentSlot = "weapon" | "shield" | "armor" | "ring";
 
 export type MerchantServiceId = "heal" | "cure" | "equipment" | "map";
 
@@ -325,10 +330,14 @@ export type StatusCondition = {
   turns: number;
 };
 
-type InventoryEntry = {
+export type InventoryEntry = {
   contentId: string;
   quantity: number;
   equipped?: boolean;
+  /** 装備の修正値。同じ装備を重ねると鍛え直して上がる。 */
+  plus?: number;
+  /** 装備に刻まれた印。固有の印（innateSeals）とは別に、拾った個体ごとに付く。 */
+  seals?: string[];
 };
 
 type RoleTraits = {
@@ -346,13 +355,69 @@ type RoleTraits = {
   cleansingHeal?: number;
   roomRevealRadius?: number;
   lockpickBonusGold?: number;
+  /** 得意な武器の型。装備中は攻撃に小さな補正が付く。 */
+  weaponMastery?: { types: WeaponType[]; attack: number };
+  /** 不意打ちの倍率（武器の型の倍率を上書きする）。 */
+  backstabMultiplier?: number;
+  /** 敵に気づかれにくくなる距離。 */
+  stealth?: number;
 };
 
+/** 職業の基礎能力。stats は装備を含まない素の値で、growth はレベルごとの伸び。 */
 type RoleDefinition = {
   id: string;
   stats: Stats;
+  growth: { maxHp: number; attack: number; defense: number };
   inventory: InventoryEntry[];
   traits: RoleTraits;
+};
+
+export type WeaponTypeConfig = {
+  label: string;
+  description: string;
+  /** 構えの隙（recovery）を突いた時の追加ダメージ倍率。 */
+  openingMultiplier?: number;
+  /** 近接で殴られた時に返す確率と威力。 */
+  counterChancePercent?: number;
+  counterScale?: number;
+  /** 間合い攻撃（shoot）が届く距離。槍は2。 */
+  reach?: number;
+  /** 槍が後ろの敵へ通す威力。 */
+  pierceScale?: number;
+  /** 斧が隣の敵をなぎ払う威力。 */
+  cleaveScale?: number;
+  /** 1回の攻撃での打撃数と、1打あたりの威力。 */
+  strikes?: number;
+  strikeScale?: number;
+  /** 気づいていない・構え中・隙のある敵への倍率。 */
+  backstabMultiplier?: number;
+  /** 敵の防御を無視する割合。 */
+  defenseIgnorePercent?: number;
+  /** 打撃で敵を怯ませる確率。 */
+  dazeChancePercent?: number;
+};
+
+/** 装備の印。武器・防具・盾のいずれかに刻まれ、組み合わせで戦い方が変わる。 */
+export type SealConfig = {
+  glyph: string;
+  label: string;
+  description: string;
+  slots: Array<"weapon" | "armor" | "shield">;
+  weight: number;
+  minFloor?: number;
+  powerDelta?: number;
+  bonusVsFamilies?: { amount: number; families: EnemyFamily[] };
+  drainPercent?: number;
+  critPercent?: number;
+  critMultiplier?: number;
+  inflict?: { kind: ConditionKind; turns: number; chancePercent: number };
+  dazeChancePercent?: number;
+  trapAvoidPercent?: number;
+  thorns?: number;
+  regen?: { everyTurns: number; amount: number };
+  resist?: ConditionKind[];
+  rangedDefense?: number;
+  rustproof?: boolean;
 };
 
 export type FloorRule = {
@@ -374,8 +439,12 @@ type MonsterStatsConfig = {
 };
 
 export type EquipmentConfig = {
-  slot: "weapon" | "shield" | "armor" | "ring";
+  slot: EquipmentSlot;
   power: number;
+  tier?: "early" | "mid" | "late";
+  weaponType?: WeaponType;
+  sealSlots?: number;
+  innateSeals?: string[];
   rangedDefense?: number;
   trapAvoidPercent?: number;
   trapAvoidPenaltyPercent?: number;
@@ -451,11 +520,6 @@ export type GameConfig = {
     inventorySlotLimit: number;
     xpThresholds: number[];
     descentHeal: number;
-    baseAttack: number;
-    attackPerLevel: number;
-    baseDefense: number;
-    defenseLevelsPerPoint: number;
-    levelUpMaxHp: number;
     levelUpHeal: number;
     monsterCountBase: number;
     /** 階層ごとの敵HP増加（hpPerDanger）に掛ける倍率。 */
@@ -481,6 +545,8 @@ export type GameConfig = {
     rangedMonsterRange: number;
     rangedRetreatCooldown: number;
     monsterChaseRange: number;
+    /** 生成時に眠っている敵の割合。 */
+    sleepingMonsterPercent: number;
     guardedDefenseBonus: number;
     moonlitMailRegenEveryTurns: number;
     moonlitMailRegenAmount: number;
@@ -573,9 +639,20 @@ export type GameConfig = {
   monsterStats: Record<string, MonsterStatsConfig>;
   itemPools: Array<FloorRule & { items: string[] }>;
   guaranteedItems: Array<FloorRule & { items: string[] }>;
+  /** 階ごとに必ず置く装備の枠。中身は格と部位から抽選し、探索者の得意な型へ寄せる確率を持つ。 */
+  guaranteedEquipment: Array<FloorRule & { slot: EquipmentSlot; tier: "early" | "mid" | "late"; favoredChancePercent?: number }>;
+  weaponTypes: Record<WeaponType, WeaponTypeConfig>;
+  seals: Record<string, SealConfig>;
+  equipmentRolls: {
+    plus: Array<{ maxFloor: number; weights: Record<string, number> }>;
+    sealChancePercent: number;
+    sealChancePerFloor: number;
+    secondSealChancePercent: number;
+    forgeMaxPlus: number;
+  };
   eventPools: Array<FloorRule & { events: string[] }>;
   trapPools: Array<FloorRule & { traps: string[] }>;
-  bosses: Array<{ floor: number; contentId: string; reward?: string }>;
+  bosses: Array<{ floor: number; contentId: string; reward?: string; equipmentTier?: "early" | "mid" | "late" }>;
   equipment: Record<string, EquipmentConfig>;
   consumables: Record<string, ConsumableConfig>;
   events: Record<string, EventConfig>;
@@ -615,6 +692,13 @@ export type Entity = {
   attackCooldown?: number;
   recoveryTurns?: number;
   awakened?: boolean;
+  /** 床の装備の修正値と印。拾うと所持品へ移る。 */
+  plus?: number;
+  seals?: string[];
+  /** 探索者に気づいた敵。気づく前は動かず、不意打ちを受ける。 */
+  alerted?: boolean;
+  /** 眠っている敵。隣で騒ぐか攻撃されるまで動かない。 */
+  asleep?: boolean;
 };
 
 export type PlayerProgress = {
@@ -683,7 +767,7 @@ export type GameAction =
   | { type: "placeLantern"; pos?: Point }
   | { type: "borrowFlame" };
 
-type VisibleEntity = Pick<Entity, "id" | "kind" | "contentId" | "pos" | "stats" | "hostile" | "blocksMovement" | "goldAmount" | "conditions" | "telegraph" | "recoveryTurns" | "awakened">;
+type VisibleEntity = Pick<Entity, "id" | "kind" | "contentId" | "pos" | "stats" | "hostile" | "blocksMovement" | "goldAmount" | "conditions" | "telegraph" | "recoveryTurns" | "awakened" | "plus" | "seals" | "alerted" | "asleep">;
 
 type ExplorationObjective = "explore" | "findStairs" | "defeatBoss" | "descend" | "resolveStall";
 
