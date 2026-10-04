@@ -1,0 +1,73 @@
+# 踏破の先の覚醒と灰灯院の鍛錬
+
+2026-10-04。通常遠征の成功体験を残し、踏破を重ねた節目にだけ中ボス・大ボスが壁になる構成。
+
+## 遠征の波
+
+- 初めは従来の守り手で探索する。
+- 第十層を2回踏破すると「石の覚醒」、5回で「炉心の覚醒」、8回で「黒燭の覚醒」が発生する。覚醒を突破するまで第六階の中ボスと第十層の大ボスが強化される。第三階と道中の敵は強化しない。
+- 帰還や敗北では覚醒は解除されない。対応する覚醒の遠征で第十層を踏破すると解除し、次の踏破数の節目までは通常遠征に戻る。覚醒の突破も踏破回数に数える。
+- 生存や真相回収の任務で帰還し、灯片と古参を育ててから黒燭核へ挑んでもよい。介入と任務変更は任意で、自動探索や伝言中の進行を停止しない。
+- 三つの覚醒を越えた後は、既存の燭階・周期の余波による任意の挑戦が残る。燭階の強化は覚醒とも重なるため、比較の基準は燭階0・余波なし。
+
+## 全探索者へ残る力
+
+獲得した灯片の累計60ごとに鍛錬が1上がり、全探索者の最大命火+5、攻撃+1。最大12段で+60/+12。施設で灯片を使っても累計は減らず、新人にも効く。帰還・踏破・敗北で確定した灯片を同じ累計へ足す。遠征中に能力は変更せず、次の出発から反映する。
+
+古参の位階・作戦カード・施設と重ねて使う。薬や装備に左右されるため、最大鍛錬でも全seedの成功を保証する設計ではない。数値は `public/config/game-balance.json` の `campaign.journey` に置いた。
+
+保存はversion 4のまま追加項目 `journey` を持つ。旧記録は保存されている遠征から踏破数と獲得灯片を復元する。旧版ですでに100件より前の遠征が消えている場合、その部分は復元できない。以後は一覧の100件制限とは別に累計を保存する。覚醒段階は遠征録にも残す。
+
+## マップと表示
+
+- 黒石迷宮: 既存の部屋幅と密度。灰褐色の石床。
+- 墓所: 小さめの埋葬室と通路。青緑の風化した石床。
+- 炉心遺跡: 幅広い部屋で射線と予告が見える。銅色の亀裂がある火山岩。
+- 黒燭中枢: 大広間。紫灰色の刻印床。
+- 守り手の階は出口周辺を開き、決戦の間にする。道中の雑魚数を半分にして主敵との対面を際立たせる。先にボスの場所を予約し、他の出現と重ねない。部屋の拡張は壁を床にするだけで、既存の通路を切らない。
+- 支度で次の覚醒、突破状況、鍛錬、次の鍛錬までの灯片を示す。探索者カードと出発の要約にも成長を反映。結果では敗北で得た灯片も鍛錬へ加わると示す。
+- 視界内のボスだけに名前・残り命火の帯を出す。視界外の位置や命火を表示しない。地形の探索記憶と壁で遮られる視界は従来どおり。
+- 四体の既存の守り手を新しい透過PNGへ差し替え、地図上では通常の敵の1.2倍で表示する。敵のIDや報酬は保持する。
+
+## 比較
+
+30 seed `20260504:20260533` × 三職業、1600手、各90遠征。作戦なし、古参の位階0、燭階0、余波なし。`before-level-design` と `ordinary` は任務に沿う気質判断。それ以外は帰還路を越えて第十層を狙う `always-continue`。`final3-lantern` だけ灯守AIあり。異なる帰還方針の踏破率を直接比較しない。
+
+| 条件 | 踏破 | 帰還 | 死亡 | 継続 | 平均階 | 低HP手 | 停滞手 | 既知罠踏み | 灯片中央値 |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| before-level-design | 33 | 38 | 18 | 1 | 7.97 | 6.09 | 57.57 | 3.99 | 30 |
+| ordinary | 32 | 40 | 18 | 0 | 7.92 | 8.17 | 55.12 | 3.24 | 30 |
+| ordinary-trained | 82 | 0 | 8 | 0 | 9.92 | 4.59 | 61.46 | 3.37 | 40 |
+| trial1-young | 9 | 0 | 81 | 0 | 9.54 | 31.39 | 58.08 | 3.69 | 8 |
+| trial1-trained | 35 | 0 | 55 | 0 | 9.87 | 9.01 | 62.58 | 3.56 | 8 |
+| final2-young | 19 | 0 | 71 | 0 | 9.69 | 14.00 | 58.98 | 3.53 | 8 |
+| final2-trained | 56 | 0 | 33 | 1 | 9.98 | 6.48 | 59.18 | 3.56 | 39 |
+| final3-young | 21 | 0 | 68 | 1 | 9.91 | 12.38 | 59.69 | 3.56 | 8 |
+| final3-trained | 69 | 0 | 21 | 0 | 10.00 | 4.99 | 59.34 | 3.44 | 39 |
+| final3-lantern | 80 | 0 | 10 | 0 | 10.00 | 2.90 | 56.41 | 3.39 | 39.5 |
+
+通常の生還（踏破+帰還）は変更前71/90、変更後72/90。鍛錬4の通常踏破は82/90。第一の覚醒は鍛錬1で9/90、鍛錬4で35/90。第二は鍛錬3で19/90、鍛錬8で56/90。第三は鍛錬6で21/90、鍛錬12で69/90。第三・鍛錬12の職業別踏破は誓約22/30、斥候22/30、祈祷者25/30。成長後に三職業とも突破できる。
+
+最初の第三覚醒案（HP4.2倍、攻撃+11、防御+4）は鍛錬12でも0/90だったため不採用。同じseed集合の候補configを比較し、HP2.8倍、攻撃+6、防御+3へ下げた。介入なしの第三・鍛錬6は21/90、灯守AIありでは80/90。介入の有効性は残すが、最大鍛錬では介入なしでも69/90となる。
+
+任務達成率・拾得・攻撃・下降・アイテム使用・実行時間・`averageDynamics`・未返済灯火も `tmp/sim-reports/` で確認した。最後の介入条件は平均13.21回の灯捧げ、未返済0.52、灯火溢れ1.68。残り1遠征が1600手で継続する条件があり、全seedが制限内に完了する保証はない。今回の比較は段階ごとの能力を固定した試験で、同一記録で何十遠征も遊ぶ実時間での成長テンポは未検証。
+
+再確認例:
+
+```sh
+bun run simulate:batch -- --seeds 20260504:20260533 --turns 1600 --roles all --jobs 4 --decision-policy always-continue --boss-trial 3 --foundation-rank 6 --label young
+bun run simulate:batch -- --seeds 20260504:20260533 --turns 1600 --roles all --jobs 4 --decision-policy always-continue --boss-trial 3 --foundation-rank 12 --label trained
+```
+
+## 生成画像
+
+内蔵imagegenを使用。画像は以下の二枚へ保存し、`assetCatalog` から既存の切り出し規約で利用する。守り手シートはalphaあり。仮アイコンやクロマキー背景は使わない。
+
+- `public/assets/sprites/dungeon-journey-terrain.png`: 4列×2行。上段が四領域の床、下段が対応する壁。
+- `public/assets/sprites/dungeon-journey-guardians.png`: 2列×2行。墓所の司祭、黒石の巨像、黒燭の番人、堕ちた灯守。
+
+生成プロンプトの指定:
+
+> Terrain: production top-down dark fantasy terrain atlas, four columns and two rows, edge-to-edge seamless materials, no padding or borders. Grey blackstone, blue teal crypt limestone, charred furnace rock with muted copper seams, violet grey ceremonial sanctuary paving. Floors readable at 64px; corresponding walls darker and thicker. No objects, labels, perspective or bright glow.
+
+> Guardians: square two by two transparent full-body sprite atlas, orthographic slightly overhead painterly pixel art, readable at 64px. Undead crypt priest in icy teal vestments with censer; immense blackstone colossus with dim amber cracks; black candle warden in dark bronze armor and purple mantle; fallen lantern keeper in an ash white cloak with brass lantern. Keep each figure within its cell. No floor, background, lettering or grid lines.

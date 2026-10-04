@@ -40,6 +40,8 @@ type CliOptions = {
   decisionPolicy: DecisionPolicy;
   watcherPolicy: WatcherPolicy;
   tactics: string[];
+  bossTrial: number;
+  foundationRank: number;
   heat: number;
   aftermath?: string;
 };
@@ -147,6 +149,8 @@ export type BatchSimulationReport = {
     decisionPolicy: DecisionPolicy;
     watcherPolicy: WatcherPolicy;
     tactics: string[];
+    bossTrial: number;
+    foundationRank: number;
     heat: number;
     aftermath?: string;
   };
@@ -226,6 +230,8 @@ for (const config of options.configs) {
         decisionPolicy: options.decisionPolicy,
         watcherPolicy: options.watcherPolicy,
         tactics: options.tactics,
+        bossTrial: options.bossTrial,
+        foundationRank: options.foundationRank,
         heat: options.heat,
         aftermath: options.aftermath as SimulationTask["aftermath"],
       });
@@ -316,9 +322,17 @@ function parseCli(args: string[]): CliOptions {
     decisionPolicy: parseDecisionPolicy(last(values, "--decision-policy") ?? "temperament"),
     watcherPolicy: parseWatcherPolicy(last(values, "--watcher") ?? "none"),
     tactics: (last(values, "--tactics") ?? "").split(",").filter(Boolean),
+    bossTrial: parseStage(last(values, "--boss-trial") ?? "0", 3),
+    foundationRank: parseStage(last(values, "--foundation-rank") ?? "0", 99),
     heat: Number(last(values, "--heat") ?? 0),
     aftermath: last(values, "--aftermath"),
   };
+}
+
+function parseStage(value: string, max: number): number {
+  const stage = Number(value);
+  if (!Number.isInteger(stage) || stage < 0 || stage > max) throw new Error(`Stage must be an integer from 0 to ${max}`);
+  return stage;
 }
 
 function parsePreset(value: string): BatchPreset {
@@ -477,6 +491,8 @@ async function runSimulationInChild(task: SimulationTask): Promise<{ run: Simula
       "--watcher",
       task.watcherPolicy ?? "none",
       ...(task.tactics?.length ? ["--tactics", task.tactics.join(",")] : []),
+      "--boss-trial", String(task.bossTrial ?? 0),
+      "--foundation-rank", String(task.foundationRank ?? 0),
       ...(task.heat ? ["--heat", String(task.heat)] : []),
       ...(task.aftermath ? ["--aftermath", task.aftermath] : []),
       ...(task.trace ? ["trace"] : []),
@@ -626,6 +642,8 @@ function createBatchReport(
       decisionPolicy: options.decisionPolicy,
       watcherPolicy: options.watcherPolicy,
       tactics: options.tactics,
+      bossTrial: options.bossTrial,
+      foundationRank: options.foundationRank,
       heat: options.heat,
       aftermath: options.aftermath,
     },
@@ -1046,6 +1064,7 @@ function renderMarkdownReport(report: BatchSimulationReport): string {
     `- Log limit: ${report.inputs.logLimit ?? "full"}`,
     `- Decision policy: ${report.inputs.decisionPolicy}`,
     `- Watcher policy: ${report.inputs.watcherPolicy}`,
+    `- Boss trial / foundation rank: ${report.inputs.bossTrial} / ${report.inputs.foundationRank}`,
     `- Tactics: ${report.inputs.tactics.join(", ") || "none"}`,
     `- Heat / aftermath: ${report.inputs.heat} / ${report.inputs.aftermath ?? "none"}`,
     `- Configs: ${report.inputs.configs.map((config) => `${config.label}=${config.path}`).join(", ")}`,

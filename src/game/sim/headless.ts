@@ -32,6 +32,8 @@ const result = await runSimulation({
   watcherPolicy,
   tactics,
   heat,
+  bossTrial: Number(optionValue("--boss-trial") ?? 0),
+  foundationRank: Number(optionValue("--foundation-rank") ?? 0),
   aftermath,
 });
 

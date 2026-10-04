@@ -1,3 +1,4 @@
+import { journeyProgress, journeyTotals } from "./journey";
 import { getGameConfig, runRules } from "../content/config";
 import { contentEntities } from "../content/entities";
 import type {
@@ -426,6 +427,7 @@ export function shardForecast(state: GameState): { ifReturned: number; ifLost: n
 export function createCampaignState(): CampaignState {
   return {
     version: 4,
+    journey: { victories: 0, trialsCleared: 0, lifetimeShards: 0 },
     roleTruths: [],
     expeditions: [],
     shards: 0,
@@ -441,7 +443,7 @@ export function normalizeCampaignState(value: unknown): CampaignState {
   if (!value || typeof value !== "object") return createCampaignState();
   const version = (value as { version?: unknown }).version;
   if (version !== 1 && version !== 2 && version !== 3 && version !== 4) return createCampaignState();
-  const input = value as { roleTruths?: unknown; expeditions?: unknown; shards?: unknown; facilities?: unknown; roster?: unknown; fallen?: unknown; heat?: unknown; cycle?: unknown; lessons?: unknown; flameDebt?: unknown };
+  const input = value as { roleTruths?: unknown; expeditions?: unknown; shards?: unknown; facilities?: unknown; roster?: unknown; fallen?: unknown; heat?: unknown; cycle?: unknown; lessons?: unknown; flameDebt?: unknown; journey?: unknown };
   const roleTruths = Array.isArray(input.roleTruths) ? input.roleTruths.filter(isRoleTruthId) : [];
   const expeditions = Array.isArray(input.expeditions)
     ? input.expeditions.flatMap((entry) => normalizeExpeditionRecord(entry)).slice(0, 100)
@@ -449,6 +451,7 @@ export function normalizeCampaignState(value: unknown): CampaignState {
   const facilities = (input.facilities && typeof input.facilities === "object" ? input.facilities : {}) as Partial<Record<FacilityId, unknown>>;
   return {
     version: 4,
+    journey: normalizeJourney(input.journey, expeditions),
     roleTruths: unique(roleTruths),
     expeditions,
     shards: typeof input.shards === "number" && Number.isFinite(input.shards) ? Math.max(0, Math.floor(input.shards)) : 0,
@@ -463,6 +466,15 @@ export function normalizeCampaignState(value: unknown): CampaignState {
     flameDebt: facilityLevel(input.flameDebt),
     heat: normalizeHeat(input.heat),
     cycle: normalizeCycle(input.cycle),
+  };
+}
+
+function normalizeJourney(value: unknown, expeditions: ExpeditionRecord[]): NonNullable<CampaignState["journey"]> {
+  const input = (value && typeof value === "object" ? value : {}) as Partial<NonNullable<CampaignState["journey"]>>;
+  return {
+    victories: input.victories === undefined ? expeditions.filter((run) => run.status === "won").length : facilityLevel(input.victories),
+    trialsCleared: Math.min(getGameConfig().campaign.journey?.trials.length ?? 0, facilityLevel(input.trialsCleared)),
+    lifetimeShards: input.lifetimeShards === undefined ? expeditions.reduce((sum, run) => sum + run.shards.total, 0) : facilityLevel(input.lifetimeShards),
   };
 }
 
@@ -503,6 +515,9 @@ function normalizeVeteran(value: unknown): Veteran[] {
 export function recordCampaignResult(campaign: CampaignState, state: GameState, deathCause: string | null): CampaignState {
   if (state.status === "playing") return campaign;
   const shards = calculateShards(state);
+  const journey = journeyTotals(campaign);
+  const trial = journeyProgress(campaign).trial;
+  const clearedTrial = state.status === "won" && trial > 0 && state.modifiers.bossTrial === trial;
   const truthRecovered = (state.status === "won" || state.status === "returned") ? state.story.carriedTruthId : undefined;
   const recoveredGraves = new Set(state.story.recoveredGraves ?? []);
   const rosterUpdate = updateRoster(campaign, state, deathCause);
@@ -513,6 +528,7 @@ export function recordCampaignResult(campaign: CampaignState, state: GameState, 
     ? { number: campaign.cycle.number + 1, aftermath: state.story.endingId, keeperName: state.story.endingId === "inherit-flame" ? state.runIdentity.name : undefined }
     : { ...campaign.cycle };
   const record: ExpeditionRecord = {
+    bossTrial: state.modifiers.bossTrial ?? 0,
     id: `${state.seed}-${state.runIdentity.roleId}-${state.runTurn}-${state.status}`,
     completedAt: new Date().toISOString(),
     seed: state.seed,
@@ -539,6 +555,7 @@ export function recordCampaignResult(campaign: CampaignState, state: GameState, 
     roleTruths: truthRecovered ? unique([...campaign.roleTruths, truthRecovered]) : [...campaign.roleTruths],
     expeditions: [record, ...campaign.expeditions].slice(0, 100),
     shards: campaign.shards + shards.total,
+    journey: { victories: journey.victories + (state.status === "won" ? 1 : 0), trialsCleared: journey.trialsCleared + (clearedTrial ? 1 : 0), lifetimeShards: journey.lifetimeShards + shards.total },
     facilities: { ...campaign.facilities },
     roster: rosterUpdate.roster,
     fallen: rosterUpdate.fallen.map((entry) => entry.id && recoveredGraves.has(entry.id) ? { ...entry, recovered: true } : entry),
@@ -576,6 +593,8 @@ export function campaignRunModifiers(campaign: CampaignState): { modifiers: Part
   }
   return {
     modifiers: {
+      foundationRank: journeyProgress(campaign).rank,
+      bossTrial: journeyProgress(campaign).trial,
       lessons: [...(campaign.lessons ?? [])],
       flameDebt: campaign.flameDebt ?? 0,
       heat,

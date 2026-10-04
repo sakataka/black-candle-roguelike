@@ -153,6 +153,8 @@ export type RunRuleKey = "fovRadius" | "monsterCountBase" | "trapCountBase" | "r
 
 /** 遠征開始時に灰灯院と遠征団から持ち込む条件。 */
 export type RunModifiers = {
+  foundationRank?: number;
+  bossTrial?: number;
   flameDebt?: number;
   tacticSlots: number;
   scars: string[];
@@ -239,6 +241,7 @@ export type ShardBreakdown = {
 };
 
 export type ExpeditionRecord = {
+  bossTrial?: number;
   id: string;
   completedAt: string;
   seed: number;
@@ -262,6 +265,7 @@ export type ExpeditionRecord = {
 };
 
 export type CampaignState = {
+  journey?: { victories: number; trialsCleared: number; lifetimeShards: number };
   flameDebt?: number;
   version: 4;
   roleTruths: RoleTruthId[];
@@ -472,6 +476,13 @@ export type GameConfig = {
   /** 瀕死で帰還した古参に残る古傷。作戦と同じ形で判断と能力に影響する。 */
   scars: Record<string, TacticDefinition>;
   campaign: {
+    journey?: {
+      shardsPerRank: number;
+      maxRank: number;
+      maxHpPerRank: number;
+      attackPerRank: number;
+      trials: Array<{ label: string; victories: number; hpScale: number; attack: number; defense: number }>;
+    };
     /** 遠征の灯片。到達・守り手・発見は倒れても keepPercentOnLoss だけ残り、それ以外は生還時のみ。 */
     shards: {
       perFloor: number;
@@ -529,7 +540,7 @@ export type GameConfig = {
       danger: number;
     };
   };
-  biomes: Array<{ theme: BiomeTheme; minFloor: number; nameJa: string }>;
+  biomes: Array<{ theme: BiomeTheme; minFloor: number; nameJa: string; roomWidth?: [number, number]; roomHeight?: [number, number]; density?: number }>;
   roles: RoleDefinition[];
   monsterSpawnRules: MonsterSpawnRule[];
   monsterStats: Record<string, MonsterStatsConfig>;

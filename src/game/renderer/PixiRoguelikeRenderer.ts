@@ -1,3 +1,4 @@
+import { contentEntities } from "../content/entities";
 import { Application, Assets, Container, Graphics, Rectangle, Sprite, Text, Texture } from "pixi.js";
 import { assetCatalog, assetIdForContent } from "../content/assets";
 import { facingAfterStep } from "./characterFacing";
@@ -450,8 +451,9 @@ export class PixiRoguelikeRenderer {
     sprite.anchor.set(0.5, 1);
     sprite.x = TILE_SIZE / 2;
     sprite.y = TILE_SIZE;
-    sprite.width = TILE_SIZE;
-    sprite.height = TILE_SIZE;
+    const isBoss = contentEntities[entity.contentId]?.tier === "boss";
+    sprite.width = TILE_SIZE * (isBoss ? 1.2 : 1);
+    sprite.height = TILE_SIZE * (isBoss ? 1.2 : 1);
     if (entity.kind === "player" || entity.kind === "monster" || entity.kind === "item") {
       // 足元の影で、床から浮かずに立っている感じを出す。
       const shadow = new Graphics();

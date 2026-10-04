@@ -1792,6 +1792,36 @@ body { font-feature-settings: "lnum" 1; }
 
 .next-goal { display: grid; gap: 2px; max-width: 760px; margin-top: 10px; padding: 9px 14px; border-left: 3px solid var(--gold); background: linear-gradient(90deg, rgba(212, 173, 98, 0.12), transparent); }
 .next-goal-kicker { color: var(--gold); font-size: var(--fs-2xs); font-weight: 800; letter-spacing: 0.12em; }
+.journey-panel { margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(212,173,98,.25); }
+.journey-heading, .foundation-line { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 18px; font-size: var(--fs-xs); }
+.journey-heading { color: var(--gold); margin-bottom: 4px; }
+.journey-panel > strong { display: block; }
+.journey-panel p { margin: 8px 0 12px; color: var(--ink-soft); font-size: var(--fs-xs); line-height: 1.7; }
+.journey-stages { display: flex; gap: 8px; margin-top: 9px; }
+.journey-stages > span { flex: 1; padding: 7px 9px; border: 1px solid rgba(212,173,98,.2); color: var(--ink-soft); font-size: var(--fs-xs); }
+.journey-stages small { display: block; opacity: .7; }
+.journey-stages .is-cleared { color: #a9c9b0; border-color: #4e6653; }
+.journey-stages .is-active { color: #f1bc9e; border-color: #a16c4f; background: rgba(155,62,38,.14); }
+.journey-panel.is-trial > strong, .trial-plan b { color: #f1bc9e; }
+.foundation-line { color: var(--ink-soft); }
+.foundation-line b { color: var(--gold); }
+.foundation-meter { height: 3px; background: rgba(212,173,98,.12); margin: 8px 0 6px; }
+.foundation-meter i { display: block; height: 100%; background: var(--gold); }
+.boss-health { position: absolute; top: 14px; left: 50%; transform: translateX(-50%); z-index: 3; width: min(360px, calc(100% - 32px)); padding: 9px 14px; background: rgba(16,12,19,.94); border: 1px solid #7a5147; pointer-events: none; display: grid; grid-template-columns: 1fr auto; gap: 3px 12px; }
+.boss-health[hidden] { display: none; }
+.boss-health > span { grid-column: 1 / -1; color: #d8a091; font-size: 10px; letter-spacing: .1em; }
+.boss-health strong { font-family: var(--serif); font-size: var(--fs-md); color: #f3dfc4; }
+.boss-health b { font-size: var(--fs-xs); color: #c7b1a8; }
+.boss-health > div { grid-column: 1 / -1; height: 4px; margin-top: 3px; background: #38272d; }
+.boss-health i { display: block; height: 100%; background: linear-gradient(90deg, #8c403e, #d18c61); }
+html[data-biome="crypt"] .depth-chip { border-color: #507d78; background: rgba(44,78,81,.18); }
+html[data-biome="furnace"] .depth-chip { border-color: #9b6647; background: rgba(103,55,30,.18); }
+html[data-biome="black-candle"] .depth-chip { border-color: #7d6599; background: rgba(71,45,98,.18); }
+@media (max-width: 600px) {
+  .journey-stages { gap: 5px; }
+  .journey-stages > span { padding: 7px 5px; font-size: 11px; }
+  .foundation-line { display: grid; gap: 3px; }
+}
 .next-goal strong { color: var(--ink); font-family: var(--serif); font-size: var(--fs-lg); font-weight: 600; }
 .next-goal small { color: var(--ink-soft); font-size: var(--fs-xs); line-height: 1.55; }
 

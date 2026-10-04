@@ -1,3 +1,4 @@
+import { bossTrialDefinition, foundationBonus } from "./journey";
 import * as ROT from "rot-js";
 import { floorRuleMatches, getGameConfig, runRules } from "../content/config";
 import { contentEntities, getContentName } from "../content/entities";
@@ -113,6 +114,12 @@ export function createInitialGame(
     player.stats.hp = player.stats.maxHp;
     player.stats.attack += bonus.attack * modifiers.rank;
   }
+  if (player.stats) {
+    const foundation = foundationBonus(modifiers.foundationRank);
+    player.stats.maxHp += foundation.maxHp;
+    player.stats.hp += foundation.maxHp;
+    player.stats.attack += foundation.attack;
+  }
   for (const tacticId of state.tactics) {
     for (const grant of getGameConfig().tactics.definitions[tacticId]?.grantItems ?? []) {
       addInventoryItem(player, grant.contentId, grant.quantity);
@@ -161,10 +168,11 @@ function createFloorState(
   }));
 
   ROT.RNG.setSeed(seed + floor * 4099);
+  const biomeConfig = config.biomes.find((entry) => entry.theme === biome);
   const dungeon = new ROT.Map.Uniform(rules.mapWidth, rules.mapHeight, {
-    roomWidth: [5, 12],
-    roomHeight: [4, 7],
-    roomDugPercentage: 0.28,
+    roomWidth: biomeConfig?.roomWidth ?? [5, 12],
+    roomHeight: biomeConfig?.roomHeight ?? [4, 7],
+    roomDugPercentage: biomeConfig?.density ?? 0.28,
     timeLimit: 1000,
   });
   const generatedDungeon = dungeon.create((x, y, value) => {
@@ -201,6 +209,16 @@ function createFloorState(
     { x: rules.mapWidth - 4, y: rules.mapHeight - 4 };
   setTileKind(tiles, rules.mapWidth, stairs.x, stairs.y, "stairsDown");
 
+  // 守り手の階は出口を決戦の間にする。壁を開くだけなので通路の接続は失わない。
+  if (bossForFloor(floor)) {
+    for (let y = Math.max(1, stairs.y - 3); y <= Math.min(rules.mapHeight - 2, stairs.y + 3); y += 1) {
+      for (let x = Math.max(1, stairs.x - 4); x <= Math.min(rules.mapWidth - 2, stairs.x + 4); x += 1) {
+        if (x !== stairs.x || y !== stairs.y) setTileKind(tiles, rules.mapWidth, x, y, "floor");
+      }
+    }
+    floorWalkable.splice(0, floorWalkable.length, ...connectedWalkablePoints(tiles, rules.mapWidth, rules.mapHeight, start));
+  }
+
   const roles = playableRoles();
   const role = roles.find((candidate) => candidate.id === roleId) ?? roles[0];
   const player: Entity = carriedPlayer
@@ -232,9 +250,18 @@ function createFloorState(
   const floorPlan = buildFloorPlan(floorWalkable, roomCenters, start, stairs);
   const takePoint = createPointTaker(spawnPoints, rng, start);
 
+  const bossId = run.modifiers.bossOverride?.floor === floor ? run.modifiers.bossOverride.contentId : bossForFloor(floor);
+  const trial = bossTrialDefinition(run.modifiers.bossTrial);
+  const bossStats = bossId ? statsForMonster(bossId, dangerBoost, floor, carriedRunObjectives, rules) : null;
+  if (bossStats && trial && floor >= 6) {
+    bossStats.hp = bossStats.maxHp = Math.round(bossStats.maxHp * trial.hpScale);
+    bossStats.attack += trial.attack;
+    bossStats.defense += trial.defense;
+  }
+  const spawnedBoss = bossId && bossStats ? [monster(`${bossId}.${floor}`, bossId, bossPointNearStairs(spawnPoints, stairs, rng) ?? takePoint(), bossStats)] : [];
   const monsterPool = monsterPoolForFloor(floor);
   const itemPool = itemPoolForFloor(floor);
-  const spawnedMonsters = Array.from({ length: rules.monsterCountBase + Math.min(floor, rules.monsterCountFloorCap) }, (_, index) => {
+  const spawnedMonsters = Array.from({ length: bossId ? Math.ceil((rules.monsterCountBase + Math.min(floor, rules.monsterCountFloorCap)) / 2) : rules.monsterCountBase + Math.min(floor, rules.monsterCountFloorCap) }, (_, index) => {
     const contentId = rng.pick(monsterPool);
     return monster(`${contentId}.${floor}.${index}`, contentId, takePoint(floorPlan.monsterPoints), statsForMonster(contentId, dangerBoost, floor, carriedRunObjectives, rules));
   });
@@ -256,8 +283,6 @@ function createFloorState(
     const contentId = rng.pick(trapPool);
     return trap(`${contentId}.${floor}.${index}`, contentId, takePoint(floorPlan.trapPoints));
   });
-  const bossId = run.modifiers.bossOverride?.floor === floor ? run.modifiers.bossOverride.contentId : bossForFloor(floor);
-  const spawnedBoss = bossId ? [monster(`${bossId}.${floor}`, bossId, bossPointNearStairs(spawnPoints, stairs, rng) ?? takePoint(), statsForMonster(bossId, dangerBoost, floor, carriedRunObjectives, rules))] : [];
 
   const entities: Entity[] = [player, ...spawnedMonsters, ...spawnedBoss, ...spawnedItems, ...spawnedEvents, ...spawnedTraps];
 
@@ -297,6 +322,7 @@ function createFloorState(
     ].slice(-80),
     status: "playing",
   });
+  if (trial && floor >= 6 && bossId) next.messages = pushMessage(next, `${trial.label}。守り手が覚醒している。灰灯院の鍛錬を重ねて突破せよ。`, "danger");
   if (run.modifiers.bossOverride?.floor === floor && run.modifiers.keeperName) {
     next.messages = pushMessage(next, `黒燭を継いだ${run.modifiers.keeperName}が、堕ちた灯守となって中枢に立っている。`, "danger");
   }
@@ -1983,7 +2009,7 @@ function dropItemAtPlayer(state: GameState, contentId: string): GameState {
   state.entities.push(item(`${contentId}.dropped.${state.turn}`, contentId, { ...player.pos }, state.floor, rngForFloor(state.seed + state.turn, state.floor)));
   state.messages = pushMessage(state, `${getContentName(contentId)}を足元に置いた。`, "loot");
   if (entry.equipped && player.stats) {
-    player.stats.attack = baseAttack(state.playerProgress, state.modifiers.rank) + weaponBonus(player);
+    player.stats.attack = baseAttack(state.playerProgress, state.modifiers.rank, state.modifiers.foundationRank) + weaponBonus(player);
     player.stats.defense = baseDefense(state.playerProgress) + defenseBonus(player);
   }
   return reevaluateEquipment(state);
@@ -2211,7 +2237,7 @@ function equipItem(state: GameState, contentId: string): GameState {
   }
   entry.equipped = true;
   if (player.stats) {
-    player.stats.attack = baseAttack(state.playerProgress, state.modifiers.rank) + weaponBonus(player);
+    player.stats.attack = baseAttack(state.playerProgress, state.modifiers.rank, state.modifiers.foundationRank) + weaponBonus(player);
     player.stats.defense = baseDefense(state.playerProgress) + defenseBonus(player);
   }
   state.messages = pushMessage(state, `${getContentName(contentId)}を装備した。`, "loot");
@@ -2440,7 +2466,7 @@ function reevaluateEquipment(state: GameState): GameState {
     best.equipped = true;
     state.messages = pushMessage(state, `${getContentName(best.contentId)}の方が有用だと判断して装備した。`, "loot");
   }
-  player.stats.attack = baseAttack(state.playerProgress, state.modifiers.rank) + weaponBonus(player);
+  player.stats.attack = baseAttack(state.playerProgress, state.modifiers.rank, state.modifiers.foundationRank) + weaponBonus(player);
   player.stats.defense = baseDefense(state.playerProgress) + defenseBonus(player);
   return state;
 }
@@ -2483,7 +2509,7 @@ function applyLevelUps(state: GameState): GameState {
     progress = { ...progress, level: progress.level + 1 };
     player.stats.maxHp += rules.levelUpMaxHp;
     player.stats.hp = Math.min(player.stats.maxHp, player.stats.hp + rules.levelUpHeal);
-    player.stats.attack = baseAttack(progress, state.modifiers.rank) + weaponBonus(player);
+    player.stats.attack = baseAttack(progress, state.modifiers.rank, state.modifiers.foundationRank) + weaponBonus(player);
     player.stats.defense = baseDefense(progress) + defenseBonus(player);
     state.messages = pushMessage(state, `Lv${progress.level}に上がった。最大HPと戦闘力が伸びた。`, "system");
   }
@@ -2491,9 +2517,9 @@ function applyLevelUps(state: GameState): GameState {
   return state;
 }
 
-function baseAttack(progress: PlayerProgress, rank = 0): number {
+function baseAttack(progress: PlayerProgress, rank = 0, foundationRank = 0): number {
   const { rules, campaign } = getGameConfig();
-  return rules.baseAttack + Math.max(0, progress.level - 1) * rules.attackPerLevel + rank * campaign.veteranRankBonus.attack;
+  return rules.baseAttack + Math.max(0, progress.level - 1) * rules.attackPerLevel + rank * campaign.veteranRankBonus.attack + foundationBonus(foundationRank).attack;
 }
 
 function baseDefense(progress: PlayerProgress): number {

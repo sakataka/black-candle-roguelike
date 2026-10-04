@@ -1,3 +1,4 @@
+import { bossTrialDefinition, journeyProgress } from "./game/core/journey";
 import "@fontsource/shippori-mincho-b1/500.css";
 import "@fontsource/shippori-mincho-b1/600.css";
 import "@fontsource/shippori-mincho-b1/800.css";
@@ -23,7 +24,7 @@ import { chooseDelverSpeech, createSpeechMemory } from "./game/ai/speech";
 import { realtimeConfig, floorLawDescription } from "./game/content/realtime";
 import { getGameConfig, loadBrowserGameConfig, runRules } from "./game/content/config";
 import { assetForContent } from "./game/content/assets";
-import { getContentName } from "./game/content/entities";
+import { contentEntities, getContentName } from "./game/content/entities";
 import {
   availableMissions,
   calculateShards,
@@ -182,6 +183,7 @@ app.innerHTML = `
     <section class="stage" aria-label="黒燭越しの迷宮">
       <div class="map-stage" id="map-stage">
         <div id="pixi-root" class="pixi-root"></div>
+        <div class="boss-health" id="boss-health" aria-label="視界内の守り手の命火" hidden></div>
         <div class="battle-forecast" id="battle-forecast" aria-label="見えている攻撃の予告"></div>
         <p class="delver-voice sr-only" id="delver-voice" aria-live="polite"></p>
         <button type="button" id="lantern-call" class="lantern-call" hidden></button>
@@ -825,6 +827,7 @@ function candidateCard(options: {
   extra: string;
   stats: { hp: number; attack: number; defense: number };
 }): HTMLButtonElement {
+  const foundation = journeyProgress(campaign);
   const button = document.createElement("button");
   button.type = "button";
   button.dataset[options.dataKey[0]] = options.dataKey[1];
@@ -846,7 +849,7 @@ function candidateCard(options: {
     <span class="temperament-tag temperament-${options.temperament}">${temperamentLabel(options.temperament)}</span>
     ${campaign.roleTruths.includes(roleTruthFor(options.roleId)) ? "" : `<span class="truth-tag" title="第六階の守り手を倒して生きて帰れば、真相「${escapeHtml(roleTruthLabel(roleTruthFor(options.roleId)))}」を記録できる">◇ 真相を持ち帰れる</span>`}
     ${options.extra}
-    <span class="mini-stats"><span>HP <b>${options.stats.hp}</b></span><span>攻撃 <b>${options.stats.attack}</b></span><span>防御 <b>${options.stats.defense}</b></span></span>
+    <span class="mini-stats"><span>HP <b>${options.stats.hp + foundation.maxHp}</b></span><span>攻撃 <b>${options.stats.attack + foundation.attack}</b></span><span>防御 <b>${options.stats.defense}</b></span></span>
   `;
   button.append(portrait, body);
   return button;
@@ -861,12 +864,15 @@ function renderDepartSummary(delver: ReturnType<typeof resolveSelectedDelver>): 
   }
   const tactics = tacticLabels(selectedTactics);
   const heat = campaign.heat.selected;
+  const journey = journeyProgress(campaign);
   const abandoning = runActive && state.status === "playing";
   summary.innerHTML = `
     <span class="depart-portrait" aria-hidden="true"></span>
     <span class="depart-who"><strong>${escapeHtml(delver.name)}${delver.veteran ? ` <span class="rank-stars">${"★".repeat(delver.veteran.rank)}</span>` : ""}</strong><small>${escapeHtml(delver.roleName)} · ${escapeHtml(delver.temperament)}</small></span>
     <span class="depart-plan">
       <span>目標 <b>${escapeHtml(missionDefinition(selectedMissionId).label)}</b><small>生還で灯片+${missionShards(selectedMissionId)}</small></span>
+      <span>鍛錬 <b>${journey.rank} · 命火+${journey.maxHp} / 攻撃+${journey.attack}</b></span>
+      ${journey.trial ? `<span class="trial-plan">決戦 <b>${escapeHtml(journey.nextTrial!.label)}</b><small>第六階・第十層の守り手が覚醒</small></span>` : ""}
       <span>作戦 <b>${tactics.length ? escapeHtml(tactics.join("・")) : "なし"}</b></span>
       ${campaign.lessons?.length ? `<span>継承 <b>${campaign.lessons.map((l) => l === "ranged" ? "射線と遮蔽" : l === "care" ? "早めの回復" : "罠への警戒").join("・")}</b></span>` : ""}
       ${campaign.flameDebt ? `<span>借灯の返済 <b>灯火${campaign.flameDebt}</b></span>` : ""}
@@ -1051,7 +1057,9 @@ function render(): void {
   const rules = runRules(state.modifiers);
   setText("#run-turn", `残り${Math.max(0, rules.runTurnLimit - state.runTurn)}手`);
   setText("#biome-kicker", `地下${state.floor}階 / ${config.rules.maxFloor}${state.status === "playing" ? "" : ` · ${statusLabel(state.status)}`}`);
-  setText("#biome-title", biomeThemeName(state.biome));
+  const trial = bossTrialDefinition(state.modifiers.bossTrial);
+  setText("#biome-title", `${biomeThemeName(state.biome)}${trial && state.floor >= 6 && [6, 10].includes(state.floor) ? ` · ${trial.label}` : ""}`);
+  document.documentElement.dataset.biome = state.biome;
   renderShardForecast();
   const routeWarning = state.runTurn >= rules.runTurnWarning;
   setText("#turn-meter-label", routeWarning ? "灯芯が細い" : "灯芯");
@@ -1188,14 +1196,14 @@ function landmarkFor(observation: ReturnType<typeof observeGame>): { title: stri
   }
   if (!decided(6) && state.floor <= 6) {
     return {
-      title: "第六階の守り手",
+      title: bossTrialDefinition(state.modifiers.bossTrial) ? "第六階 · 覚醒した中ボス" : "第六階の守り手",
       detail: "倒すと職業の真相が現れ、最後の帰還路が開く。その先は第十層まで帰れない。",
       short: "第六階 · 真相と最後の帰還路",
     };
   }
   const ending = endingAvailable(state);
   return {
-    title: `第${maxFloor}層の番人`,
+    title: bossTrialDefinition(state.modifiers.bossTrial) ? `第${maxFloor}層 · 覚醒した大ボス` : `第${maxFloor}層の番人`,
     detail: `もう帰還路はない。番人を倒して踏破するまで帰れない。${ending ? "真相が三つ揃っている。倒せば黒燭の行方を決められる。" : ""}`,
     short: `第${maxFloor}層 · 帰還路なし`,
   };
@@ -1449,6 +1457,14 @@ function invokeExtraRite(type: "placeLantern" | "borrowFlame"): void {
 
 function renderExpeditionDynamics(observation: ReturnType<typeof observeGame>): void {
   const dynamics = observation.expedition;
+  const visibleBoss = observation.visibleEntities.find((e) => e.kind === "monster" && contentEntities[e.contentId]?.tier === "boss");
+  const bossHealth = requireElement<HTMLElement>("#boss-health");
+  bossHealth.hidden = !visibleBoss?.stats;
+  if (visibleBoss?.stats) {
+    const ratio = Math.max(0, visibleBoss.stats.hp / visibleBoss.stats.maxHp);
+    const trial = bossTrialDefinition(state.modifiers.bossTrial);
+    bossHealth.innerHTML = `<span>${trial && state.floor >= 6 ? `覚醒 · ${escapeHtml(trial.label)}` : "守り手"}</span><strong>${escapeHtml(getContentName(visibleBoss.contentId))}</strong><b>${visibleBoss.stats.hp} / ${visibleBoss.stats.maxHp}</b><div><i style="width:${ratio * 100}%"></i></div>`;
+  }
   const threats = observation.visibleEntities.filter((e) => e.telegraph);
   const openings = observation.visibleEntities.filter((e) => (e.recoveryTurns ?? 0) > 0);
   const forecast = requireElement<HTMLElement>("#battle-forecast");
@@ -1511,9 +1527,19 @@ function renderRoadmap(): void {
   requireElement<HTMLOListElement>("#roadmap-list").innerHTML = roadmapMarkup(progress.roadmap, progress.nextChapter?.id ?? null, new Set());
   const banner = requireElement<HTMLElement>("#next-goal");
   const next = progress.nextChapter;
+  const journey = journeyProgress(campaign);
   banner.innerHTML = next
     ? `<span class="next-goal-kicker">黒燭への道 ${done}/${progress.roadmap.length} · 次の目標</span><strong>${escapeHtml(next.label)}</strong><small>${escapeHtml(next.hint)}</small>`
     : `<span class="next-goal-kicker">黒燭への道 · 第${campaign.cycle.number}周期</span><strong>結末を迎えた。新しい周期の迷宮へ</strong><small>燭階を上げて第十層を踏破すると、さらに深い燭階が開く。真相が揃っていれば、再び結末を選べる。</small>`;
+  banner.insertAdjacentHTML("beforeend", `<section class="journey-panel${journey.trial ? " is-trial" : ""}" aria-label="踏破と鍛錬の進み">
+    <div class="journey-heading"><span>${journey.trial ? "守り手の覚醒 · 挑戦中" : "踏破の先へ"}</span><b>踏破 ${journey.victories}回</b></div>
+    <strong>${journey.trial ? escapeHtml(journey.nextTrial!.label) : journey.nextTrial ? `あと${journey.victoriesToTrial}回の踏破で「${escapeHtml(journey.nextTrial.label)}」` : "三つの覚醒を突破した"}</strong>
+    <div class="journey-stages">${(getGameConfig().campaign.journey?.trials ?? []).map((trial, i) => `<span class="${i < journey.trialsCleared ? "is-cleared" : i + 1 === journey.trial ? "is-active" : ""}">${i < journey.trialsCleared ? "◆" : "◇"} ${escapeHtml(trial.label)}<small>${trial.victories}回踏破</small></span>`).join("")}</div>
+    <p>${journey.trial ? "第六階の中ボスと第十層の大ボスが壁になる。帰還・敗北でも鍛錬は積み重なる。第十層を踏破すると突破。" : "普段の遠征で力を蓄え、節目で強敵に挑む。突破後は通常の遠征へ戻る。"}</p>
+    <div class="foundation-line"><b>灰灯院の鍛錬 ${journey.rank}</b><span>全探索者の命火 +${journey.maxHp} · 攻撃 +${journey.attack}</span></div>
+    <div class="foundation-meter" role="progressbar" aria-label="次の鍛錬までの灯片" aria-valuemin="0" aria-valuemax="${getGameConfig().campaign.journey?.shardsPerRank ?? 60}" aria-valuenow="${journey.shardsToNextRank ? (getGameConfig().campaign.journey?.shardsPerRank ?? 60) - journey.shardsToNextRank : getGameConfig().campaign.journey?.shardsPerRank ?? 60}"><i style="width:${journey.shardsToNextRank ? 100 * (1 - journey.shardsToNextRank / (getGameConfig().campaign.journey?.shardsPerRank ?? 60)) : 100}%"></i></div>
+    <small>${journey.shardsToNextRank ? `次の鍛錬まで灯片${journey.shardsToNextRank}。使った灯片も累計に残る。` : "鍛錬は最大。古参と作戦、灯の使い方でさらに力を引き出せる。"}</small>
+  </section>`);
 }
 
 function roadmapMarkup(chapters: ReturnType<typeof campaignProgress>["roadmap"], nextId: string | null, fresh: Set<string>, freshTruths: RoleTruthId[] = []): string {
@@ -1546,7 +1572,7 @@ function renderArchive(): void {
   list.replaceChildren(...campaign.expeditions.slice(0, 6).map((record) => {
     const item = document.createElement("li");
     const mission = missionDefinition(record.missionId);
-    item.innerHTML = `<span class="archive-status status-${record.status}">${statusLabel(record.status)}</span><span><strong>${escapeHtml(record.identity.name)}${record.missionCompleted ? " · 任務達成" : ""}</strong><small>${getContentName(record.identity.roleId)} / ${escapeHtml(mission.label)} / F${record.floor} / 灯片+${record.shards.total}</small></span>`;
+    item.innerHTML = `<span class="archive-status status-${record.status}">${statusLabel(record.status)}</span><span><strong>${escapeHtml(record.identity.name)}${record.missionCompleted ? " · 任務達成" : ""}${record.bossTrial ? ` · ${escapeHtml(bossTrialDefinition(record.bossTrial)?.label ?? "覚醒")}${record.status === "won" ? "突破" : "挑戦"}` : ""}</strong><small>${getContentName(record.identity.roleId)} / ${escapeHtml(mission.label)} / F${record.floor} / 灯片+${record.shards.total}</small></span>`;
     return item;
   }));
 }
@@ -1863,6 +1889,8 @@ function renderEnd(): void {
   shardBreakdown.innerHTML = rows.map(([label, value]) => `<div class="${value === 0 ? "is-zero" : ""}"><span>${label}</span><strong>+${value}</strong><i style="width:${Math.round(value / maxRow * 100)}%"></i></div>`).join("");
   const keepPercent = getGameConfig().campaign.shards.keepPercentOnLoss;
   setText("#shard-note", [
+    `鍛錬の累計に灯片+${shards.total}。${journeyProgress(campaign).shardsToNextRank ? `次の鍛錬まで${journeyProgress(campaign).shardsToNextRank}。` : "鍛錬は最大。"}`,
+    state.modifiers.bossTrial ? (state.status === "won" ? (journeyProgress(campaign).trial ? "覚醒を突破。次の覚醒が待っている。" : "覚醒を突破。次は通常の遠征へ。") : "覚醒は次の遠征にも残る。帰還や敗北で得た力を持って再挑戦できる。") : "",
     survived ? "" : `倒れたため、到達・守り手・発見・弔いは${keepPercent}%だけが残り、生還・持ち帰り・任務・真相は失われた。`,
     shards.bonusPercent > 0 ? `燭階・周期の上乗せ +${shards.bonusPercent}% 込み。` : "",
   ].filter(Boolean).join(" "));
