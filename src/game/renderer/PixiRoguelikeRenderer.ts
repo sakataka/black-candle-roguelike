@@ -711,6 +711,7 @@ export class PixiRoguelikeRenderer {
         view.sprite.tint = this.clock < view.flashUntil ? 0xff8a78 : view.dazed ? 0x9fb4ff : moodTint;
         view.sprite.alpha = view.dazed ? 0.72 + Math.sin(this.clock / 120) * 0.12 : view.mood === "dormant" ? 0.78 : 1;
         if (view.mood === "dormant") view.sprite.scale.set(view.baseScale.x * 1.05, view.baseScale.y * 0.62);
+        else if (this.reducedMotion && view.kind === "monster") view.sprite.scale.set(view.baseScale.x, view.baseScale.y);
         if (view.badge && !this.reducedMotion && view.mood === "asleep") view.badge.y = 14 - (Math.sin(this.clock / 700 + view.phase) + 1) * 2;
       }
     }
