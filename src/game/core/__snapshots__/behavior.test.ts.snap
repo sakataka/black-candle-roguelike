@@ -2,7 +2,7 @@
 
 exports[`拡張v1の遠征を再現する: role.oathbound / none 1`] = `
 {
-  "fingerprint": "08db364b6d39030283ea4c31151b59ee393b4e2790c98a77c2606d7f0cf39c07",
+  "fingerprint": "47c41516982f533a73bd8611884766d8a76a72f8ed7fd9fe143ac6432ae48371",
   "floor": 10,
   "status": "won",
   "turn": 893,
@@ -11,7 +11,7 @@ exports[`拡張v1の遠征を再現する: role.oathbound / none 1`] = `
 
 exports[`拡張v1の遠征を再現する: role.ash-scout / none 1`] = `
 {
-  "fingerprint": "3d60f491bdc312df2f972eb95a786ca17a3bf32d91c83e9b711d50bbd25e4c80",
+  "fingerprint": "364a384172b3d684fa51700c86f773516e3dc96c586476baffd90795a9eadb71",
   "floor": 6,
   "status": "returned",
   "turn": 578,
@@ -20,7 +20,7 @@ exports[`拡張v1の遠征を再現する: role.ash-scout / none 1`] = `
 
 exports[`拡張v1の遠征を再現する: role.lantern-priest / none 1`] = `
 {
-  "fingerprint": "1176f89b41279eb15ed59de3fdf1b0e1a7a7fd2e1552d46b67cd4f91417be6b9",
+  "fingerprint": "3fdbf63db45d5505f57271f55cd864fa9c7094c1cb33c995ec052547e1152005",
   "floor": 6,
   "status": "returned",
   "turn": 561,
@@ -29,7 +29,7 @@ exports[`拡張v1の遠征を再現する: role.lantern-priest / none 1`] = `
 
 exports[`拡張v1の遠征を再現する: role.relic-surveyor / none 1`] = `
 {
-  "fingerprint": "6756b90bfee64e69f7ccd497c3f7c53201f9ae9b1d80627c0a4e64d127372740",
+  "fingerprint": "2d719e74dff8aaec6e30c8e016f66e1a149a8cd8db21e65b597a7c11dda41cd6",
   "floor": 10,
   "status": "won",
   "turn": 917,
@@ -38,7 +38,7 @@ exports[`拡張v1の遠征を再現する: role.relic-surveyor / none 1`] = `
 
 exports[`拡張v1の遠征を再現する: role.ash-apothecary / none 1`] = `
 {
-  "fingerprint": "e6d8ac61696ecb0d2c52e4b866e952ebacc57484ecd7ebfa6f77dff2f60baeda",
+  "fingerprint": "7a62c3ac323e50344003d50ad3cb754803f78fdd739be70e20779addd6bff564",
   "floor": 6,
   "status": "returned",
   "turn": 622,
@@ -47,7 +47,7 @@ exports[`拡張v1の遠征を再現する: role.ash-apothecary / none 1`] = `
 
 exports[`拡張v1の遠征を再現する: role.iron-oath-vanguard / none 1`] = `
 {
-  "fingerprint": "5ea26ec04f182883b265a8422c50d17c58080b02ef5730098589ef2cfeef3967",
+  "fingerprint": "6113ec20e9a47547f4e12db480cc4bbcf142eda860bac8bb8f481a3ccc334590",
   "floor": 10,
   "status": "won",
   "turn": 885,
@@ -56,7 +56,7 @@ exports[`拡張v1の遠征を再現する: role.iron-oath-vanguard / none 1`] = 
 
 exports[`拡張v1の遠征を再現する: role.keyshadow-rogue / none 1`] = `
 {
-  "fingerprint": "39de5947acad727652d99f60d4b87301230e32a8d1584bc6a55cf9ce0e88cc2a",
+  "fingerprint": "133e86a84c63c96bd7b5b14acaaa4e4b5ea6fbee318b4519011512f696abda8a",
   "floor": 6,
   "status": "returned",
   "turn": 551,
@@ -65,7 +65,7 @@ exports[`拡張v1の遠征を再現する: role.keyshadow-rogue / none 1`] = `
 
 exports[`拡張v1の遠征を再現する: role.oathbound / lantern 1`] = `
 {
-  "fingerprint": "34f747e31560098be1fbfddc03aaa49d41b4cc2c313810944a4ebd5801105892",
+  "fingerprint": "3a98fb54525f4a76a021a369c3ac4196e9e4eb023438e771c4b1f1e571778aca",
   "floor": 10,
   "status": "won",
   "turn": 924,
@@ -74,7 +74,7 @@ exports[`拡張v1の遠征を再現する: role.oathbound / lantern 1`] = `
 
 exports[`拡張v1の遠征を再現する: role.ash-scout / lantern 1`] = `
 {
-  "fingerprint": "4433d348f537af0faf5e45989caae14c95996dd4fa247af81f94dbe7b6386cd4",
+  "fingerprint": "5b7d5a9253216aa7c406f77b6cf5a814b5fe048f612215b8c97200367627c4b4",
   "floor": 6,
   "status": "returned",
   "turn": 553,
@@ -83,7 +83,7 @@ exports[`拡張v1の遠征を再現する: role.ash-scout / lantern 1`] = `
 
 exports[`拡張v1の遠征を再現する: role.lantern-priest / lantern 1`] = `
 {
-  "fingerprint": "8a6ccd38282016c480a557f31577457e2882240de5470d28586f38975f1ead5a",
+  "fingerprint": "5852d4e82901f21a6cd40d5473f212e2f5639e63ef0f36b4a0e9c24876a82f92",
   "floor": 6,
   "status": "returned",
   "turn": 562,
@@ -92,7 +92,7 @@ exports[`拡張v1の遠征を再現する: role.lantern-priest / lantern 1`] = `
 
 exports[`拡張v1の遠征を再現する: role.relic-surveyor / lantern 1`] = `
 {
-  "fingerprint": "ffee5500ebccb3046e293026686a5d7baf479bc275d71b39d3a0450218c5fffd",
+  "fingerprint": "3e1f4e451961e2f4d8ebbcd1d72d36da4f152507eb07d79710384fc76472bf70",
   "floor": 10,
   "status": "won",
   "turn": 813,
@@ -101,7 +101,7 @@ exports[`拡張v1の遠征を再現する: role.relic-surveyor / lantern 1`] = `
 
 exports[`拡張v1の遠征を再現する: role.ash-apothecary / lantern 1`] = `
 {
-  "fingerprint": "7f89b4fbb0f2b988efc4dca10bc5c5525cc0e189c8dd4c37135b59e06e52052c",
+  "fingerprint": "6c60f839b96cf70bb0b5434f78308b3d1e0405cb0c8c36cb88080a5f530ec3d3",
   "floor": 6,
   "status": "returned",
   "turn": 609,
@@ -110,7 +110,7 @@ exports[`拡張v1の遠征を再現する: role.ash-apothecary / lantern 1`] = `
 
 exports[`拡張v1の遠征を再現する: role.iron-oath-vanguard / lantern 1`] = `
 {
-  "fingerprint": "94c0ccadc1a0c6de62394c8c06d26d665eac54c4a71f6f9431bb9611c36e25f9",
+  "fingerprint": "fd75fcc12d8bd6a5d744f2d0c15989051598ea0e718c57bc29f88d5a86f5a32e",
   "floor": 10,
   "status": "won",
   "turn": 864,
@@ -119,7 +119,7 @@ exports[`拡張v1の遠征を再現する: role.iron-oath-vanguard / lantern 1`]
 
 exports[`拡張v1の遠征を再現する: role.keyshadow-rogue / lantern 1`] = `
 {
-  "fingerprint": "90f7b1a204462e03673294a6f7e888fdea0c464d0d0579ad8c8ebdf3761bc74e",
+  "fingerprint": "97c8f7bedcefd9333cb40bce39674c8cdd642453327e77d7843c251c872b670c",
   "floor": 6,
   "status": "returned",
   "turn": 476,

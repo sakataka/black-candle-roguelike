@@ -1,5 +1,5 @@
 import type { GameObservation, GameState, Point, Tile } from "../types";
-import { DIRECTION_DELTAS, cardinalDeltas, inBounds, isWalkable, manhattan, pointKey, samePoint } from "./spatial";
+import { DIRECTION_DELTAS, cardinalDeltas, inBounds, isWalkable, manhattan } from "./spatial";
 import { getPlayer } from "./state";
 
 export function buildExplorationStatus(
@@ -9,11 +9,11 @@ export function buildExplorationStatus(
   visibleEntities: GameObservation["knownEntities"],
   aliveBoss: boolean,
 ): GameObservation["exploration"] {
-  const knownTileMap = new Map(knownTiles.map((tile) => [pointKey(tile), tile]));
+  const grid = explorationGrid(state, knownTiles, knownEntities, visibleEntities);
   const knownStairsTile = knownTiles.find((tile) => tile.kind === "stairsDown") ?? null;
   const knownStairs = knownStairsTile ? { x: knownStairsTile.x, y: knownStairsTile.y } : null;
-  const { frontiers: reachableFrontiers, reachableKeys } = exploreKnownTiles(state, knownTileMap, knownEntities, visibleEntities);
-  const reachableStairs = knownStairs && reachableKeys.has(pointKey(knownStairs)) ? knownStairs : null;
+  const { frontiers: reachableFrontiers, reached } = exploreKnownTiles(state, grid);
+  const reachableStairs = knownStairs && reached[knownStairs.y * state.width + knownStairs.x] ? knownStairs : null;
   const blockedStairs = knownStairs && !reachableStairs ? knownStairs : null;
   const nearestFrontier = reachableFrontiers[0] ?? null;
   const knownWalkableTiles = knownTiles.filter((tile) => isWalkable(tile.kind)).length;
@@ -32,16 +32,48 @@ export function buildExplorationStatus(
   };
 }
 
-function exploreKnownTiles(
+// 毎手の探索判定は数が多いので、座標を y*width+x の番号にして格子で引く。
+type ExplorationGrid = { known: Uint8Array; passable: Uint8Array };
+
+const movementDeltas = Object.values(DIRECTION_DELTAS);
+const cardinals = cardinalDeltas();
+
+function explorationGrid(
   state: GameState,
-  knownTileMap: Map<string, Tile & Point>,
+  knownTiles: Array<Tile & Point>,
   knownEntities: GameObservation["knownEntities"],
   visibleEntities: GameObservation["knownEntities"],
-): { frontiers: GameObservation["exploration"]["reachableFrontiers"]; reachableKeys: Set<string> } {
+): ExplorationGrid {
+  const size = state.width * state.height;
+  const known = new Uint8Array(size);
+  const passable = new Uint8Array(size);
+  for (const tile of knownTiles) {
+    const index = tile.y * state.width + tile.x;
+    known[index] = 1;
+    if (isWalkable(tile.kind)) passable[index] = 1;
+  }
+  // 既知の罠と、敵以外で道をふさぐものは通れない。
+  for (const entity of knownEntities) {
+    if (entity.kind === "trap" && inBounds(state, entity.pos)) passable[entity.pos.y * state.width + entity.pos.x] = 0;
+  }
+  for (const entity of visibleEntities) {
+    if (entity.blocksMovement && entity.kind !== "player" && !(entity.kind === "monster" && entity.hostile) && inBounds(state, entity.pos)) {
+      passable[entity.pos.y * state.width + entity.pos.x] = 0;
+    }
+  }
+  return { known, passable };
+}
+
+function exploreKnownTiles(
+  state: GameState,
+  grid: ExplorationGrid,
+): { frontiers: GameObservation["exploration"]["reachableFrontiers"]; reached: Uint8Array } {
+  const { width, height } = state;
   const player = getPlayer(state);
   const start = player.pos;
   const queue: Array<Point & { distance: number }> = [{ ...start, distance: 0 }];
-  const visited = new Set<string>([pointKey(start)]);
+  const reached = new Uint8Array(width * height);
+  if (inBounds(state, start)) reached[start.y * width + start.x] = 1;
   const frontiers: GameObservation["exploration"]["reachableFrontiers"] = [];
 
   let cursor = 0;
@@ -49,47 +81,29 @@ function exploreKnownTiles(
     const current = queue[cursor];
     cursor += 1;
 
-    const unseenNeighbors = countUnseenNeighbors(state, knownTileMap, current);
+    let unseenNeighbors = 0;
+    for (const delta of cardinals) {
+      const x = current.x + delta.x;
+      const y = current.y + delta.y;
+      if (x >= 0 && y >= 0 && x < width && y < height && !grid.known[y * width + x]) unseenNeighbors += 1;
+    }
     if (current.distance > 0 && unseenNeighbors > 0) {
       frontiers.push({ x: current.x, y: current.y, distance: current.distance, unseenNeighbors });
     }
 
-    for (const delta of Object.values(DIRECTION_DELTAS)) {
-      const next = { x: current.x + delta.x, y: current.y + delta.y };
-      const key = pointKey(next);
-      if (visited.has(key) || !isKnownExplorationStep(knownTileMap, knownEntities, visibleEntities, next)) {
-        continue;
-      }
-      visited.add(key);
-      queue.push({ ...next, distance: current.distance + 1 });
+    for (const delta of movementDeltas) {
+      const x = current.x + delta.x;
+      const y = current.y + delta.y;
+      if (x < 0 || y < 0 || x >= width || y >= height) continue;
+      const index = y * width + x;
+      if (reached[index] || !grid.passable[index]) continue;
+      reached[index] = 1;
+      queue.push({ x, y, distance: current.distance + 1 });
     }
   }
 
   frontiers.sort((a, b) => a.distance - b.distance || b.unseenNeighbors - a.unseenNeighbors || manhattan(a, start) - manhattan(b, start));
-  return { frontiers, reachableKeys: visited };
-}
-
-function isKnownExplorationStep(
-  knownTileMap: Map<string, Tile & Point>,
-  knownEntities: GameObservation["knownEntities"],
-  visibleEntities: GameObservation["knownEntities"],
-  point: Point,
-): boolean {
-  const tile = knownTileMap.get(pointKey(point));
-  if (!tile || !isWalkable(tile.kind)) {
-    return false;
-  }
-  if (knownEntities.some((entity) => entity.kind === "trap" && samePoint(entity.pos, point))) {
-    return false;
-  }
-  return !visibleEntities.some((entity) => entity.blocksMovement && entity.kind !== "player" && !(entity.kind === "monster" && entity.hostile) && samePoint(entity.pos, point));
-}
-
-function countUnseenNeighbors(state: GameState, knownTileMap: Map<string, Tile & Point>, point: Point): number {
-  return cardinalDeltas().filter((delta) => {
-    const neighbor = { x: point.x + delta.x, y: point.y + delta.y };
-    return inBounds(state, neighbor) && !knownTileMap.has(pointKey(neighbor));
-  }).length;
+  return { frontiers, reached };
 }
 
 function explorationObjective(

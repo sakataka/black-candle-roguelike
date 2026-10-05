@@ -8,6 +8,7 @@ import { chebyshev, inBounds, isWalkable, samePoint, tileAt } from "./spatial";
 import { getPlayer } from "./state";
 import { hasLineOfSight, pushMessage, recordStrike, roleTraits } from "./stateOps";
 import { maybeSplit, shieldScale } from "./monsterBehaviors";
+import { runAbilityEffects } from "./abilities";
 import { entityName } from "./bestiary";
 import type { Entity, GameState, Point } from "../types";
 
@@ -72,6 +73,8 @@ function computeHit(player: Entity, target: Entity, rng: Rng, options: HitOption
 
 function applyHit(state: GameState, player: Entity, target: Entity, result: HitResult, rng: Rng, options: { procs: boolean; verb: string; ranged?: boolean }): void {
   if (!target.stats || !player.stats) return;
+  const bossBonus = contentEntities[target.contentId]?.tier === "boss" ? runAbilityEffects(state).bossDamagePercent ?? 0 : 0;
+  if (bossBonus) result = { ...result, damage: Math.round(result.damage * (100 + bossBonus) / 100) };
   target.stats.hp -= result.damage;
   target.alerted = true;
   target.asleep = false;

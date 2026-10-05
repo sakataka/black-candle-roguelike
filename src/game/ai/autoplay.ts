@@ -1,4 +1,4 @@
-import { isKnownWalkable, isVisibleBlockerAt, observationIndex, walkKnownPaths, type PathOptions } from "./navigation";
+import { isKnownClear, isKnownTile, isKnownWalkable, isVisibleBlockerAt, walkKnownPaths, type PathOptions } from "./navigation";
 import { DIRECTION_DELTAS, chebyshev as distance, isWalkable, linePoints, pointKey, samePoint } from "../core/spatial";
 import { getGameConfig, runRules } from "../content/config";
 import { contentEntities } from "../content/entities";
@@ -151,7 +151,7 @@ export function chooseAutoplayAction(observation: GameObservation): GameAction {
   }
 
   const bow = observation.player.inventory?.filter((entry) => entry.equipped).map((entry) => getGameConfig().equipment[entry.contentId]?.rangedAttack).find(Boolean);
-  const clearShot = (pos: Point) => linePoints(observation.player.pos, pos).every((point) => observation.knownTiles.some((tile) => samePoint(tile, point) && tile.kind !== "wall" && tile.kind !== "cover"));
+  const clearShot = (pos: Point) => linePoints(observation.player.pos, pos).every((point) => isKnownClear(observation, point));
   const adjacentAwake = visibleHostiles.filter((entity) => distance(entity.pos, observation.player.pos) <= 1);
   // 弓は隣に来た敵から一歩退き、射線の通る位置から撃ち直す。
   if (bow && adjacentAwake.length > 0 && hpRatio > 0.2) {
@@ -410,13 +410,12 @@ function chooseTacticalStep(observation: GameObservation, hpRatio: number, dodge
   const enemies = observation.visibleEntities.filter((e) => e.kind === "monster" && e.hostile);
   if (!threatened && enemies.length < 2) return null;
   const traps = observation.knownEntities.filter((e) => e.kind === "trap");
-  const tiles = observation.knownTiles;
   const candidates = directions.flatMap(({ action, delta }) => {
     const p = { x: observation.player.pos.x + delta.x, y: observation.player.pos.y + delta.y };
     if (!isKnownWalkable(observation, p) || danger.some((d) => samePoint(d, p)) || traps.some((t) => samePoint(t.pos, p)) || enemies.some((e) => samePoint(e.pos, p))) return [];
     const adjacent = enemies.filter((e) => distance(e.pos, p) <= 1).length;
     const rangedExposure = enemies.filter((e) => isRangedThreat(e.contentId) && hasKnownLineOfSight(observation, e.pos, p)).length;
-    const cover = tiles.filter((t) => distance(t, p) <= 1 && (t.kind === "wall" || t.kind === "cover")).length;
+    const cover = countKnownCover(observation, p);
     const lure = traps.some((t) => distance(t.pos, p) === 1 && enemies.some((e) => distance(e.pos, t.pos) === 1 && distance(e.pos, p) >= 2));
     const currentAdjacent = enemies.filter((e) => distance(e.pos, observation.player.pos) <= 1).length;
     if (!dodgeOnly && !lure && !(adjacent < currentAdjacent && cover > 0)) return [];
@@ -474,12 +473,20 @@ function stepTowardRangedThreatCovered(observation: GameObservation, target: Poi
   return stepTowardAdjacentTarget(observation, target);
 }
 
+/** 周り3×3（自分の位置を含む）にある既知の壁と遮蔽の数。 */
+function countKnownCover(observation: GameObservation, pos: Point): number {
+  let count = 0;
+  for (let dy = -1; dy <= 1; dy += 1) {
+    for (let dx = -1; dx <= 1; dx += 1) {
+      const point = { x: pos.x + dx, y: pos.y + dy };
+      if (isKnownTile(observation, point) && !isKnownClear(observation, point)) count += 1;
+    }
+  }
+  return count;
+}
+
 function hasKnownLineOfSight(observation: GameObservation, from: Point, to: Point): boolean {
-  const index = observationIndex(observation);
-  return linePoints(from, to).every((point) => {
-    const tile = index.knownTiles.get(pointKey(point));
-    return tile && tile.kind !== "wall" && tile.kind !== "cover";
-  });
+  return linePoints(from, to).every((point) => isKnownClear(observation, point));
 }
 
 function recordPlayerPosition(observation: GameObservation): void {
@@ -1149,14 +1156,13 @@ function stepOntoAdjacentRiskPanel(observation: GameObservation, hp: number, hpR
 }
 
 function hasUnseenNeighbor(observation: GameObservation, pos: Point): boolean {
-  const index = observationIndex(observation);
-  // 未探索の境目は縦横で判定する（core の countUnseenNeighbors と揃える）。
+  // 未探索の境目は縦横で判定する（core の探索判定と揃える）。
   return cardinalDirections.some(({ delta }) => {
     const neighbor = { x: pos.x + delta.x, y: pos.y + delta.y };
     if (neighbor.x < 0 || neighbor.y < 0 || neighbor.x >= observation.width || neighbor.y >= observation.height) {
       return false;
     }
-    return !index.knownTiles.has(pointKey(neighbor));
+    return !isKnownTile(observation, neighbor);
   });
 }
 

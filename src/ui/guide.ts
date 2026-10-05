@@ -4,6 +4,7 @@ import { getGameConfig } from "../game/content/config";
 import { contentDescriptions } from "../game/content/descriptions";
 import { contentEntities, getContentName } from "../game/content/entities";
 import { familyLabels, guideChapters, roleGuides } from "../game/content/guide";
+import { abilityUnlockLabel } from "../game/core/abilityUnlocks";
 import type { Tier } from "../game/types";
 import { escapeHtml } from "./dom";
 import { weaponTypeLabels } from "./labels";
@@ -17,6 +18,7 @@ type GuideTab = { id: string; label: string; render: () => string };
 const tabs: GuideTab[] = [
   { id: "rules", label: "遊び方", render: renderRules },
   { id: "roles", label: "職業", render: renderRoles },
+  { id: "abilities", label: "アビリティ", render: renderAbilities },
   { id: "equipment", label: "装備", render: renderEquipment },
   { id: "items", label: "道具", render: renderItems },
   { id: "monsters", label: "敵", render: renderMonsters },
@@ -125,6 +127,12 @@ function renderRoles(): string {
         </dl>
       </article>`;
     }).join("")}</div>`;
+}
+
+function renderAbilities(): string {
+  const definitions = getGameConfig().abilities.definitions;
+  return `<p class="guide-intro">常に効く心得。支度画面で枠の数だけ付けられ、どの職業にも効く。職業の特性と同じ種類の効果は足し合わされる。</p>
+    <ul class="guide-entries">${Object.entries(definitions).map(([id, ability]) => `<li class="guide-entry">${portrait(id, 44)}<div><b>${escapeHtml(ability.label)}</b><span class="guide-tag">${escapeHtml(abilityUnlockLabel(ability.unlock))}</span><p>${escapeHtml(ability.description)}</p></div></li>`).join("")}</ul>`;
 }
 
 function renderEquipment(): string {

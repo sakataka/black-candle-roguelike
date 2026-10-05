@@ -34,7 +34,7 @@ TypeScript + Vite + PixiJSで作っている自律遠征ローグライクです
 - 遠征の手数制限は「灯芯」です。1550手で警告し、1800手で尽きると未帰還になります。
 - 得点は廃止し、成果は灯片で表します。到達・守り手・発見・弔いは倒れても半分残り、生還・持ち帰り・任務・新しい真相は生還時だけ受け取ります。結果画面に内訳を表示します。
 - campaignはローカル保存し、保存形式version 4で三職業の真相、結末、任務、危機介入、最大100件の遠征録（灯片の内訳つき）、灯片、施設、遠征団、殉職者を保持します。最初の記録の保存キーは`black-candle-campaign-v1`で、追加の記録は別のキーを使います。教訓・借灯の未返済分・最後の判断・鍛錬と覚醒の累計は省略可能な追加項目です。旧version 1〜3は読み込み時に移行し、旧記録の得点は捨てて獲得灯片の合計だけを残します。
-- 職業ごとに初めて第十層を踏破すると、その職業ゆかりの「継承品」が解放され、以後はどの職業でも一つ持ち込めます（支度画面の「IV 継承品」）。全職業の踏破を条件にはしていません。
+- 遠征をまたいで集める常時効果「アビリティ」があります。職業ごとの初めての第十層踏破、黒燭への道の章、覚醒の突破で解放され、支度画面の「IV アビリティ」で枠の数だけ付けられます。枠は最初2つで、施設「修練場」で最大6つまで増えます。各職業の固有技はその職業だけのものです。詳しくは [アビリティの設計](docs/abilities-design.md)。
 - 遠征をまたぐ強化には古参の位階、施設、全探索者に継承される灰灯院の鍛錬があります。古参は倒れると失われるため、送り出すかどうかも判断になります。鍛錬は獲得した灯片の累計に応じて上がり、灯片を使っても減りません。
 - 支度画面には「黒燭への道」（5章）と遠征録（最高到達階、最多灯片、踏破回数、達成任務）を表示します。結果画面では前回との深度・灯片の比較と、新記録や新しい真相・結末を表示します。
 - ゲーム状態とルールは `src/game/core/` にあります。
@@ -99,7 +99,7 @@ bun run build
 - `roles`: 開始職の素の能力と伸び（`growth`）、初期インベントリ、得意武器・固有技などの職業特性、画面表示用の特徴説明
 - `weaponTypes`, `seals`, `equipmentRolls`, `guaranteedEquipment`: 武器の型、印、修正値と印の抽選、階ごとに必ず置く装備の枠
 - `skills`, `monsterBehaviors`, `omens`, `elites`, `bossFloorScaling`: 固有技、敵の振る舞い、階の兆し、精鋭の銘、守り手の階ごとの倍率
-- `legacies`: 職業ごとの踏破で解放される継承品
+- `abilities`: アビリティの初期枠と、各アビリティの解放条件・効果
 - `monsterStats`: 敵ごとの HP、攻撃、防御、階層補正
 - `monsterSpawnRules`, `itemPools`, `guaranteedItems`, `eventPools`, `trapPools`, `bosses`: 階層・バイオームごとの出現設定
 - `equipment`, `consumables`, `events`, `merchantOffers`, `trapEffects`: 武器/防具の値、遠隔防御、罠回避補正、消耗品効果、イベント報酬、小目的フラグ、商人価格、罠効果
@@ -134,9 +134,24 @@ bun run simulate:batch -- --seeds 20260504:20260533 --turns 1800 --roles all --t
 
 `--heat N` は燭階、`--aftermath inherit-flame|extinguish-flame|divide-flame` は周期の余波を指定します。燭階や余波の難易度は、同じseed集合で比較してください。
 
-`--watcher lantern` は人間の灯介入を模した灯守AIを有効にします。既存4種の閾値は `lantern.watcher`、置灯は `realtime.light`、借灯は `realtime.loan` にあります。`--tactics` は作戦カードを、`--legacy role.xxx` は持ち込む継承品を指定します。新ルールでの `temperament` は期限内を見守って本人に任せ、他の判断方針は比較用に選択肢を即時解決します。古いconfigに `realtime` がなければ従来ルールとして比較できます。
+`--watcher lantern` は人間の灯介入を模した灯守AIを有効にします。既存4種の閾値は `lantern.watcher`、置灯は `realtime.light`、借灯は `realtime.loan` にあります。`--tactics` は作戦カードを、`--abilities ability.xxx,ability.yyy` は付けるアビリティを指定します。新ルールでの `temperament` は期限内を見守って本人に任せ、他の判断方針は比較用に選択肢を即時解決します。古いconfigに `realtime` がなければ従来ルールとして比較できます。
 
 任務統合・鍛錬追加前の2026-10-03の確認（seed `20260504:20260533` × 3職業、1600手、気質判断、作戦なし、燭階0・余波なし）では、新ルールの介入なしは踏破40・帰還27・死亡21・継続中2、灯守AIありは踏破53・帰還28・死亡7・継続中2でした。未帰還はどちらも0件。置灯55回・借灯8回が発生しました。介入なしの継続中2件は1633手・1666手で踏破。当時の想定表示時間は旧ルール平均4.23分から新ルール4.40分へ増えました。停止や入力待ちはなく、回避行動や生存率の変化を含む値です。条件と残る課題は [検証記録](docs/realtime-expedition-design.md#2026-10-03の比較結果) にあります。
+
+灰灯院の育ち具合で結果が大きく変わるため、条件を変えた列を同じseed集合で並べて比べられます。
+
+```sh
+# 遊び始め・序盤・中盤・終盤の灰灯院（鍛錬・施設・アビリティ）を並べる
+bun run simulate:batch -- --seeds 20260504:20260603 --decision-policy always-continue --variant fresh=stage:fresh --variant early=stage:early --variant mid=stage:mid --variant late=stage:late
+# 終盤の灰灯院で第三の覚醒に挑む
+bun run simulate:batch -- --stage late --boss-trial 3 --decision-policy always-continue
+# アビリティなしの列と、各アビリティを一つだけ付けた列を並べる
+bun run simulate:batch -- --seeds 20260504:20260603 --decision-policy always-continue --ability-sweep
+```
+
+`--variant label=key:value,...` のキーは `config`（列の設定ファイル）、`stage`、`abilities`（`+` 区切り、`none` で無し）、`tactics`、`rank`、`trial`、`watcher`、`decision`、`heat`。`--stage fresh|early|mid|late` は全体の条件を育ち具合のプリセットにします（中身は `src/game/sim/scenarios.ts`）。小さな効果は30 seedだと揺れに埋もれるので、100 seed（`20260504:20260603`）で比べるのがおすすめです。
+
+batchは `--jobs` 本の常駐ワーカー（`src/game/sim/worker.ts`）で遠征を流します。遠征ごとにプロセスを立て直さないのでJITが温まったまま回り、標準batch（30 seed × 7職、1600手）は約7秒です。ワーカーは起動時にソースを読み込むので、batchの実行中にコードを編集しても走行中の結果は変わりません。
 
 presetは用途で使い分けます。`smoke`は機能追加直後の短時間確認、`standard`は完了前の標準確認、`compare`はbaseline/candidateの同一seed比較、`deep`は問題seedの長ターン再現と`--trace` / `--profile`付きの詳細確認です。通常のbatchは`--log-limit 40`で直近40手のログと全体の集計値を保持します。遠征全体のログが必要な時は`--log-limit none`を指定します。CPU負荷を下げたい時は`--jobs 4`、単純な再現確認では`--jobs 1`を指定します。
 

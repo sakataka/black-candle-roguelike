@@ -20,6 +20,7 @@
 
 - ゲーム機能、敵、アイテム、職業、AI、マップ生成、戦闘ルールを追加・変更したら、単発確認で終えず、`simulate:batch` で複数seed・複数職業の結果を比較してチューニングする。
 - 標準の確認は `bun run simulate:batch -- --seeds 20260504:20260533 --turns 1600 --roles all --label baseline` を基準にする。CPU負荷を抑えたい場合は `--jobs 4`、再現性確認を優先する場合は `--jobs 1` を使う。デフォルトは `--jobs 8`。
+- 灰灯院の育ち具合（鍛錬・施設・アビリティ）で結果が大きく変わる。成長要素や覚醒・アビリティを変えたら、`--variant fresh=stage:fresh --variant late=stage:late` のように育ち具合を並べ、`--ability-sweep` で各アビリティの効き目も確かめる。小さな差を見る時は100 seed（`--seeds 20260504:20260603`）で比べる。
 - 変更案を試す時は、まず `public/config/game-balance.json` を `tmp/balance/*.json` にコピーして候補configを作り、`--config baseline=public/config/game-balance.json --config candidate=tmp/balance/candidate.json` のように同じseed集合で比較する。
 - 評価では勝率だけでなく、到達階、死亡原因、低HPターン、探索停滞、既知罠踏み、拾得、戦闘、階層移動、アイテム使用、実行時間を確認する。
 - チューニングしにくい数値・閾値・重み・出現率・AI判断条件がソースコード内に固定されている場合は、可能な範囲で `public/config/game-balance.json` やコンテンツ定義へ外出しし、batch比較で調整できる形へ徐々に直す。

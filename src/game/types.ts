@@ -113,7 +113,7 @@ export type RunIdentity = {
   veteranId?: string;
 };
 
-export type FacilityId = "war-room" | "archive" | "altar";
+export type FacilityId = "war-room" | "archive" | "altar" | "training-hall";
 
 export type Veteran = {
   id: string;
@@ -160,8 +160,8 @@ export type RunRuleKey = "fovRadius" | "monsterCountBase" | "trapCountBase" | "r
 
 /** 遠征開始時に灰灯院と遠征団から持ち込む条件。 */
 export type RunModifiers = {
-  /** 持ち込んだ継承品（解放した職業のID）。 */
-  legacy?: string;
+  /** 付けているアビリティ。 */
+  abilities?: string[];
   foundationRank?: number;
   bossTrial?: number;
   flameDebt?: number;
@@ -273,16 +273,51 @@ export type ExpeditionRecord = {
   gravesRecovered?: number;
 };
 
-/** 職業で初めて踏破すると解放され、以後どの職業でも一つ持ち込める品。 */
-export type LegacyConfig = {
+/** アビリティの効果。職業特性と同じ種類は足し合わせる。 */
+export type AbilityEffects = {
+  trapAvoidPercent?: number;
+  rangedDefense?: number;
+  healPercent?: number;
+  roomRevealRadius?: number;
+  stealth?: number;
+  bossReward?: string;
+  /** 毒・出血を治した時に得る護りの手数。 */
+  cleansingGuardTurns?: number;
+  attack?: number;
+  defense?: number;
+  maxHp?: number;
+  /** 階段を降りた時の回復の上乗せ。 */
+  descentHeal?: number;
+  startEmbers?: number;
+  maxEmbers?: number;
+  /** 守り手へ与える傷の上乗せ（%）。 */
+  bossDamagePercent?: number;
+  /** 1なら、鍵付きの箱を解錠道具なしで開けられる。 */
+  freeUnlock?: number;
+  /** 寄り道部屋に入った時に見抜く、近くの隠れた罠の数。 */
+  roomTrapReveal?: number;
+  /** 毒・出血で毎手受ける傷の軽減（最低1は受ける）。 */
+  conditionDamageReduction?: number;
+};
+
+export type AbilityUnlock =
+  | { kind: "role"; roleId: string }
+  | { kind: "chapter"; chapterId: "first-route" | "first-truth" | "three-truths" | "black-core" | "ending" }
+  | { kind: "trial"; stage: number };
+
+/** 遠征をまたいで集める常時効果。支度で枠の数だけ付けられる。 */
+export type AbilityDefinition = {
   label: string;
   description: string;
-  items: Array<{ contentId: string; quantity: number; plus?: number; seals?: string[] }>;
+  unlock: AbilityUnlock;
+  effects: AbilityEffects;
 };
 
 export type CampaignState = {
-  /** 第十層を踏破した職業。継承品の解放に使う。 */
+  /** 第十層を踏破した職業。職業のアビリティの解放に使う（旧・継承品の記録をそのまま使う）。 */
   legacies?: string[];
+  /** 支度で付けているアビリティ。次の支度にも引き継ぐ。 */
+  abilityLoadout?: string[];
   journey?: { victories: number; trialsCleared: number; lifetimeShards: number };
   flameDebt?: number;
   version: 4;
@@ -703,6 +738,7 @@ export type GameConfig = {
       costs: number[];
       tacticSlotsPerLevel?: number;
       startEmbersPerLevel?: number;
+      abilitySlotsPerLevel?: number;
       unlocksPerLevel?: string[][];
     }>;
   };
@@ -745,7 +781,7 @@ export type GameConfig = {
   guaranteedEquipment: Array<FloorRule & { slot: EquipmentSlot; tier: "early" | "mid" | "late"; favoredChancePercent?: number }>;
   weaponTypes: Record<WeaponType, WeaponTypeConfig>;
   skills: Record<SkillId, SkillConfig>;
-  legacies: Record<string, LegacyConfig>;
+  abilities: { baseSlots: number; definitions: Record<string, AbilityDefinition> };
   monsterBehaviors: Record<string, MonsterBehavior>;
   omens: { chanceByFloor: Array<{ maxFloor: number; percent: number }>; definitions: Record<string, OmenConfig> };
   elites: { chanceByFloor: Array<{ maxFloor: number; percent: number }>; affixes: Record<string, EliteAffixConfig> };

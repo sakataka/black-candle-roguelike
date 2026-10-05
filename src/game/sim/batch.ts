@@ -3,6 +3,7 @@ import { createBatchReport, createBatchProfile, renderMarkdownReport, round, typ
 export type { BatchSimulationReport } from "./batchReport";
 import { getGameConfig, loadBunGameConfig } from "../content/config";
 import { runSimulation, type SimulationRunResult } from "./simulation";
+import { RESULT_PREFIX } from "./workerProtocol";
 
 declare const Bun: {
   argv: string[];
@@ -10,9 +11,11 @@ declare const Bun: {
   spawnSync: (cmd: string[]) => { exitCode: number; stderr: Uint8Array };
   spawn: (options: {
     cmd: string[];
+    stdin?: "pipe";
     stdout: "pipe";
-    stderr: "pipe";
+    stderr: "pipe" | "inherit";
   }) => {
+    stdin: { write: (data: string) => void; flush: () => void; end: () => void };
     stdout: ReadableStream<Uint8Array>;
     stderr: ReadableStream<Uint8Array>;
     exited: Promise<number>;
@@ -23,6 +26,18 @@ const options = parseCli(Bun.argv.slice(2));
 const batchStartMs = performance.now();
 const tasks: SimulationTask[] = [];
 const reportProfile = options.profile ? { reportBuildMs: 0, reportWriteMs: 0 } : null;
+
+if (options.abilitySweep) {
+  // 列ごとに、全体の条件へアビリティを一つだけ足す。最初の列は足さない基準。
+  const base = options.configs[0];
+  const ids = await loadAbilityIds(base.path);
+  options.configs = [
+    { ...base, label: "no-ability", settings: { ...base.settings, abilities: [...options.abilities] } },
+    ...ids.map((id) => ({ ...base, label: id.replace(/^ability\./, ""), settings: { ...base.settings, abilities: [...options.abilities, id] } })),
+  ];
+}
+const labels = options.configs.map((config) => config.label);
+if (new Set(labels).size !== labels.length) throw new Error(`Duplicate label: ${labels.join(", ")}`);
 
 for (const config of options.configs) {
   const roleIds = options.roles === "all" ? await loadRoleIds(config.path) : options.roles;
@@ -41,9 +56,11 @@ for (const config of options.configs) {
         tactics: options.tactics,
         bossTrial: options.bossTrial,
         foundationRank: options.foundationRank,
-        legacy: options.legacy,
+        abilities: options.abilities,
+        facilities: options.facilities,
         heat: options.heat,
         aftermath: options.aftermath as SimulationTask["aftermath"],
+        ...config.settings,
       });
     }
   }
@@ -98,73 +115,73 @@ async function runSimulationTasks(tasks: SimulationTask[], jobs: number, profile
   const results = new Array<SimulationRunResult>(tasks.length);
   let nextIndex = 0;
   const workerCount = Math.min(jobs, tasks.length);
+  // 常駐ワーカーを jobs 本だけ起こし、空いたワーカーへ次のタスクを渡す。
   await Promise.all(Array.from({ length: workerCount }, async () => {
-    while (nextIndex < tasks.length) {
-      const index = nextIndex;
-      nextIndex += 1;
-      const taskStartMs = performance.now();
-      const result = await runSimulationInChild({ ...tasks[index], profile });
-      results[index] = result.run;
-      profiles[index] = {
-        index,
-        childProcess: true,
-        queueWaitMs: round(taskStartMs - queuedAtMs),
-        childWallMs: result.childWallMs,
-        parseMs: result.parseMs,
-      };
+    const worker = startWorker();
+    try {
+      while (nextIndex < tasks.length) {
+        const index = nextIndex;
+        nextIndex += 1;
+        const taskStartMs = performance.now();
+        const run = await worker.run({ ...tasks[index], profile });
+        results[index] = run;
+        profiles[index] = {
+          index,
+          childProcess: true,
+          queueWaitMs: round(taskStartMs - queuedAtMs),
+          childWallMs: round(performance.now() - taskStartMs),
+          parseMs: 0,
+        };
+      }
+    } finally {
+      worker.close();
     }
   }));
   return { runs: results, profiles };
 }
 
-async function runSimulationInChild(task: SimulationTask): Promise<{ run: SimulationRunResult; childWallMs: number; parseMs: number }> {
-  const childStartMs = performance.now();
-  const proc = Bun.spawn({
-    cmd: [
-      Bun.argv[0],
-      "run",
-      "src/game/sim/headless.ts",
-      String(task.seed),
-      String(task.turns),
-      task.roleId,
-      "--config",
-      task.configPath,
-      "--label",
-      task.label,
-      "--log-limit",
-      task.logLimit === null ? "none" : String(task.logLimit),
-      "--decision-policy",
-      task.decisionPolicy ?? "temperament",
-      "--watcher",
-      task.watcherPolicy ?? "none",
-      ...(task.tactics?.length ? ["--tactics", task.tactics.join(",")] : []),
-      "--boss-trial", String(task.bossTrial ?? 0),
-      "--foundation-rank", String(task.foundationRank ?? 0),
-      ...(task.legacy ? ["--legacy", task.legacy] : []),
-      ...(task.heat ? ["--heat", String(task.heat)] : []),
-      ...(task.aftermath ? ["--aftermath", task.aftermath] : []),
-      ...(task.trace ? ["trace"] : []),
-      ...(task.profile ? ["--profile"] : []),
-    ],
-    stdout: "pipe",
-    stderr: "pipe",
-  });
-  const [stdout, stderr, exitCode] = await Promise.all([
-    new Response(proc.stdout).text(),
-    new Response(proc.stderr).text(),
-    proc.exited,
-  ]);
-  if (exitCode !== 0) {
-    throw new Error(`Simulation failed for ${task.label}/${task.roleId}/${task.seed}: ${stderr || stdout}`);
+type SimulationWorker = { run: (task: SimulationTask) => Promise<SimulationRunResult>; close: () => void };
+
+function startWorker(): SimulationWorker {
+  const proc = Bun.spawn({ cmd: [Bun.argv[0], "run", "src/game/sim/worker.ts"], stdin: "pipe", stdout: "pipe", stderr: "inherit" });
+  const lines = readLines(proc.stdout);
+  return {
+    async run(task) {
+      proc.stdin.write(`${JSON.stringify(task)}\n`);
+      proc.stdin.flush();
+      for (;;) {
+        const next = await lines.next();
+        if (next.done) throw new Error(`Simulation worker exited during ${task.label}/${task.roleId}/${task.seed}`);
+        if (!next.value.startsWith(RESULT_PREFIX)) continue;
+        const message = JSON.parse(next.value.slice(RESULT_PREFIX.length)) as { ok: true; result: SimulationRunResult } | { ok: false; error: string };
+        if (!message.ok) throw new Error(`Simulation failed for ${task.label}/${task.roleId}/${task.seed}: ${message.error}`);
+        return message.result;
+      }
+    },
+    close() {
+      proc.stdin.end();
+    },
+  };
+}
+
+async function* readLines(stream: ReadableStream<Uint8Array>): AsyncGenerator<string> {
+  const decoder = new TextDecoder();
+  let buffer = "";
+  for await (const chunk of stream) {
+    buffer += decoder.decode(chunk, { stream: true });
+    let newline = buffer.indexOf("\n");
+    while (newline >= 0) {
+      yield buffer.slice(0, newline);
+      buffer = buffer.slice(newline + 1);
+      newline = buffer.indexOf("\n");
+    }
   }
-  const lines = stdout.trim().split("\n").filter(Boolean);
-  const jsonLine = lines[lines.length - 1];
-  if (!jsonLine) {
-    throw new Error(`Simulation produced no output for ${task.label}/${task.roleId}/${task.seed}`);
-  }
-  const parseStartMs = performance.now();
-  const run = JSON.parse(jsonLine) as SimulationRunResult;
-  return { run, childWallMs: round(performance.now() - childStartMs), parseMs: round(performance.now() - parseStartMs) };
+  if (buffer) yield buffer;
+}
+
+async function loadAbilityIds(configPath: string): Promise<string[]> {
+  await loadBunGameConfig(configPath);
+  return Object.keys(getGameConfig().abilities?.definitions ?? {});
 }
 
 async function loadRoleIds(configPath: string): Promise<string[]> {

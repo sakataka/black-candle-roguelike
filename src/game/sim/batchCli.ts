@@ -1,9 +1,12 @@
 import type { DecisionPolicy } from "../core/autonomous";
 import type { WatcherPolicy } from "../ai/watcher";
+import { parseStageId, parseVariantSettings, stagePresets, type RunSettings, type StageId } from "./scenarios";
 
 export type ConfigSpec = {
   label: string;
   path: string;
+  /** --variant で、この列だけ変える遠征の条件。 */
+  settings?: Partial<RunSettings>;
 };
 
 export type BatchPreset = "custom" | "smoke" | "standard" | "compare" | "deep";
@@ -24,8 +27,11 @@ export type CliOptions = {
   tactics: string[];
   bossTrial: number;
   foundationRank: number;
-  /** 持ち込む継承品（解放済みの職業ID）。 */
-  legacy?: string;
+  abilities: string[];
+  facilities: RunSettings["facilities"];
+  stage?: StageId;
+  /** アビリティなしの列と、各アビリティを一つだけ付けた列を並べる。 */
+  abilitySweep: boolean;
   heat: number;
   aftermath?: string;
 };
@@ -34,6 +40,7 @@ export function parseCli(args: string[]): CliOptions {
   const values = new Map<string, string[]>();
   let trace = false;
   let profile = false;
+  let abilitySweep = false;
   for (let index = 0; index < args.length; index += 1) {
     const arg = args[index];
     if (arg === "--") {
@@ -45,6 +52,10 @@ export function parseCli(args: string[]): CliOptions {
     }
     if (arg === "--profile") {
       profile = true;
+      continue;
+    }
+    if (arg === "--ability-sweep") {
+      abilitySweep = true;
       continue;
     }
     if (!arg.startsWith("--")) {
@@ -67,8 +78,10 @@ export function parseCli(args: string[]): CliOptions {
   const preset = parsePreset(last(values, "--preset") ?? "custom");
   const defaults = presetDefaults(preset);
   const label = last(values, "--label") ?? defaults.label;
-  const configs = parseConfigs(values.get("--config") ?? defaults.configs, label);
-  return {
+  const configs = [...parseConfigs(values.get("--config") ?? defaults.configs, label), ...parseVariants(values.get("--variant") ?? [])];
+  const stage = last(values, "--stage") ? parseStageId(last(values, "--stage")!) : undefined;
+  const staged = stage ? stagePresets[stage] : {};
+  const options = {
     preset,
     seeds: parseSeeds(last(values, "--seeds") ?? defaults.seeds),
     turns: parseTurns(last(values, "--turns") ?? defaults.turns),
@@ -83,11 +96,28 @@ export function parseCli(args: string[]): CliOptions {
     watcherPolicy: parseWatcherPolicy(last(values, "--watcher") ?? "none"),
     tactics: (last(values, "--tactics") ?? "").split(",").filter(Boolean),
     bossTrial: parseStage(last(values, "--boss-trial") ?? "0", 3),
-    foundationRank: parseStage(last(values, "--foundation-rank") ?? "0", 99),
-    legacy: last(values, "--legacy"),
+    foundationRank: staged.foundationRank ?? parseStage(last(values, "--foundation-rank") ?? "0", 99),
+    abilities: staged.abilities ?? (last(values, "--abilities") ?? "").split(",").filter(Boolean),
+    facilities: staged.facilities ?? {},
+    stage,
+    abilitySweep,
     heat: Number(last(values, "--heat") ?? 0),
     aftermath: last(values, "--aftermath"),
   };
+  for (const config of options.configs.slice(1)) {
+    config.path = config.path || options.configs[0].path;
+  }
+  return options;
+}
+
+/** `--variant label=key:value,...`。設定ファイルを省くと最初の --config を使う。 */
+function parseVariants(values: string[]): ConfigSpec[] {
+  return values.map((value) => {
+    const equalsIndex = value.indexOf("=");
+    if (equalsIndex <= 0) throw new Error(`Invalid --variant value: ${value}`);
+    const { config, settings } = parseVariantSettings(value.slice(equalsIndex + 1));
+    return { label: value.slice(0, equalsIndex), path: config ?? "", settings };
+  });
 }
 
 function parseStage(value: string, max: number): number {

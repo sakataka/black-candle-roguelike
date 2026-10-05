@@ -434,7 +434,8 @@ export function createCampaignState(): CampaignState {
     roleTruths: [],
     expeditions: [],
     shards: 0,
-    facilities: { "war-room": 0, archive: 0, altar: 0 },
+    facilities: { "war-room": 0, archive: 0, altar: 0, "training-hall": 0 },
+    abilityLoadout: [],
     roster: [],
     fallen: [],
     heat: { unlocked: 0, selected: 0 },
@@ -446,13 +447,13 @@ export function normalizeCampaignState(value: unknown): CampaignState {
   if (!value || typeof value !== "object") return createCampaignState();
   const version = (value as { version?: unknown }).version;
   if (version !== 1 && version !== 2 && version !== 3 && version !== 4) return createCampaignState();
-  const input = value as { roleTruths?: unknown; expeditions?: unknown; shards?: unknown; facilities?: unknown; roster?: unknown; fallen?: unknown; heat?: unknown; cycle?: unknown; lessons?: unknown; flameDebt?: unknown; journey?: unknown; legacies?: unknown };
+  const input = value as { roleTruths?: unknown; expeditions?: unknown; shards?: unknown; facilities?: unknown; roster?: unknown; fallen?: unknown; heat?: unknown; cycle?: unknown; lessons?: unknown; flameDebt?: unknown; journey?: unknown; legacies?: unknown; abilityLoadout?: unknown };
   const roleTruths = Array.isArray(input.roleTruths) ? input.roleTruths.filter(isRoleTruthId) : [];
   const expeditions = Array.isArray(input.expeditions)
     ? input.expeditions.flatMap((entry) => normalizeExpeditionRecord(entry)).slice(0, 100)
     : [];
   const facilities = (input.facilities && typeof input.facilities === "object" ? input.facilities : {}) as Partial<Record<FacilityId, unknown>>;
-  // 継承品は踏破した職業から解放する。記録だけ残っている旧データも遠征録から復元する。
+  // 職業のアビリティは踏破した職業から解放する。記録だけ残っている旧データも遠征録から復元する。
   const savedLegacies = Array.isArray(input.legacies) ? input.legacies.filter((id): id is string => typeof id === "string") : [];
   const legacies = unique([...savedLegacies, ...expeditions.filter((entry) => entry.status === "won").map((entry) => entry.identity.roleId)]);
   return {
@@ -466,7 +467,10 @@ export function normalizeCampaignState(value: unknown): CampaignState {
       "war-room": facilityLevel(facilities["war-room"]),
       archive: facilityLevel(facilities.archive),
       altar: facilityLevel(facilities.altar),
+      "training-hall": facilityLevel(facilities["training-hall"]),
     },
+    // 解放と枠の確認は abilityUnlocks.normalizeAbilityLoadout で行う。ここでは形だけ整える。
+    abilityLoadout: Array.isArray(input.abilityLoadout) ? unique(input.abilityLoadout.filter((id): id is string => typeof id === "string")) : [],
     roster: Array.isArray(input.roster) ? input.roster.flatMap(normalizeVeteran) : [],
     fallen: Array.isArray(input.fallen) ? (input.fallen as FallenDelver[]).filter((entry) => !!entry?.identity).slice(0, 30) : [],
     lessons: Array.isArray(input.lessons) ? input.lessons.filter((id): id is "ranged" | "care" | "traps" => id === "ranged" || id === "care" || id === "traps") : [],

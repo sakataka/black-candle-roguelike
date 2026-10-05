@@ -69,6 +69,7 @@ import {
   temperamentDescription,
   temperamentLabel,
 } from "./game/core/autonomous";
+import { abilitySlots, abilityUnlockHint, normalizeAbilityLoadout, unlockedAbilityIds } from "./game/core/abilityUnlocks";
 import { suggestLanternAction, type WatcherSuggestion } from "./game/ai/watcher";
 import { applyAction, biomeThemeName, canBorrowFlame, canPlaceLantern, canInvokeLantern, createInitialGame, lanternRiteLabel, normalizeTactics, observeGame, playableRoles } from "./game/core/game";
 import { paceDelayMs, paceKindFor, type PaceKind } from "./game/core/pacing";
@@ -173,7 +174,7 @@ const instituteFacilities = requireElement<HTMLDivElement>("#institute-facilitie
 const instituteInfirmary = requireElement<HTMLDivElement>("#institute-infirmary");
 const instituteCycle = requireElement<HTMLDivElement>("#institute-cycle");
 const tacticList = requireElement<HTMLDivElement>("#tactic-list");
-const legacyList = requireElement<HTMLDivElement>("#legacy-list");
+const abilityList = requireElement<HTMLDivElement>("#ability-list");
 const decisionTactics = requireElement<HTMLElement>("#decision-tactics");
 const decisionTacticList = requireElement<HTMLDivElement>("#decision-tactic-list");
 const decisionDialog = requireElement<HTMLElement>("#decision-dialog");
@@ -228,8 +229,8 @@ let speechMemory = createSpeechMemory();
 let decisionRenderKey = "";
 let lookahead: { decisionKey: string; workers: Worker[]; results: Map<string, LookaheadSummary>; failedOptions: Set<string> } | null = null;
 let selectedTactics: string[] = loadSelectedTactics();
-/** 持ち込む継承品。解放済みの職業IDか、持ち込まない時は null。 */
-let selectedLegacy: string | null = null;
+/** 出発時に解放済みだったアビリティ。結果画面で新しく解放したものを示す。 */
+let abilitiesAtDeparture = new Set<string>();
 let draftTactics: string[] | null = null;
 let draftDecisionId: string | null = null;
 let focusedModal: HTMLElement | null = null;
@@ -384,11 +385,15 @@ function installEvents(): void {
     saveCampaign(campaign);
     renderCandidateSelection();
   });
-  legacyList.addEventListener("click", (event) => {
-    const button = (event.target as HTMLElement).closest<HTMLButtonElement>("button[data-legacy-id]");
+  abilityList.addEventListener("click", (event) => {
+    const button = (event.target as HTMLElement).closest<HTMLButtonElement>("button[data-ability-id]");
     if (!button || button.disabled) return;
-    const legacyId = button.dataset.legacyId ?? null;
-    selectedLegacy = selectedLegacy === legacyId ? null : legacyId;
+    const abilityId = button.dataset.abilityId ?? "";
+    const loadout = normalizeAbilityLoadout(campaign);
+    const next = loadout.includes(abilityId) ? loadout.filter((id) => id !== abilityId) : [...loadout, abilityId];
+    // 枠が埋まっている時は、付けた順で最も古いものを外して入れ替える。
+    campaign = { ...campaign, abilityLoadout: next.length > abilitySlots(campaign) ? next.slice(1) : next };
+    saveCampaign(campaign);
     renderCandidateSelection();
   });
   tacticList.addEventListener("click", (event) => {
@@ -554,10 +559,11 @@ function startExpedition(roleId: string, veteran?: Veteran): void {
     knownRoleTruths: campaign.roleTruths,
     missionId: selectedMissionId,
     tactics: selectedTactics.filter((id) => unlocked.has(id)),
-    modifiers: { ...carried.modifiers, tacticSlots, rank: veteran?.rank ?? 0, scars: veteran?.scars ?? [], legacy: selectedLegacy && campaign.legacies?.includes(selectedLegacy) ? selectedLegacy : undefined },
+    modifiers: { ...carried.modifiers, tacticSlots, rank: veteran?.rank ?? 0, scars: veteran?.scars ?? [], abilities: normalizeAbilityLoadout(campaign) },
     bonusEmbers: carried.bonusEmbers,
     bonusMaxEmbers: carried.bonusMaxEmbers,
   });
+  abilitiesAtDeparture = new Set(unlockedAbilityIds(campaign));
   runLog = createRunLog(state.seed, roleId, {}, selectedIdentity);
   currentReview = null;
   archivedRunId = null;
@@ -581,7 +587,7 @@ function renderCandidateSelection(): void {
   selectedTactics = normalizeTactics(selectedTactics.filter((id) => unlocked.has(id)), slots);
   renderTacticPicker(tacticList, selectedTactics, slots);
   setText("#tactic-count", `${selectedTactics.length}/${slots}`);
-  renderLegacyPicker();
+  renderAbilityPicker();
   renderInstitute();
   renderCycle();
   renderVeterans();
@@ -690,6 +696,7 @@ function renderDepartSummary(delver: ReturnType<typeof resolveSelectedDelver>): 
   const heat = campaign.heat.selected;
   const journey = journeyProgress(campaign);
   const abandoning = runActive && state.status === "playing";
+  const loadoutLabels = normalizeAbilityLoadout(campaign).map((id) => getGameConfig().abilities.definitions[id].label);
   summary.innerHTML = `
     <span class="depart-portrait" aria-hidden="true"></span>
     <span class="depart-who"><strong>${escapeHtml(delver.name)}${delver.veteran ? ` <span class="rank-stars">${"★".repeat(delver.veteran.rank)}</span>` : ""}</strong><small>${escapeHtml(delver.roleName)} · ${escapeHtml(delver.temperament)}</small></span>
@@ -698,7 +705,7 @@ function renderDepartSummary(delver: ReturnType<typeof resolveSelectedDelver>): 
       <span>鍛錬 <b>${journey.rank} · HP+${journey.maxHp} / 攻撃+${journey.attack}</b></span>
       ${journey.trial ? `<span class="trial-plan">決戦 <b>${escapeHtml(journey.nextTrial!.label)}</b><small>第六階・第十層の守り手が覚醒</small></span>` : ""}
       <span>作戦 <b>${tactics.length ? escapeHtml(tactics.join("・")) : "なし"}</b></span>
-      ${selectedLegacy ? `<span>継承品 <b>${escapeHtml(getGameConfig().legacies[selectedLegacy]?.label ?? "")}</b></span>` : ""}
+      ${loadoutLabels.length ? `<span>アビリティ <b>${escapeHtml(loadoutLabels.join("・"))}</b></span>` : ""}
       ${campaign.lessons?.length ? `<span>継承 <b>${campaign.lessons.map((l) => l === "ranged" ? "射線と遮蔽" : l === "care" ? "早めの回復" : "罠への警戒").join("・")}</b></span>` : ""}
       ${campaign.flameDebt ? `<span>借灯の返済 <b>灯火${campaign.flameDebt}</b></span>` : ""}
       ${heat > 0 ? `<span>燭階 <b>${heat}</b></span>` : ""}
@@ -1112,7 +1119,9 @@ function renderVitals(observation: ReturnType<typeof observeGame>): void {
     ? conditions.map((condition) => `<span class="tag tag-${conditionTone(condition)}">${conditionLabel(condition)} ${condition.turns}手</span>`).join("")
     : "";
   const scarLabels = state.modifiers.scars.map((id) => getGameConfig().scars[id]?.label ?? id);
+  const abilityDefinitions = getGameConfig().abilities.definitions;
   requireElement<HTMLElement>("#vitals-tactics").innerHTML = tacticLabels(state.tactics).map((label) => `<span class="tag tag-tactic">${escapeHtml(label)}</span>`).join("")
+    + (state.modifiers.abilities ?? []).map((id) => `<span class="tag tag-ability" title="${escapeHtml(abilityDefinitions[id]?.description ?? "")}">${escapeHtml(abilityDefinitions[id]?.label ?? id)}</span>`).join("")
     + scarLabels.map((label) => `<span class="tag tag-danger" title="古傷">${escapeHtml(label)}</span>`).join("");
   const skill = roleSkill(player.contentId);
   const cooldown = player.skillCooldown ?? 0;
@@ -1264,25 +1273,26 @@ function renderTacticPicker(container: HTMLElement, selected: string[], slots: n
   }));
 }
 
-/** 継承品。未解放のものも並べ、どの職業で踏破すれば手に入るかを示す。 */
-function renderLegacyPicker(): void {
-  const legacies = getGameConfig().legacies ?? {};
-  const unlocked = new Set(campaign.legacies ?? []);
-  if (selectedLegacy && !unlocked.has(selectedLegacy)) selectedLegacy = null;
-  setText("#legacy-count", `${unlocked.size}/${Object.keys(legacies).length}`);
-  legacyList.replaceChildren(...Object.entries(legacies).map(([roleId, legacy]) => {
-    const open = unlocked.has(roleId);
-    const active = selectedLegacy === roleId;
+/** アビリティ。未解放のものも並べ、何をすれば手に入るかを示す。 */
+function renderAbilityPicker(): void {
+  const definitions = getGameConfig().abilities.definitions;
+  const unlocked = new Set(unlockedAbilityIds(campaign));
+  const loadout = normalizeAbilityLoadout(campaign);
+  const slots = abilitySlots(campaign);
+  setText("#ability-count", `${loadout.length}/${slots}`);
+  setText("#ability-unlocked", `解放 ${unlocked.size}/${Object.keys(definitions).length}`);
+  abilityList.replaceChildren(...Object.entries(definitions).map(([abilityId, ability]) => {
+    const open = unlocked.has(abilityId);
+    const active = loadout.includes(abilityId);
     const button = document.createElement("button");
     button.type = "button";
-    button.dataset.legacyId = roleId;
-    button.className = `tactic-card legacy-card${active ? " is-selected" : ""}${open ? "" : " is-locked"}`;
+    button.dataset.abilityId = abilityId;
+    button.className = `tactic-card ability-card${active ? " is-selected" : ""}${open ? "" : " is-locked"}`;
     button.disabled = !open;
     button.setAttribute("aria-pressed", String(active));
-    const items = legacy.items.map((item) => `${pieceName(item)}${item.quantity > 1 ? `×${item.quantity}` : ""}`).join("・");
-    button.innerHTML = `<span class="tactic-icon" aria-hidden="true"></span><strong>${escapeHtml(open ? legacy.label : `${getContentName(roleId)}で踏破すると解放`)}</strong><small>${escapeHtml(open ? items : legacy.label)}</small>`;
-    applySprite(button.querySelector<HTMLElement>(".tactic-icon") as HTMLElement, assetForContent(legacy.items[0].contentId), 40);
-    button.title = legacy.description;
+    button.innerHTML = `<span class="tactic-icon" aria-hidden="true"></span><strong>${escapeHtml(open ? ability.label : "？？？")}</strong><small>${escapeHtml(open ? ability.description : abilityUnlockHint(ability.unlock))}</small>`;
+    applySprite(button.querySelector<HTMLElement>(".tactic-icon") as HTMLElement, assetForContent(abilityId), 40);
+    button.title = open ? `${ability.label}: ${ability.description}` : abilityUnlockHint(ability.unlock);
     return button;
   }));
 }
@@ -1767,10 +1777,14 @@ function milestoneFor(record: CampaignState["expeditions"][number]): { kind: str
       detail: "選んだ結末の余波が、次の迷宮を変える。",
     };
   }
-  const legacy = getGameConfig().legacies?.[record.identity.roleId];
-  const firstVictory = record.status === "won" && campaign.expeditions.filter((entry) => entry.status === "won" && entry.identity.roleId === record.identity.roleId).length === 1;
-  if (legacy && firstVictory) {
-    return { kind: "legacy", kicker: "継承品の解放", title: `「${escapeHtml(legacy.label)}」が灰灯院に納められた`, detail: `${escapeHtml(getContentName(record.identity.roleId))}の初めての踏破。次の遠征から、どの職業でも一つ持ち込める。` };
+  const newAbilities = unlockedAbilityIds(campaign).filter((id) => !abilitiesAtDeparture.has(id)).map((id) => getGameConfig().abilities.definitions[id]);
+  if (newAbilities.length) {
+    return {
+      kind: "ability",
+      kicker: "アビリティの解放",
+      title: `${newAbilities.map((ability) => `「${escapeHtml(ability.label)}」`).join("")}を会得した`,
+      detail: `${newAbilities.map((ability) => escapeHtml(ability.description)).join(" ")}次の遠征から、灰灯院の支度で付けられる。`,
+    };
   }
   if (record.veteranOutcome === "fallen") {
     const cause = record.deathCause ? FALL_EPITAPHS[record.deathCause] ?? "" : "";

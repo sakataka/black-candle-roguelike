@@ -31,6 +31,7 @@ import type {
 } from "../types";
 import { Rng } from "./rng";
 import { clampNumber, hasLineOfSight, message, pushMessage, recordStrike, roleTraits } from "./stateOps";
+import { abilityEffects, playerTraits, runAbilityEffects } from "./abilities";
 import { bowFor, canReach, counterAttack, playerBowShot, playerWeaponAttack, registerDefeatHandler, thornsAttack, tickMonsterAfflictions } from "./combat";
 import { drawEquipment, isEquipmentToken, resolveEquipmentToken, rollEquipmentPiece } from "./loot";
 import { useSkill } from "./skills";
@@ -82,13 +83,15 @@ export function createInitialGame(
     rank: Math.max(0, Math.min(getGameConfig().campaign.veteranMaxRank, options.modifiers?.rank ?? 0)),
     graves: options.modifiers?.graves?.map((grave) => ({ ...grave })),
     ruleDeltas: options.modifiers?.ruleDeltas ? { ...options.modifiers.ruleDeltas } : undefined,
+    abilities: (options.modifiers?.abilities ?? []).filter((id) => !!getGameConfig().abilities?.definitions[id]),
   };
+  const abilities = abilityEffects(modifiers.abilities);
   const state = createFloorState(seed, 1, undefined, [], createInitialProgress(), roleId, createInitialRunObjectives(), {
     runTurn: 0,
     runIdentity: identity,
     directive: defaultDirectiveForTemperament(identity.temperament),
     revelationsRemaining: getGameConfig().autonomous.revelationsPerRun,
-    lantern: createInitialLantern(options.bonusEmbers ?? 0, options.bonusMaxEmbers ?? 0),
+    lantern: createInitialLantern((options.bonusEmbers ?? 0) + (abilities.startEmbers ?? 0), (options.bonusMaxEmbers ?? 0) + (abilities.maxEmbers ?? 0)),
     tactics: normalizeTactics(options.tactics ?? [], modifiers.tacticSlots),
     modifiers,
     knownRoleTruths: [...(options.knownRoleTruths ?? [])],
@@ -103,25 +106,18 @@ export function createInitialGame(
   }
   if (player.stats) {
     const foundation = foundationBonus(modifiers.foundationRank);
-    player.stats.maxHp += foundation.maxHp;
-    player.stats.hp += foundation.maxHp;
+    player.stats.maxHp += foundation.maxHp + (abilities.maxHp ?? 0);
+    player.stats.hp += foundation.maxHp + (abilities.maxHp ?? 0);
   }
   for (const tacticId of state.tactics) {
     for (const grant of getGameConfig().tactics.definitions[tacticId]?.grantItems ?? []) {
       addInventoryItem(player, grant.contentId, grant.quantity);
     }
   }
-  // 踏破で解放した継承品。どの職業でも持ち込め、装備なら最初から選び直す。
-  const legacy = modifiers.legacy ? getGameConfig().legacies?.[modifiers.legacy] : undefined;
-  for (const grant of legacy?.items ?? []) {
-    addInventoryItem(player, grant.contentId, grant.quantity, { plus: grant.plus, seals: grant.seals });
-  }
-  if (!legacy) {
-    refreshPlayerStats(state);
-    return state;
-  }
-  state.messages = pushMessage(state, `継承品「${legacy.label}」を携えて出発した。`, "loot");
-  return reevaluateEquipment(state);
+  refreshPlayerStats(state);
+  const labels = modifiers.abilities?.map((id) => getGameConfig().abilities.definitions[id].label) ?? [];
+  if (labels.length) state.messages = pushMessage(state, `${labels.join("・")}の心得を胸に出発した。`, "system");
+  return state;
 }
 
 function createFloorState(
@@ -156,7 +152,7 @@ function createFloorState(
     ? {
         ...carriedPlayer,
         pos: start,
-        stats: carriedPlayer.stats ? { ...carriedPlayer.stats, hp: Math.min(carriedPlayer.stats.maxHp, carriedPlayer.stats.hp + rules.descentHeal) } : undefined,
+        stats: carriedPlayer.stats ? { ...carriedPlayer.stats, hp: Math.min(carriedPlayer.stats.maxHp, carriedPlayer.stats.hp + rules.descentHeal + (abilityEffects(run.modifiers.abilities).descentHeal ?? 0)) } : undefined,
         inventory: carriedPlayer.inventory?.map((entry) => ({ ...entry })),
         conditions: clearCondition(carriedPlayer.conditions, "guarded"),
       }
@@ -827,18 +823,16 @@ export function observeGame(state: GameState): GameObservation {
   const knownEntities = state.entities
     .filter((entity) => isEntityRemembered(state, entity))
     .map(observedEntity);
-  const visibleTiles = state.tiles.flatMap((tile, index) => {
-    if (!tile.visible) {
-      return [];
-    }
-    return [{ ...tile, x: index % state.width, y: Math.floor(index / state.width) }];
-  });
-  const knownTiles = state.tiles.flatMap((tile, index) => {
-    if (!tile.explored && !tile.visible) {
-      return [];
-    }
-    return [{ ...tile, x: index % state.width, y: Math.floor(index / state.width) }];
-  });
+  // 見えているマスは既知のマスの一部なので、同じ写しを両方の一覧で共有する（毎手の複製を半分にする）。
+  const visibleTiles: GameObservation["visibleTiles"] = [];
+  const knownTiles: GameObservation["knownTiles"] = [];
+  for (let index = 0; index < state.tiles.length; index += 1) {
+    const tile = state.tiles[index];
+    if (!tile.explored && !tile.visible) continue;
+    const copy = { ...tile, x: index % state.width, y: Math.floor(index / state.width) };
+    knownTiles.push(copy);
+    if (tile.visible) visibleTiles.push(copy);
+  }
   const aliveBoss = bossAlive(state);
 
   return {
@@ -953,7 +947,7 @@ function rangedDefenseBonus(state: GameState, actor: Entity): number {
   const equipmentBonus = (actor.inventory?.filter((entry) => entry.equipped).reduce((sum, entry) => sum + (getGameConfig().equipment[entry.contentId]?.rangedDefense ?? 0), 0) ?? 0)
     + equippedSeals(actor).reduce((sum, seal) => sum + (seal.rangedDefense ?? 0), 0);
   const tacticBonus = actor.kind === "player" ? tacticPerk(state, "rangedDefense") : 0;
-  return equipmentBonus + (roleTraits(actor.contentId)?.rangedDefense ?? 0) + tacticBonus;
+  return equipmentBonus + (playerTraits(state, actor)?.rangedDefense ?? 0) + tacticBonus;
 }
 
 function tacticPerk(state: GameState, perk: "rangedDefense" | "trapAvoidPercent" | "healPercent"): number {
@@ -969,7 +963,7 @@ function trapAvoidChance(state: GameState, actor: Entity): number {
     const equipment = getGameConfig().equipment[entry.contentId];
     return sum + (equipment?.trapAvoidPercent ?? 0) - (equipment?.trapAvoidPenaltyPercent ?? 0);
   }, 0) ?? 0;
-  const roleModifier = (roleTraits(actor.contentId)?.trapAvoidPercent ?? 0) + equippedSeals(actor).reduce((sum, seal) => sum + (seal.trapAvoidPercent ?? 0), 0);
+  const roleModifier = (playerTraits(state, actor)?.trapAvoidPercent ?? 0) + equippedSeals(actor).reduce((sum, seal) => sum + (seal.trapAvoidPercent ?? 0), 0);
   const tacticModifier = actor.kind === "player" ? tacticPerk(state, "trapAvoidPercent") : 0;
   return clampNumber(rules.trapAvoidBasePercent + roleModifier + equipmentModifier + tacticModifier, rules.trapAvoidMinPercent, rules.trapAvoidMaxPercent);
 }
@@ -1013,12 +1007,15 @@ function moveActor(state: GameState, actorId: string, delta: Point): GameState {
       state.story.discoveries.push(roomKey);
       const roomName = getGameConfig().expansion?.rooms.find((room) => room.theme === roomTheme)?.nameJa ?? roomTheme;
       state.messages = pushMessage(state, `${roomName}の寄り道部屋を見つけた。`, "explore");
-      const radius = roleTraits(actor.contentId)?.roomRevealRadius;
+      const radius = playerTraits(state, actor)?.roomRevealRadius;
       if (radius) {
         revealAround(state, target, radius);
-        state.runObjectives.roleGoalProgress += 1;
-        state.messages = pushMessage(state, "トレジャーハンターが周囲の構造を読み、道筋を記録した。", "explore");
+        if (roleTraits(actor.contentId)?.roomRevealRadius) state.runObjectives.roleGoalProgress += 1;
+        state.messages = pushMessage(state, "部屋の構造を読み取り、周りの道筋を記録した。", "explore");
       }
+      const trapSense = actor.kind === "player" ? runAbilityEffects(state).roomTrapReveal ?? 0 : 0;
+      const sensed = trapSense ? revealKnownTrapTiles(state, trapSense, target) : 0;
+      if (sensed) state.messages = pushMessage(state, `部屋の気配を読み、隠れた罠を${sensed}つ見抜いた。`, "explore");
     }
     const floorEvent = state.entities.find((entity) => entity.kind === "event" && samePoint(entity.pos, target));
     if (floorEvent) {
@@ -1623,14 +1620,19 @@ function dropBonusBossRewards(state: GameState, defeatedPos: Point): GameState {
 
 function applyRoleBossGoal(state: GameState, defeatedContentId: string, defeatedPos: Point): GameState {
   const player = getPlayer(state);
-  if (!roleTraits(player.contentId)?.bossReward || contentEntities[defeatedContentId]?.tier !== "boss") {
+  const bossReward = playerTraits(state, player)?.bossReward;
+  if (!bossReward || contentEntities[defeatedContentId]?.tier !== "boss") {
     return state;
   }
-  const reward = state.floor >= 6 ? (roleTraits(player.contentId)?.bossReward ?? "item.guardian-draught") : "item.greater-tonic";
+  const reward = state.floor >= 6 ? bossReward : "item.greater-tonic";
   const point = openPointsAround(state, defeatedPos, 1)[0] ?? defeatedPos;
   state.entities.push(item(`${reward}.oath-goal.${state.floor}.${state.turn}`, reward, point, state.floor, rngForFloor(state.seed + state.turn + 17, state.floor)));
-  state.runObjectives = { ...state.runObjectives, roleGoalProgress: state.runObjectives.roleGoalProgress + 1 };
-  state.messages = pushMessage(state, "誓約が応え、守り手撃破の報酬が増えた。", "loot");
+  if (roleTraits(player.contentId)?.bossReward) {
+    state.runObjectives = { ...state.runObjectives, roleGoalProgress: state.runObjectives.roleGoalProgress + 1 };
+    state.messages = pushMessage(state, "誓約が応え、守り手撃破の報酬が増えた。", "loot");
+  } else {
+    state.messages = pushMessage(state, "守り手の報いで、薬がこぼれ落ちた。", "loot");
+  }
   return state;
 }
 
@@ -1656,6 +1658,12 @@ function applyScoutMappingGoal(state: GameState): GameState {
 
 function applyPriestCleansingGoal(state: GameState): GameState {
   const player = getPlayer(state);
+  const graceTurns = runAbilityEffects(state).cleansingGuardTurns;
+  if (graceTurns && player.contentId !== "role.lantern-priest" && player.stats) {
+    player.conditions = upsertCondition(player.conditions, "guarded", graceTurns);
+    player.stats.defense = baseDefense(state) + defenseBonus(player);
+    state.messages = pushMessage(state, "清めの加護が働き、護りを得た。", "loot");
+  }
   if (roleTraits(player.contentId)?.cleansingHeal && player.stats) {
     const healed = Math.min(roleTraits(player.contentId)!.cleansingHeal!, player.stats.maxHp - player.stats.hp);
     player.stats.hp += healed;
@@ -1779,7 +1787,7 @@ function useItem(state: GameState, contentId: string, targetId?: string): GameSt
   }
 
   if (consumable?.heal && !consumable.cureConditions && !consumable.revealRadius && !consumable.pushVisibleMonsters && !consumable.guardedTurns && !consumable.rangedDamage) {
-    const healAmount = Math.round(consumable.heal * (100 + tacticPerk(state, "healPercent") + (roleTraits(player.contentId)?.healPercent ?? 0)) / 100);
+    const healAmount = Math.round(consumable.heal * (100 + tacticPerk(state, "healPercent") + (playerTraits(state, player)?.healPercent ?? 0)) / 100);
     const healed = Math.min(healAmount, player.stats.maxHp - player.stats.hp);
     player.stats.hp += healed;
     entry.quantity -= 1;
@@ -1799,7 +1807,7 @@ function useItem(state: GameState, contentId: string, targetId?: string): GameSt
   }
 
   if (contentId === "item.bloodmoss-salve") {
-    const healed = Math.min(Math.round((consumable?.heal ?? 22) * (100 + (roleTraits(player.contentId)?.healPercent ?? 0)) / 100), player.stats.maxHp - player.stats.hp);
+    const healed = Math.min(Math.round((consumable?.heal ?? 22) * (100 + (playerTraits(state, player)?.healPercent ?? 0)) / 100), player.stats.maxHp - player.stats.hp);
     player.stats.hp += healed;
     player.conditions = clearConditions(player.conditions, consumable?.cureConditions ?? ["bleeding", "venomed"]);
     consumeInventoryEntry(player, entry);
@@ -1929,7 +1937,8 @@ function resolveRoomReward(state: GameState, source: Entity, config: GameConfig[
   const player = getPlayer(state);
   const traits = roleTraits(player.contentId);
   const tool = player.inventory?.find((entry) => getGameConfig().consumables[entry.contentId]?.unlockCache && entry.quantity > 0);
-  const unlocked = !config.locked || !!traits?.lockpickBonusGold || !!tool;
+  const freeUnlock = !!traits?.lockpickBonusGold || !!runAbilityEffects(state).freeUnlock;
+  const unlocked = !config.locked || freeUnlock || !!tool;
   // 解錠道具がなくても遠征を止めない。こじ開けると少し傷つく。
   if (config.locked && !unlocked && player.stats) {
     const damage = getGameConfig().expansion?.forcedLockDamage ?? 3;
@@ -1941,7 +1950,7 @@ function resolveRoomReward(state: GameState, source: Entity, config: GameConfig[
       return state;
     }
   }
-  if (config.locked && tool && !traits?.lockpickBonusGold) consumeInventoryEntry(player, tool);
+  if (config.locked && tool && !freeUnlock) consumeInventoryEntry(player, tool);
   const gold = (config.goldBase ?? 0) + state.floor * (config.goldPerFloor ?? 0) + (config.locked ? traits?.lockpickBonusGold ?? 0 : 0);
   if (gold > 0) state.playerProgress.gold += gold;
   if (config.locked && traits?.lockpickBonusGold) state.runObjectives.roleGoalProgress += 1;
@@ -2238,12 +2247,12 @@ function baseAttack(state: GameState): number {
   const { campaign } = getGameConfig();
   const role = roleDefinition(getPlayer(state).contentId);
   const levelGain = Math.floor(Math.max(0, state.playerProgress.level - 1) * (role?.growth.attack ?? 1));
-  return (role?.stats.attack ?? 6) + levelGain + state.modifiers.rank * campaign.veteranRankBonus.attack + foundationBonus(state.modifiers.foundationRank).attack;
+  return (role?.stats.attack ?? 6) + levelGain + state.modifiers.rank * campaign.veteranRankBonus.attack + foundationBonus(state.modifiers.foundationRank).attack + (runAbilityEffects(state).attack ?? 0);
 }
 
 function baseDefense(state: GameState): number {
   const role = roleDefinition(getPlayer(state).contentId);
-  return (role?.stats.defense ?? 0) + Math.floor(Math.max(0, state.playerProgress.level - 1) * (role?.growth.defense ?? 0.5));
+  return (role?.stats.defense ?? 0) + Math.floor(Math.max(0, state.playerProgress.level - 1) * (role?.growth.defense ?? 0.5)) + (runAbilityEffects(state).defense ?? 0);
 }
 
 function refreshPlayerStats(state: GameState): void {
@@ -2483,7 +2492,7 @@ function updateAwareness(state: GameState, monsterEntity: Entity, player: Entity
     monsterEntity.alerted = true;
     return true;
   }
-  const stealth = roleTraits(player.contentId)?.stealth ?? 0;
+  const stealth = playerTraits(state, player)?.stealth ?? 0;
   if (monsterEntity.asleep) {
     const rng = new Rng(state.seed + state.turn * 53 + monsterEntity.pos.x * 7 + monsterEntity.pos.y * 11);
     const wakes = distance <= 1 ? rng.int(1, 100) > stealth * 20 : distance <= 3 && rng.int(1, 100) <= Math.max(0, 12 - stealth * 4);
@@ -2572,14 +2581,17 @@ function tickPlayerConditions(state: GameState): GameState {
 
   const beforeGuarded = hasCondition(player, "guarded");
   const activeConditions = player.conditions;
-  const depthBonus = rules.conditionDamageFloors ? Math.floor(state.floor / rules.conditionDamageFloors) : 0;
+  // 炉の心得は毎手の傷を軽くするが、最低1は受ける。
+  const depthBonus = (rules.conditionDamageFloors ? Math.floor(state.floor / rules.conditionDamageFloors) : 0) - (runAbilityEffects(state).conditionDamageReduction ?? 0);
   if (hasCondition(player, "bleeding")) {
-    player.stats.hp -= rules.bleedingDamage + depthBonus;
-    state.messages = pushMessage(state, `出血で${rules.bleedingDamage + depthBonus}ダメージを受けた。`, "danger");
+    const bleed = Math.max(1, rules.bleedingDamage + depthBonus);
+    player.stats.hp -= bleed;
+    state.messages = pushMessage(state, `出血で${bleed}ダメージを受けた。`, "danger");
   }
   if (hasCondition(player, "venomed")) {
-    player.stats.hp -= rules.venomedDamage + depthBonus;
-    state.messages = pushMessage(state, `毒で${rules.venomedDamage + depthBonus}ダメージを受けた。`, "danger");
+    const venom = Math.max(1, rules.venomedDamage + depthBonus);
+    player.stats.hp -= venom;
+    state.messages = pushMessage(state, `毒で${venom}ダメージを受けた。`, "danger");
   }
   player.conditions = activeConditions.map((condition) => ({ ...condition, turns: condition.turns - 1 })).filter((condition) => condition.turns > 0);
   const afterGuarded = hasCondition(player, "guarded");

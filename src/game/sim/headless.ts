@@ -1,4 +1,4 @@
-import { runSimulation } from "./simulation";
+import { runSimulation, type SimulationRunInput } from "./simulation";
 import type { DecisionPolicy } from "../core/autonomous";
 import type { WatcherPolicy } from "../ai/watcher";
 import type { EndingId } from "../types";
@@ -19,7 +19,9 @@ const tactics = optionValue("--tactics")?.split(",").filter(Boolean) ?? [];
 const heat = Number(optionValue("--heat") ?? 0);
 const aftermath = optionValue("--aftermath") as EndingId | undefined;
 
-const result = await runSimulation({
+// batch からはタスクをJSONで受け取る。手で試す時は従来の引数を使う。
+const taskJson = optionValue("--task");
+const result = taskJson ? await runSimulation(JSON.parse(taskJson) as SimulationRunInput) : await runSimulation({
   seed,
   turns,
   roleId,
@@ -34,7 +36,7 @@ const result = await runSimulation({
   heat,
   bossTrial: Number(optionValue("--boss-trial") ?? 0),
   foundationRank: Number(optionValue("--foundation-rank") ?? 0),
-  legacy: optionValue("--legacy"),
+  abilities: optionValue("--abilities")?.split(",").filter(Boolean) ?? [],
   aftermath,
 });
 

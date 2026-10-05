@@ -112,6 +112,8 @@ export type BatchSimulationReport = {
     foundationRank: number;
     heat: number;
     aftermath?: string;
+    stage?: string;
+    abilities?: string[];
   };
   performance: {
     jobs: number;
@@ -205,6 +207,8 @@ export function createBatchReport(
       foundationRank: options.foundationRank,
       heat: options.heat,
       aftermath: options.aftermath,
+      stage: options.stage,
+      abilities: options.abilities,
     },
     performance: {
       jobs: options.jobs,
@@ -615,7 +619,8 @@ export function renderMarkdownReport(report: BatchSimulationReport): string {
     `- Boss trial / foundation rank: ${report.inputs.bossTrial} / ${report.inputs.foundationRank}`,
     `- Tactics: ${report.inputs.tactics.join(", ") || "none"}`,
     `- Heat / aftermath: ${report.inputs.heat} / ${report.inputs.aftermath ?? "none"}`,
-    `- Configs: ${report.inputs.configs.map((config) => `${config.label}=${config.path}`).join(", ")}`,
+    `- Stage / abilities: ${report.inputs.stage ?? "none"} / ${report.inputs.abilities?.join(", ") || "none"}`,
+    `- Configs: ${report.inputs.configs.map((config) => `${config.label}=${config.path}${config.settings ? ` ${JSON.stringify(config.settings)}` : ""}`).join(", ")}`,
     `- Batch elapsed: ${report.performance.batchElapsedMs}ms (${formatNumber(report.performance.runsPerSecond)} runs/sec)`,
     "",
   ];

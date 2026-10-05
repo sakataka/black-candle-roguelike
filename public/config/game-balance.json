@@ -217,7 +217,8 @@
         "costs": [15, 30, 50],
         "unlocksPerLevel": [["tactic.dart-volley", "tactic.trap-reader"], ["tactic.cover-dance", "tactic.duelist"], ["tactic.thorough"]]
       },
-      "altar": { "label": "灯火の祭壇", "description": "遠征開始時の灯火を1つ増やす。", "costs": [20, 50], "startEmbersPerLevel": 1 }
+      "altar": { "label": "灯火の祭壇", "description": "遠征開始時の灯火を1つ増やす。", "costs": [20, 50], "startEmbersPerLevel": 1 },
+      "training-hall": { "label": "修練場", "description": "アビリティの枠を1つ増やす。", "costs": [25, 70, 150, 280], "abilitySlotsPerLevel": 1 }
     }
   },
   "lantern": {
@@ -807,41 +808,24 @@
     "charge": { "label": "突進", "description": "2〜4マス先の敵へ一直線に詰め寄り、重い一撃で怯ませる。", "cooldown": 8, "range": 4, "scale": 1.5, "turns": 1 },
     "shadowstep": { "label": "影渡り", "description": "見えている敵の陰へ渡り、不意打ちを入れる。", "cooldown": 8, "range": 5 }
   },
-  "legacies": {
-    "role.oathbound": {
-      "label": "ナイトの継承",
-      "description": "ナイトの踏破で解放。会心の印を刻んだシルバーサーベル+2。",
-      "items": [{ "contentId": "item.silver-banishing-saber", "quantity": 1, "plus": 2, "seals": ["keen"] }]
-    },
-    "role.ash-scout": {
-      "label": "レンジャーの継承",
-      "description": "レンジャーの踏破で解放。会心の印を刻んだロングボウ+2。",
-      "items": [{ "contentId": "item.hunter-longbow", "quantity": 1, "plus": 2, "seals": ["keen"] }]
-    },
-    "role.lantern-priest": {
-      "label": "プリーストの継承",
-      "description": "プリーストの踏破で解放。傷と穢れを払う清めのお守りを2つ。",
-      "items": [{ "contentId": "item.grave-sun-charm", "quantity": 2 }]
-    },
-    "role.relic-surveyor": {
-      "label": "トレジャーハンターの継承",
-      "description": "トレジャーハンターの踏破で解放。探索の指輪と地図の巻物2枚。",
-      "items": [{ "contentId": "item.searcher-ring", "quantity": 1 }, { "contentId": "item.mapping-scroll", "quantity": 2 }]
-    },
-    "role.ash-apothecary": {
-      "label": "アルケミストの継承",
-      "description": "アルケミストの踏破で解放。上級回復薬と治療の軟膏を2つずつ。",
-      "items": [{ "contentId": "item.greater-tonic", "quantity": 2 }, { "contentId": "item.bloodmoss-salve", "quantity": 2 }]
-    },
-    "role.iron-oath-vanguard": {
-      "label": "ウォーリアの継承",
-      "description": "ウォーリアの踏破で解放。破砕の印を刻んだグレートアックス+1。",
-      "items": [{ "contentId": "item.ironbreaker-greataxe", "quantity": 1, "plus": 1, "seals": ["crush"] }]
-    },
-    "role.keyshadow-rogue": {
-      "label": "シーフの継承",
-      "description": "シーフの踏破で解放。毒刃の印を刻んだアサシンダガー+2。",
-      "items": [{ "contentId": "item.shadowstitch-dagger", "quantity": 1, "plus": 2, "seals": ["venom"] }]
+  "abilities": {
+    "baseSlots": 2,
+    "definitions": {
+      "ability.guardian-spoils": { "label": "守り手の報い", "description": "守り手を倒すと、薬が一つこぼれ落ちる。", "unlock": { "kind": "role", "roleId": "role.oathbound" }, "effects": { "bossReward": "item.guardian-draught" } },
+      "ability.hawk-eye": { "label": "鷹の目", "description": "罠をかなり避けやすくなり、矢にも強くなる。", "unlock": { "kind": "role", "roleId": "role.ash-scout" }, "effects": { "trapAvoidPercent": 10, "rangedDefense": 3 } },
+      "ability.purifying-grace": { "label": "清めの加護", "description": "最大HPが少し上がり、毒や出血を治すとしばらく護りを得る。", "unlock": { "kind": "role", "roleId": "role.lantern-priest" }, "effects": { "cleansingGuardTurns": 8, "maxHp": 4 } },
+      "ability.room-reader": { "label": "部屋読み", "description": "寄り道部屋に入ると近くの隠れた罠を見抜き、鍵付きの箱を道具なしで開けられる。", "unlock": { "kind": "role", "roleId": "role.relic-surveyor" }, "effects": { "roomTrapReveal": 4, "freeUnlock": 1 } },
+      "ability.herbal-lore": { "label": "薬の知識", "description": "薬で回復する量が大きく増える。", "unlock": { "kind": "role", "roleId": "role.ash-apothecary" }, "effects": { "healPercent": 25 } },
+      "ability.iron-hide": { "label": "重装の心得", "description": "防御が1上がる。", "unlock": { "kind": "role", "roleId": "role.iron-oath-vanguard" }, "effects": { "defense": 1 } },
+      "ability.soft-steps": { "label": "忍び足", "description": "眠った敵にかなり気づかれにくく、罠も避けやすい。", "unlock": { "kind": "role", "roleId": "role.keyshadow-rogue" }, "effects": { "stealth": 2, "trapAvoidPercent": 8 } },
+      "ability.homeward-wisdom": { "label": "帰り道の知恵", "description": "階段を降りた時の回復が大きく増える。", "unlock": { "kind": "chapter", "chapterId": "first-route" }, "effects": { "descentHeal": 12 } },
+      "ability.truth-flame": { "label": "真相の灯", "description": "出発時の灯火が1つ増え、最大HPも少し上がる。", "unlock": { "kind": "chapter", "chapterId": "first-truth" }, "effects": { "startEmbers": 1, "maxHp": 4 } },
+      "ability.kindred-vigor": { "label": "先人の力", "description": "最大HPが上がる。", "unlock": { "kind": "chapter", "chapterId": "three-truths" }, "effects": { "maxHp": 8 } },
+      "ability.core-breaker": { "label": "黒燭の刃", "description": "守り手に与える傷が大きく増える。", "unlock": { "kind": "chapter", "chapterId": "black-core" }, "effects": { "bossDamagePercent": 25 } },
+      "ability.ending-echo": { "label": "結末の残響", "description": "灯火の上限と出発時の灯火が1つずつ増え、攻撃も1上がる。", "unlock": { "kind": "chapter", "chapterId": "ending" }, "effects": { "startEmbers": 1, "maxEmbers": 1, "attack": 1 } },
+      "ability.stone-heart": { "label": "石の心得", "description": "攻撃が1上がる。", "unlock": { "kind": "trial", "stage": 1 }, "effects": { "attack": 1 } },
+      "ability.furnace-heart": { "label": "炉の心得", "description": "最大HPが上がり、毒と出血で受ける傷が軽くなる。", "unlock": { "kind": "trial", "stage": 2 }, "effects": { "conditionDamageReduction": 1, "maxHp": 8 } },
+      "ability.candle-heart": { "label": "黒燭の心得", "description": "攻撃と防御が1ずつ上がる。", "unlock": { "kind": "trial", "stage": 3 }, "effects": { "attack": 1, "defense": 1 } }
     }
   },
   "seals": {

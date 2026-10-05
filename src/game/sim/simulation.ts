@@ -7,8 +7,8 @@ import { getGameConfig, loadBunGameConfig } from "../content/config";
 import { applyAction, createInitialGame, observeGame } from "../core/game";
 import { paceDelayMs, paceKindFor, type PaceKind } from "../core/pacing";
 import { analyzeRun, createRunLog, recordTurn } from "../core/runLog";
-import { calculateShards, campaignRunModifiers, chooseDecisionAction, createCampaignState, createRunIdentity, type DecisionPolicy } from "../core/autonomous";
-import type { EndingId, ExpeditionDynamics, GameAction, GameState, RunReview } from "../types";
+import { calculateShards, campaignRunModifiers, campaignTacticSlots, chooseDecisionAction, createCampaignState, createRunIdentity, type DecisionPolicy } from "../core/autonomous";
+import type { CampaignState, EndingId, ExpeditionDynamics, GameAction, GameState, RunReview } from "../types";
 
 export type SimulationRunInput = {
   seed: number;
@@ -25,7 +25,9 @@ export type SimulationRunInput = {
   heat?: number;
   bossTrial?: number;
   foundationRank?: number;
-  legacy?: string;
+  abilities?: string[];
+  /** 施設の段階。灯火の祭壇・作戦室・修練場の効果を遠征へ反映する。 */
+  facilities?: Partial<CampaignState["facilities"]>;
   aftermath?: EndingId;
 };
 
@@ -121,12 +123,13 @@ export async function runSimulation(input: SimulationRunInput): Promise<Simulati
 
   const initStartMs = performance.now();
   const identity = createRunIdentity(input.seed, input.roleId);
-  const campaign = { ...createCampaignState(), heat: { unlocked: input.heat ?? 0, selected: input.heat ?? 0 }, cycle: { number: input.aftermath ? 2 : 1, aftermath: input.aftermath } };
+  const base = createCampaignState();
+  const campaign = { ...base, facilities: { ...base.facilities, ...input.facilities }, heat: { unlocked: input.heat ?? 0, selected: input.heat ?? 0 }, cycle: { number: input.aftermath ? 2 : 1, aftermath: input.aftermath } };
   const carried = campaignRunModifiers(campaign);
   let state = createInitialGame(input.seed, input.roleId, {
     identity,
     tactics: input.tactics,
-    modifiers: { ...carried.modifiers, bossTrial: input.bossTrial ?? 0, foundationRank: input.foundationRank ?? 0, graves: [], legacy: input.legacy },
+    modifiers: { ...carried.modifiers, bossTrial: input.bossTrial ?? 0, foundationRank: input.foundationRank ?? 0, graves: [], abilities: input.abilities ?? [], tacticSlots: campaignTacticSlots(campaign) },
     bonusEmbers: carried.bonusEmbers,
     bonusMaxEmbers: carried.bonusMaxEmbers,
   });
