@@ -262,6 +262,26 @@ describe("階の変化", () => {
     expect(misty.tiles.filter((tile) => tile.visible).length).toBeLessThan(clear.tiles.filter((tile) => tile.visible).length);
   });
 
+  test("同じ手に倒した精鋭の遺品をそれぞれ拾える", () => {
+    let state = arena("role.iron-oath-vanguard", { contentId: "item.hatchet", quantity: 1 });
+    for (const [index, pos] of [{ x: 11, y: 10 }, { x: 10, y: 11 }].entries()) {
+      const elite = enemy(state, pos, "monster.ash-rat", 1, 0, `elite-${index}`);
+      applyElite(elite, "brute");
+      elite.stats!.hp = 1;
+    }
+    state = applyAction(state, { type: "move", direction: "east" });
+    const drops = state.entities.filter((entity) => entity.kind === "item");
+    expect(drops).toHaveLength(2);
+    expect(new Set(drops.map((drop) => drop.id)).size).toBe(2);
+    getPlayer(state).pos = { ...drops[0].pos };
+    state = applyAction(state, { type: "pickup" });
+    expect(state.entities.filter((entity) => entity.kind === "item")).toHaveLength(1);
+    expect(state.entities.some((entity) => entity.id === drops[1].id)).toBe(true);
+    getPlayer(state).pos = { ...drops[1].pos };
+    state = applyAction(state, { type: "pickup" });
+    expect(state.entities.filter((entity) => entity.kind === "item")).toHaveLength(0);
+  });
+
   test("精鋭は銘を冠し、倒すと印つきの装備を落とす", () => {
     const state = arena("role.oathbound", { contentId: "item.rusted-sword", quantity: 1 });
     const elite = enemy(state, { x: 11, y: 10 }, "monster.ash-rat", 10, 0, "elite");

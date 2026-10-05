@@ -1577,7 +1577,7 @@ function defeatMonster(state: GameState, defeated: Entity): GameState {
   state.messages = pushMessage(state, `${entityName(defeated)}を倒した。`, "combat");
   if (defeated.elite) {
     // 精鋭は印つきの装備を抱えている。
-    const relic = item(`equipment.elite.${state.floor}.${state.turn}`, `equipment:${state.floor <= 3 ? "mid" : "late"}`, defeatedPos, state.floor + 1, rngForFloor(state.seed + state.turn + 3, state.floor), { minSeals: 1 });
+    const relic = item(`equipment.elite.${state.floor}.${state.turn}.${defeated.id}`, `equipment:${state.floor <= 3 ? "mid" : "late"}`, defeatedPos, state.floor + 1, rngForFloor(state.seed + state.turn + 3, state.floor), { minSeals: 1 });
     state.entities.push(relic);
     state.messages = pushMessage(state, `${entityName(defeated)}が${pieceName(relic)}を落とした。`, "loot");
   }
