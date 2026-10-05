@@ -7,7 +7,7 @@ import { normalizeAbilityLoadout, unlockedAbilityIds } from "./abilityUnlocks";
 import { createCampaignState, normalizeCampaignState, recordCampaignResult } from "./autonomous";
 import type { Entity, GameState, InventoryEntry, Point } from "../types";
 import { applyAction, createInitialGame, observeGame } from "./game";
-import { addInventoryItem, pieceName, preferredEquipment } from "./inventory";
+import { addInventoryItem, pieceName, pieceSeals, preferredEquipment, sealSlotsFor } from "./inventory";
 import { drawEquipment, rollEquipmentPiece } from "./loot";
 import { Rng } from "./rng";
 import { getPlayer } from "./state";
@@ -110,6 +110,16 @@ describe("修正値と印", () => {
     expect(axe.plus).toBe(2);
     expect(axe.seals).toEqual(["keen", "drain"]);
     expect(pieceName(axe)).toBe("バトルアックス+2［会吸］");
+  });
+
+  test("鍛え直しは固有の印も枠に数える", () => {
+    const player = getPlayer(arena());
+    player.inventory = [{ contentId: "item.twinfang-daggers", quantity: 1, seals: ["keen"] }];
+    addInventoryItem(player, "item.twinfang-daggers", 1, { seals: ["drain"] });
+    const daggers = player.inventory[0];
+    expect(daggers.plus).toBe(1);
+    expect(daggers.seals).toEqual(["keen"]);
+    expect(pieceSeals(daggers)).toHaveLength(sealSlotsFor(daggers.contentId));
   });
 
   test("深い階ほど修正値と印が付きやすく、守り手の遺品には印が必ず付く", () => {

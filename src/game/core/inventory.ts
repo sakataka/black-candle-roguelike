@@ -104,7 +104,7 @@ export function forgeInto(target: InventoryEntry, incoming: Pick<InventoryEntry,
   const config = getGameConfig();
   target.plus = Math.min(config.equipmentRolls.forgeMaxPlus, Math.max(target.plus ?? 0, incoming.plus ?? 0) + 1);
   const innate = config.equipment[target.contentId]?.innateSeals ?? [];
-  const slots = sealSlotsFor(target.contentId);
+  const slots = Math.max(0, sealSlotsFor(target.contentId) - innate.length);
   const merged = [...new Set([...(target.seals ?? []), ...(incoming.seals ?? [])])].filter((id) => !innate.includes(id));
   target.seals = merged.slice(0, slots);
 }
