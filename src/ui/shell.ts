@@ -97,7 +97,7 @@ export const observerShellMarkup = `
         </div>
         <div class="objective">
           <span class="panel-label">次の動き</span>
-          <strong id="objective-title">未探索を広げる</strong>
+          <strong id="objective-title">未探索を調べる</strong>
           <p id="objective-detail">黒燭が映す道筋を追っています。</p>
         </div>
       </section>
@@ -212,7 +212,7 @@ export const observerShellMarkup = `
       <section id="run-insights" class="run-insights" aria-label="遠征の軌跡"></section>
       <div id="decision-history" class="decision-history"></div>
       <div class="modal-footer">
-        <button id="end-new-expedition" class="primary-button" type="button">灰灯院へ戻り、次の遠征を支度する</button>
+        <button id="end-new-expedition" class="primary-button" type="button">灰灯院へ戻り、次の遠征の支度をする</button>
       </div>
     </div>
   </section>

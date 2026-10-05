@@ -35,7 +35,7 @@ export function renderRunInsights(runInsightsPanel: HTMLElement, insights: RunIn
   }).join("");
   const chart = points.length > 1
     ? `<figure class="insight-chart">
-        <figcaption><strong>遠征の軌跡</strong><span>HP の推移 · <i class="key key-decision"></i>判断 <i class="key key-lantern"></i>灯介入</span></figcaption>
+        <figcaption><strong>遠征の軌跡</strong><span>HP の推移 · <i class="key key-decision"></i>判断 <i class="key key-lantern"></i>灯の介入</span></figcaption>
         <div class="insight-plot">
           <svg viewBox="0 0 ${width} ${height}" preserveAspectRatio="none" role="img" aria-label="遠征中のHP推移">
             ${floorBands.join("")}

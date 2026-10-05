@@ -139,7 +139,7 @@ export function onMonsterDefeated(state: GameState, defeated: Entity): void {
   if (behavior.explode && chebyshev(player.pos, defeated.pos) <= 1 && player.stats) {
     const damage = behavior.explode.damage + Math.floor(state.floor * behavior.explode.perFloor);
     player.stats.hp -= damage;
-    state.messages = pushMessage(state, `${entityName(defeated)}が爆ぜ、${damage}ダメージを受けた。`, "danger");
+    state.messages = pushMessage(state, `${entityName(defeated)}が爆ぜ、探索者は${damage}ダメージを受けた。`, "danger");
     if (player.stats.hp <= 0) {
       state.status = "lost";
       state.story.killedBy = { cause: "combat", contentId: defeated.contentId };

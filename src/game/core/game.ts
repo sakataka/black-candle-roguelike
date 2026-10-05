@@ -1318,7 +1318,7 @@ function triggerOathEcho(state: GameState, eventEntity: Entity): GameState {
     state.runObjectives = { ...state.runObjectives, roleGoalProgress: state.runObjectives.roleGoalProgress + 1 };
     state.messages = pushMessage(state, "誓約の残響が応え、守り手へ挑むための備えを残した。", "loot");
   } else {
-    state.messages = pushMessage(state, "誓約の残響は遠く、かすかな薬だけが残った。", "explore");
+    state.messages = pushMessage(state, "誓約の残響は遠く、わずかな薬だけが残った。", "explore");
   }
   state.entities = state.entities.filter((entity) => entity.id !== eventEntity.id);
   return state;
@@ -1732,12 +1732,12 @@ function activateMappingPickup(state: GameState, contentId: string): GameState {
         tile.explored = true;
       }
     }
-    state.messages = pushMessage(state, `${getContentName(contentId)}を拾った瞬間に燃え、現在階の通路が頭に刻まれた。`, "loot");
+    state.messages = pushMessage(state, `拾った${getContentName(contentId)}がすぐに燃え、この階の通路が頭に刻まれた。`, "loot");
     state = applyScoutMappingGoal(state);
     return state;
   }
   revealAround(state, player.pos, consumable?.revealRadius ?? 8);
-  state.messages = pushMessage(state, `${getContentName(contentId)}を拾った瞬間に開き、近くの部屋と通路が浮かび上がった。`, "loot");
+  state.messages = pushMessage(state, `拾った${getContentName(contentId)}がすぐに開き、近くの部屋と通路が浮かび上がった。`, "loot");
   state = applyScoutMappingGoal(state);
   return state;
 }
@@ -2363,7 +2363,7 @@ function runMonsterTurn(state: GameState): GameState {
           const damage = Math.max(1, Math.ceil((monsterEntity.stats!.attack - (player.stats?.defense ?? 0) - (special.kind === "shot" ? rangedDefenseBonus(state, player) : 0)) * special.damageScale));
           if (player.stats) player.stats.hp -= damage;
           recordStrike(state, monsterEntity, player, special.kind !== "sweep");
-          state.messages = pushMessage(state, `${getContentName(monsterEntity.contentId)}が予告の一撃を放ち、${damage}ダメージを受けた。`, "combat");
+          state.messages = pushMessage(state, `${getContentName(monsterEntity.contentId)}が予告の一撃を放ち、探索者は${damage}ダメージを受けた。`, "combat");
           if ((player.stats?.hp ?? 1) <= 0) {
             state.status = "lost";
             state.story.killedBy = { cause: special.kind === "sweep" ? "combat" : "rangedCombat", contentId: monsterEntity.contentId };
@@ -2465,7 +2465,7 @@ function resolveCharge(state: GameState, monsterEntity: Entity, player: Entity, 
     const damage = Math.max(1, Math.ceil((monsterEntity.stats!.attack - (player.stats?.defense ?? 0)) * special.damageScale));
     if (player.stats) player.stats.hp -= damage;
     recordStrike(state, monsterEntity, player, false);
-    state.messages = pushMessage(state, `${getContentName(monsterEntity.contentId)}が突進し、${damage}ダメージを受けた。`, "combat");
+    state.messages = pushMessage(state, `${getContentName(monsterEntity.contentId)}が突進し、探索者は${damage}ダメージを受けた。`, "combat");
     if ((player.stats?.hp ?? 1) <= 0) {
       state.status = "lost";
       state.story.killedBy = { cause: "combat", contentId: monsterEntity.contentId };

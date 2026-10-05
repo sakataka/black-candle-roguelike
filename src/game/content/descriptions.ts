@@ -20,7 +20,7 @@ export const contentDescriptions: Record<string, string> = {
   "monster.hollow-archer": "弓を引く骸骨。狙いを定めてから矢を放つので、予告の線から外れるか遮蔽に隠れる。",
   "monster.cinder-cultist": "火を操る邪教の信徒。離れたところから術を撃ち、近づくと距離を取り直す。",
   "monster.ash-claw": "灰色のジャッカル。足が速く、一手に二度動いて間合いを詰めてくる。",
-  "monster.rust-footman": "盾を構えた錆びた兵士。正面からの攻撃は盾に弾かれやすい。鈍器か隙を突く。",
+  "monster.rust-footman": "盾を構えた錆びた兵士。正面からの攻撃は盾に弾かれやすい。鈍器で攻めるか隙を突く。",
 
   // 中層の敵
   "monster.shadow-imp": "いたずら好きの小悪魔。持ち物や金貨をかすめ取って逃げる。倒せば取り返せる。",
@@ -92,7 +92,7 @@ export const contentDescriptions: Record<string, string> = {
   "item.greater-tonic": "よく効く回復薬。ピンチの時に大きくHPが戻る。",
   "item.bloodmoss-salve": "傷によく効く軟膏。HPを戻し、毒と出血も治す。",
   "item.guardian-draught": "飲むとしばらく身を守る「護り」の状態になり、受ける傷が減る。",
-  "item.unmarked-vial": "中身の分からない小瓶。回復や護りになることもあれば、毒や出血の反動もある。",
+  "item.unmarked-vial": "中身の分からない小瓶。傷が癒えたり護りを得たりすることもあれば、毒や出血の反動もある。",
   "item.sealed-prayer-strip": "封じられた祈りのお札。護り・地図・敵の押し戻しなどが起こるが、裏目に出ることもある。",
   "item.mapping-scroll": "読むとその階の地図がすべて明らかになる。",
   "item.glim-map": "周りの地形だけが描かれた小さな地図。",
@@ -137,7 +137,7 @@ export const contentDescriptions: Record<string, string> = {
   "prop.thorn-chapel.seed-reliquary": "種を納めた鍵付きの聖櫃。開けると珍しい装備が見つかる。",
 
   // 罠
-  "trap.risk-panel": "踏むと何が起こるか分からない床。回復や地図、金貨のこともあれば、針が飛び出すこともある。",
+  "trap.risk-panel": "踏むと何が起こるか分からない床。傷が癒えたり地図が見えたり、金貨が出たりすることもあれば、針が飛び出すこともある。",
   "trap.blood-needle": "床から針が飛び出す罠。踏むと出血する。",
   "trap.venom-mist": "毒の霧が吹き出す罠。踏むと毒が回る。",
   "trap.crumbling-floor": "足元が崩れる床。傷を負うが、崩れた穴から周りの様子が少し分かる。",

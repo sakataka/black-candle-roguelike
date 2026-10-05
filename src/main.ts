@@ -1887,7 +1887,7 @@ function objectiveLabel(objective: ReturnType<typeof observeGame>["exploration"]
   if (objective === "descend") return "下層へ進む";
   if (objective === "findStairs") return "階段を探す";
   if (objective === "resolveStall") return "探索経路を見直す";
-  return "未探索を広げる";
+  return "未探索を調べる";
 }
 
 function objectiveDetail(observation: ReturnType<typeof observeGame>): string {

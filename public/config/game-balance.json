@@ -158,7 +158,7 @@
     },
     "extinguish-flame": {
       "label": "消燭の周期",
-      "description": "黒燭が消え、迷宮は深い闇に沈む。視界-2、闇に紛れた敵の攻撃が鋭くなり、灯火の開始と上限-1。灯片+25%。",
+      "description": "黒燭が消え、迷宮は深い闇に沈む。視界-2、闇に紛れた敵の攻撃が鋭くなり、開始時の灯火と上限-1。灯片+25%。",
       "ruleDeltas": { "fovRadius": -2, "monsterAttackPerFloor": 0.2 },
       "lanternStartDelta": -1,
       "lanternMaxDelta": -1,
@@ -166,7 +166,7 @@
     },
     "divide-flame": {
       "label": "分灯の周期",
-      "description": "封印が地上の灯へ分かれた。灯火の開始と上限+1、各階の敵+1。",
+      "description": "封印が地上の灯へ分かれた。開始時の灯火と上限+1、各階の敵+1。",
       "lanternStartDelta": 1,
       "lanternMaxDelta": 1,
       "ruleDeltas": { "monsterCountBase": 1 },
@@ -304,7 +304,7 @@
         { "contentId": "item.ember-tonic", "quantity": 1 }
       ],
       "traits": {
-        "focus": "地図利用、罠回避、遠隔圧への対応",
+        "focus": "地図利用、罠回避、遠隔攻撃への対応",
         "strengths": ["弓で離れた敵を射て、近づかれたら槍に持ち替える", "職業特性で罠回避と遠隔防御が少し高い"],
         "traitLabels": ["地図使用: 探索+投げ針", "罠回避 +10%", "遠隔防御 +1"],
         "trapAvoidPercent": 10,
@@ -385,7 +385,7 @@
       ],
       "traits": {
         "focus": "盾を捨てた重装の突破役",
-        "strengths": ["両手斧で高い威力とゴーレム特効", "重い鎧で守るが罠を避けにくい"],
+        "strengths": ["両手斧の威力が高く、ゴーレムに強い", "重い鎧で守るが罠を避けにくい"],
         "traitLabels": ["両手斧・盾併用不可", "罠回避 -8%"],
         "trapAvoidPercent": -8,
         "bossReward": "item.guardian-draught",
@@ -782,7 +782,7 @@
     "item.blackiron-warhammer": { "slot": "weapon", "power": 6, "tier": "late", "weaponType": "mace", "twoHanded": true, "trapAvoidPenaltyPercent": 6 }
   },
   "weaponTypes": {
-    "blade": { "label": "剣", "description": "隙を突く追撃が大きく、殴られると時折斬り返す。", "openingMultiplier": 2, "counterChancePercent": 25, "counterScale": 0.75 },
+    "blade": { "label": "剣", "description": "隙を突く追撃の威力が高く、殴られると時折斬り返す。", "openingMultiplier": 2, "counterChancePercent": 25, "counterScale": 0.75 },
     "spear": { "label": "槍", "description": "2マス先を突き、前の敵を貫いて後ろにも届く。", "reach": 2, "pierceScale": 0.75 },
     "axe": { "label": "斧", "description": "隣にいる敵をまとめてなぎ払う。", "cleaveScale": 0.6 },
     "dagger": { "label": "短剣", "description": "素早く2回刺す。気づいていない敵や隙のある敵には深く刺さる。", "strikes": 2, "strikeScale": 0.6, "backstabMultiplier": 2 },
