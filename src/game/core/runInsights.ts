@@ -131,7 +131,7 @@ function lowHpTurningPoint(entries: RunLogEntry[]): TurningPoint | null {
   return {
     runTurn: entry.runTurn ?? 0,
     floor: entry.floor,
-    title: "命火が3割を切った",
+    title: "HPが3割を切った",
     detail: healing > 0 ? `この時点で回復薬を${healing}個持っていた。早めの手当てか癒灯で立て直せた可能性がある。` : "回復手段が尽きていた。灯火を癒灯に残しておくと持ちこたえやすい。",
     tone: "warning",
   };
@@ -189,7 +189,7 @@ function adviceFor(finalState: GameState, deathCause: DeathCause | null, entries
     addTactic("tactic.early-care", "毒や出血で削られる前に回復する。");
     addRite("mend", "癒灯は毒と出血もまとめて払う。");
   } else if (deathCause === "trap") {
-    addTactic("tactic.trap-reader", "罠と運命の標を避け、罠回避も上がる。");
+    addTactic("tactic.trap-reader", "罠と運試しの床を避け、罠回避も上がる。");
     addRite("guide", "導灯で隠れた罠を暴ける。");
   } else if (deathCause === "combat") {
     addTactic("tactic.hoard", "薬を深層まで残し、強敵に備える。");

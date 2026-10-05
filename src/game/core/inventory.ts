@@ -185,7 +185,7 @@ export function equippedWeaponSpecialDamage(player: Pick<Entity, "inventory">, d
   return base + pieceSeals(weapon).reduce((sum, seal) => sum + (seal.bonusVsFamilies?.families.includes(family) ? seal.bonusVsFamilies.amount : 0), 0);
 }
 
-/** 「鉄の戦斧+2［吸会］」のような表示名。 */
+/** 「バトルアックス+2［吸会］」のような表示名。 */
 export function pieceName(piece: EquipmentPiece): string {
   const name = getContentName(piece.contentId);
   if (!equipmentSlot(piece.contentId)) return name;

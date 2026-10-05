@@ -60,7 +60,7 @@ describe("武器の型", () => {
     const state = arena("role.keyshadow-rogue", { contentId: "item.oath-knife", quantity: 1 });
     const awake = enemy(state, { x: 11, y: 10 }, "monster.ash-rat", 200, 0, "awake");
     const next = applyAction(state, { type: "move", direction: "east" });
-    expect(next.messages.filter((message) => message.text.startsWith("灰かぶり鼠に")).length).toBe(2);
+    expect(next.messages.filter((message) => message.text.startsWith("大ネズミに")).length).toBe(2);
     const sleeping = arena("role.keyshadow-rogue", { contentId: "item.oath-knife", quantity: 1 });
     const sleeper = enemy(sleeping, { x: 11, y: 10 }, "monster.ash-rat", 200, 0, "sleeper");
     sleeper.asleep = true;
@@ -108,7 +108,7 @@ describe("修正値と印", () => {
     expect(player.inventory.filter((entry) => entry.contentId === "item.iron-axe")).toHaveLength(1);
     expect(axe.plus).toBe(2);
     expect(axe.seals).toEqual(["keen", "drain"]);
-    expect(pieceName(axe)).toBe("鉄の戦斧+2［会吸］");
+    expect(pieceName(axe)).toBe("バトルアックス+2［会吸］");
   });
 
   test("深い階ほど修正値と印が付きやすく、守り手の遺品には印が必ず付く", () => {
@@ -126,7 +126,7 @@ describe("修正値と印", () => {
     expect(new Set(types).size).toBeGreaterThanOrEqual(4);
   });
 
-  test("吸命の印は与えた傷の一部で命火を戻す", () => {
+  test("吸血の印は与えた傷の一部でHPを戻す", () => {
     const state = arena("role.oathbound", { contentId: "item.rusted-sword", quantity: 1, seals: ["drain"] });
     getPlayer(state).stats!.hp = 10;
     enemy(state, { x: 11, y: 10 }, "monster.ash-rat", 100);
@@ -177,7 +177,7 @@ describe("固有技", () => {
 });
 
 describe("敵の振る舞い", () => {
-  test("骨の従僕は鈍器でなければ一度崩れて起き上がる", () => {
+  test("スケルトンは鈍器でなければ一度崩れて起き上がる", () => {
     const blade = arena("role.oathbound", { contentId: "item.rusted-sword", quantity: 1 });
     enemy(blade, { x: 11, y: 10 }, "monster.bone-thrall", 1, 0, "bones");
     const after = applyAction(blade, { type: "move", direction: "east" });
@@ -194,7 +194,7 @@ describe("敵の振る舞い", () => {
     expect(next.entities.filter((entity) => entity.contentId === "monster.acid-ooze")).toHaveLength(2);
   });
 
-  test("影小鬼は携行品を盗んで逃げ、倒せば取り返せる", () => {
+  test("インプは携行品を盗んで逃げ、倒せば取り返せる", () => {
     const state = arena();
     getPlayer(state).inventory = [{ contentId: "item.ember-tonic", quantity: 1 }];
     const imp = enemy(state, { x: 11, y: 10 }, "monster.shadow-imp", 5, 0, "imp");
@@ -211,7 +211,7 @@ describe("敵の振る舞い", () => {
     const moved = applyAction(state, { type: "wait" });
     expect(moved.entities.find((entity) => entity.id === "bat")?.pos).toEqual({ x: 11, y: 10 });
     const bitten = applyAction(moved, { type: "wait" });
-    expect(bitten.messages.filter((message) => message.text.startsWith("毒羽の蝙蝠はあなたに")).length).toBe(1);
+    expect(bitten.messages.filter((message) => message.text.startsWith("毒コウモリはあなたに")).length).toBe(1);
   });
 
   test("突進は一直線に予告し、横へ外れれば空を切る", () => {
@@ -258,7 +258,7 @@ describe("階の変化", () => {
     elite.stats!.hp = 1;
     const next = applyAction(state, { type: "move", direction: "east" });
     const drop = next.entities.find((entity) => entity.kind === "item" && getGameConfig().equipment[entity.contentId]);
-    expect(next.messages.some((message) => message.text.includes("剛力の灰かぶり鼠を倒した"))).toBe(true);
+    expect(next.messages.some((message) => message.text.includes("剛力の大ネズミを倒した"))).toBe(true);
     expect(drop?.seals?.length).toBeGreaterThanOrEqual(1);
   });
 });

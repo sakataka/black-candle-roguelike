@@ -38,7 +38,7 @@ export const observerShellMarkup = `
     <section class="stage" aria-label="黒燭越しの迷宮">
       <div class="map-stage" id="map-stage">
         <div id="pixi-root" class="pixi-root"></div>
-        <div class="boss-health" id="boss-health" aria-label="視界内の守り手の命火" hidden></div>
+        <div class="boss-health" id="boss-health" aria-label="視界内の守り手のHP" hidden></div>
         <div class="battle-forecast" id="battle-forecast" aria-label="見えている攻撃の予告"></div>
         <p class="delver-voice sr-only" id="delver-voice" aria-live="polite"></p>
         <button type="button" id="lantern-call" class="lantern-call" hidden></button>

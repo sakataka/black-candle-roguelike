@@ -127,14 +127,14 @@
       "tactic.trap-reader": {
         "locked": true,
         "label": "罠を読む",
-        "description": "運命の標に手を出さず、既知の罠は長く行き詰まるまで踏まない。罠回避+15%。",
+        "description": "運試しの床に手を出さず、既知の罠は長く行き詰まるまで踏まない。罠回避+15%。",
         "set": { "avoidRiskPanels": true, "trapPatience": 45 },
         "perks": { "trapAvoidPercent": 15 }
       },
       "tactic.dart-volley": {
         "locked": true,
         "label": "投げ針を惜しまない",
-        "description": "燠火の投げ針を5本余分に携え、見えた敵へ遠くからでも放つ。",
+        "description": "投げ針を5本余分に携え、見えた敵へ遠くからでも放つ。",
         "add": { "dartMinHp": -0.2, "dartRange": 2 },
         "grantItems": [{ "contentId": "item.ember-dart", "quantity": 5 }]
       }
@@ -344,7 +344,7 @@
       ],
       "traits": {
         "focus": "寄り道部屋の調査と遺物回収",
-        "strengths": ["部屋へ入ると周辺の地図を読む", "構造物に強いつるはしと解錠具を持つ"],
+        "strengths": ["部屋へ入ると周辺の地図を読む", "構造物に強いつるはしと解錠道具を持つ"],
         "traitLabels": ["部屋調査: 周囲5マス", "構造物特効"],
         "roomRevealRadius": 5,
         "trapAvoidPercent": 8,
@@ -403,9 +403,9 @@
         { "contentId": "item.trapweave-cloak", "quantity": 1, "equipped": true }
       ],
       "traits": {
-        "focus": "罠を避け、封じた箱から追加の古銭を得る",
-        "strengths": ["解錠具なしで小箱と聖櫃を開ける", "解錠で追加古銭を得る"],
-        "traitLabels": ["解錠具不要", "解錠: 古銭+12", "罠回避 +15%"],
+        "focus": "罠を避け、封じた箱から追加の金貨を得る",
+        "strengths": ["解錠道具なしで小箱と聖櫃を開ける", "解錠で追加金貨を得る"],
+        "traitLabels": ["解錠道具不要", "解錠: 金貨+12", "罠回避 +15%"],
         "trapAvoidPercent": 15,
         "lockpickBonusGold": 12,
         "truthId": "furnace-map",
@@ -525,7 +525,7 @@
       "swarm": { "label": "群れの気配", "description": "獣の群れがうろついている。敵が多い。", "weight": 3, "minFloor": 2, "notBossFloor": true, "monsterCountDelta": 4 },
       "hunger": {
         "label": "飢えた階",
-        "description": "薬が見つからない。代わりに修復の小祭壇がある。",
+        "description": "薬が見つからない。代わりに癒しの祭壇がある。",
         "weight": 2,
         "minFloor": 3,
         "noHealingItems": true,
@@ -543,7 +543,7 @@
     "affixes": {
       "swift": { "prefix": "俊足の", "hpScale": 1.5, "attackBonus": 1, "defenseBonus": 0, "xpScale": 2, "behavior": { "fast": true } },
       "brute": { "prefix": "剛力の", "hpScale": 1.8, "attackBonus": 3, "defenseBonus": 0, "xpScale": 2, "behavior": {} },
-      "ironhide": { "prefix": "鉄皮の", "hpScale": 1.6, "attackBonus": 1, "defenseBonus": 3, "xpScale": 2, "behavior": { "shielded": 40 } },
+      "ironhide": { "prefix": "鋼鉄の", "hpScale": 1.6, "attackBonus": 1, "defenseBonus": 3, "xpScale": 2, "behavior": { "shielded": 40 } },
       "vampiric": { "prefix": "吸血の", "hpScale": 1.6, "attackBonus": 1, "defenseBonus": 0, "xpScale": 2, "behavior": { "drain": 3 } },
       "undying": { "prefix": "不滅の", "hpScale": 1.5, "attackBonus": 1, "defenseBonus": 1, "xpScale": 2, "behavior": { "regenerate": 3 } }
     }
@@ -789,10 +789,10 @@
     "bow": { "label": "弓", "description": "離れた敵を射る。近接は苦手。" }
   },
   "skills": {
-    "oath-strike": { "label": "誓剣", "description": "隣の敵へ誓いを込めた一撃。守り手にはさらに深く、倒せば傷が少し塞がる。", "cooldown": 7, "scale": 2, "bossScale": 2.5, "healOnKill": 6 },
-    "pin-shot": { "label": "縫い止め", "description": "5マス以内の敵へ狙い澄ました一撃を放ち、2手その場に縫い止める。", "cooldown": 6, "range": 5, "scale": 1.2, "turns": 2 },
+    "oath-strike": { "label": "誓いの一撃", "description": "隣の敵へ誓いを込めた一撃。守り手にはさらに深く、倒せば傷が少し塞がる。", "cooldown": 7, "scale": 2, "bossScale": 2.5, "healOnKill": 6 },
+    "pin-shot": { "label": "足止め射撃", "description": "5マス以内の敵へ狙い澄ました一撃を放ち、2手その場に縫い止める。", "cooldown": 6, "range": 5, "scale": 1.2, "turns": 2 },
     "sanctify": {
-      "label": "聖灯",
+      "label": "聖なる光",
       "description": "周囲3マスの敵を灯で焼いて怯ませ、自分の傷を塞いで毒と出血を払う。亡者と悪魔には倍の傷。",
       "cooldown": 10,
       "range": 3,
@@ -803,49 +803,49 @@
       "heal": 2
     },
     "appraise": { "label": "看破", "description": "狙った敵とその周りの敵の継ぎ目を見抜く。しばらく防御と盾が効かず、受ける傷が増える。", "cooldown": 5, "range": 6, "turns": 6, "radius": 2 },
-    "ash-flask": { "label": "灰毒の瓶", "description": "灰毒の瓶を投げ、当たった敵と周りを焼いて毒を残す。", "cooldown": 7, "range": 4, "damage": 4, "damagePerLevel": 0.5, "turns": 4 },
+    "ash-flask": { "label": "毒の瓶", "description": "毒の瓶を投げ、当たった敵と周りを焼いて毒を残す。", "cooldown": 7, "range": 4, "damage": 4, "damagePerLevel": 0.5, "turns": 4 },
     "charge": { "label": "突進", "description": "2〜4マス先の敵へ一直線に詰め寄り、重い一撃で怯ませる。", "cooldown": 8, "range": 4, "scale": 1.5, "turns": 1 },
     "shadowstep": { "label": "影渡り", "description": "見えている敵の陰へ渡り、不意打ちを入れる。", "cooldown": 8, "range": 5 }
   },
   "legacies": {
     "role.oathbound": {
-      "label": "誓剣の継承",
-      "description": "誓約の探索者の踏破で解放。会心の印を刻んだ銀祓いの刃+2。",
+      "label": "ナイトの継承",
+      "description": "ナイトの踏破で解放。会心の印を刻んだシルバーサーベル+2。",
       "items": [{ "contentId": "item.silver-banishing-saber", "quantity": 1, "plus": 2, "seals": ["keen"] }]
     },
     "role.ash-scout": {
-      "label": "灰弓の継承",
-      "description": "灰弓の斥候の踏破で解放。会心の印を刻んだ狩人の長弓+2。",
+      "label": "レンジャーの継承",
+      "description": "レンジャーの踏破で解放。会心の印を刻んだロングボウ+2。",
       "items": [{ "contentId": "item.hunter-longbow", "quantity": 1, "plus": 2, "seals": ["keen"] }]
     },
     "role.lantern-priest": {
-      "label": "灯火の継承",
-      "description": "灯火の祈祷者の踏破で解放。傷と穢れを払う墓陽の護符を2つ。",
+      "label": "プリーストの継承",
+      "description": "プリーストの踏破で解放。傷と穢れを払う清めのお守りを2つ。",
       "items": [{ "contentId": "item.grave-sun-charm", "quantity": 2 }]
     },
     "role.relic-surveyor": {
-      "label": "遺物の継承",
-      "description": "遺物調査員の踏破で解放。探索の指輪と地脈図の巻物2枚。",
+      "label": "トレジャーハンターの継承",
+      "description": "トレジャーハンターの踏破で解放。探索の指輪と地図の巻物2枚。",
       "items": [{ "contentId": "item.searcher-ring", "quantity": 1 }, { "contentId": "item.mapping-scroll", "quantity": 2 }]
     },
     "role.ash-apothecary": {
-      "label": "薬師の継承",
-      "description": "灰薬師の踏破で解放。紅蓮の大薬瓶と血苔の軟膏を2つずつ。",
+      "label": "アルケミストの継承",
+      "description": "アルケミストの踏破で解放。上級回復薬と治療の軟膏を2つずつ。",
       "items": [{ "contentId": "item.greater-tonic", "quantity": 2 }, { "contentId": "item.bloodmoss-salve", "quantity": 2 }]
     },
     "role.iron-oath-vanguard": {
-      "label": "鉄誓の継承",
-      "description": "鉄誓の重戦士の踏破で解放。砕骨の印を刻んだ鉄割りの大斧+1。",
+      "label": "ウォーリアの継承",
+      "description": "ウォーリアの踏破で解放。破砕の印を刻んだグレートアックス+1。",
       "items": [{ "contentId": "item.ironbreaker-greataxe", "quantity": 1, "plus": 1, "seals": ["crush"] }]
     },
     "role.keyshadow-rogue": {
-      "label": "影の継承",
-      "description": "鍵影の盗賊の踏破で解放。毒刃の印を刻んだ影縫いの短刀+2。",
+      "label": "シーフの継承",
+      "description": "シーフの踏破で解放。毒刃の印を刻んだアサシンダガー+2。",
       "items": [{ "contentId": "item.shadowstitch-dagger", "quantity": 1, "plus": 2, "seals": ["venom"] }]
     }
   },
   "seals": {
-    "drain": { "glyph": "吸", "label": "吸命", "description": "与えた傷の一部を命火に変える。", "slots": ["weapon"], "weight": 3, "drainPercent": 25 },
+    "drain": { "glyph": "吸", "label": "吸血", "description": "与えた傷の一部をHPに変える。", "slots": ["weapon"], "weight": 3, "drainPercent": 25 },
     "keen": { "glyph": "会", "label": "会心", "description": "時折、深く斬り込む。", "slots": ["weapon"], "weight": 4, "critPercent": 15, "critMultiplier": 1.8 },
     "holy": {
       "glyph": "浄",
@@ -857,7 +857,7 @@
     },
     "crush": {
       "glyph": "砕",
-      "label": "砕骨",
+      "label": "破砕",
       "description": "構造物を砕く。",
       "slots": ["weapon"],
       "weight": 2,
@@ -866,7 +866,7 @@
     },
     "hunt": {
       "glyph": "狩",
-      "label": "狩猟",
+      "label": "獣狩り",
       "description": "獣に深く効く。",
       "slots": ["weapon"],
       "weight": 3,
@@ -888,7 +888,7 @@
       "weight": 3,
       "inflict": { "kind": "venomed", "turns": 4, "chancePercent": 35 }
     },
-    "stun": { "glyph": "揺", "label": "揺打", "description": "打った敵を時折怯ませる。", "slots": ["weapon"], "weight": 3, "dazeChancePercent": 15 },
+    "stun": { "glyph": "強", "label": "強打", "description": "打った敵を時折怯ませる。", "slots": ["weapon"], "weight": 3, "dazeChancePercent": 15 },
     "heavy": { "glyph": "重", "label": "重量", "description": "強いが身のこなしが鈍る。", "slots": ["weapon", "armor"], "weight": 3, "powerDelta": 2, "trapAvoidPercent": -8 },
     "worn": { "glyph": "欠", "label": "欠け", "description": "傷んでいて力が落ちる。", "slots": ["weapon", "armor", "shield"], "weight": 2, "powerDelta": -1 },
     "thorns": { "glyph": "棘", "label": "棘返し", "description": "近接で殴ってきた敵に痛みを返す。", "slots": ["armor", "shield"], "weight": 3, "thorns": 2 },
@@ -903,7 +903,7 @@
     },
     "antivenom": { "glyph": "解", "label": "解毒", "description": "毒を寄せつけない。", "slots": ["armor", "shield"], "weight": 2, "resist": ["venomed"] },
     "staunch": { "glyph": "止", "label": "血止め", "description": "出血を寄せつけない。", "slots": ["armor", "shield"], "weight": 2, "resist": ["bleeding"] },
-    "light": { "glyph": "軽", "label": "軽身", "description": "罠を避けやすい。", "slots": ["armor"], "weight": 3, "trapAvoidPercent": 10 },
+    "light": { "glyph": "軽", "label": "身軽", "description": "罠を避けやすい。", "slots": ["armor"], "weight": 3, "trapAvoidPercent": 10 },
     "arrowward": { "glyph": "矢", "label": "矢避け", "description": "遠隔の攻撃を受け流す。", "slots": ["armor", "shield"], "weight": 3, "rangedDefense": 2 },
     "rustproof": { "glyph": "錆", "label": "錆止め", "description": "装備が錆びない。", "slots": ["weapon", "armor", "shield"], "weight": 2, "rustproof": true }
   },

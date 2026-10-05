@@ -597,7 +597,7 @@ function chooseSkillAction(observation: GameObservation, hpRatio: number, combat
       return target ? use(target.id) : null;
     }
     case "pin-shot": {
-      // 迫ってくる強敵か射手を縫い止め、その間に射る・突く。
+      // 迫ってくる強敵か射手を足止め射撃で止め、その間に射る・突く。
       const target = near(5).filter((entity) => strong(entity) || isRangedThreat(entity.contentId) || distance(entity.pos, me) <= 1)
         .sort((a, b) => Number(strong(b)) - Number(strong(a)) || distance(a.pos, me) - distance(b.pos, me))[0];
       return target ? use(target.id) : null;

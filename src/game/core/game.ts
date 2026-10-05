@@ -1017,7 +1017,7 @@ function moveActor(state: GameState, actorId: string, delta: Point): GameState {
       if (radius) {
         revealAround(state, target, radius);
         state.runObjectives.roleGoalProgress += 1;
-        state.messages = pushMessage(state, "遺物調査員が周囲の構造を読み、道筋を記録した。", "explore");
+        state.messages = pushMessage(state, "トレジャーハンターが周囲の構造を読み、道筋を記録した。", "explore");
       }
     }
     const floorEvent = state.entities.find((entity) => entity.kind === "event" && samePoint(entity.pos, target));
@@ -1063,7 +1063,7 @@ function triggerTrap(state: GameState, actor: Entity, trapEntity: Entity): GameS
   if (trapKind === "blood-needle") {
     actor.stats.hp -= damage;
     actor.conditions = actor.kind === "player" && trapEffect.condition && trapEffect.turns ? upsertCondition(actor.conditions, trapEffect.condition, trapEffect.turns) : actor.conditions;
-    state.messages = pushMessage(state, `${actorName}が血針罠を踏み、黒い針に裂かれた。`, actor.kind === "player" ? "danger" : "combat");
+    state.messages = pushMessage(state, `${actorName}が針の罠を踏み、黒い針に裂かれた。`, actor.kind === "player" ? "danger" : "combat");
   } else if (trapKind === "venom-mist") {
     actor.stats.hp -= damage;
     actor.conditions = actor.kind === "player" && trapEffect.condition && trapEffect.turns ? upsertCondition(actor.conditions, trapEffect.condition, trapEffect.turns) : actor.conditions;
@@ -1071,7 +1071,7 @@ function triggerTrap(state: GameState, actor: Entity, trapEntity: Entity): GameS
   } else {
     actor.stats.hp -= damage;
     revealAround(state, trapEntity.pos, trapEffect.revealRadius ?? 3);
-    state.messages = pushMessage(state, `${actorName}の足元で崩れ床が割れ、落石が降った。`, actor.kind === "player" ? "danger" : "combat");
+    state.messages = pushMessage(state, `${actorName}の足元で崩れる床が割れ、落石が降った。`, actor.kind === "player" ? "danger" : "combat");
   }
   state.entities = state.entities.filter((entity) => entity.id !== trapEntity.id);
   if (actor.stats.hp <= 0) {
@@ -1118,7 +1118,7 @@ function triggerRiskPanel(state: GameState, actor: Entity, trapEntity: Entity): 
   if (roll <= 20) {
     actor.stats.hp -= 4 + Math.floor(state.floor / 2);
     actor.conditions = actor.kind === "player" ? upsertCondition(actor.conditions, "bleeding", 5) : actor.conditions;
-    state.messages = pushMessage(state, `${actorName}が運命の標を踏み、血針が跳ね上がった。`, tone);
+    state.messages = pushMessage(state, `${actorName}が運試しの床を踏み、血針が跳ね上がった。`, tone);
   } else if (roll <= 38) {
     actor.stats.hp -= 2 + Math.floor(state.floor / 3);
     actor.conditions = actor.kind === "player" ? upsertCondition(actor.conditions, "venomed", 5) : actor.conditions;
@@ -1130,31 +1130,31 @@ function triggerRiskPanel(state: GameState, actor: Entity, trapEntity: Entity): 
   } else if (actor.kind === "player" && roll <= 68) {
     const healed = Math.min(10 + Math.floor(state.floor / 2), actor.stats.maxHp - actor.stats.hp);
     actor.stats.hp += healed;
-    state.messages = pushMessage(state, `運命の標が白く灯り、HPが${healed}回復した。`, "loot");
+    state.messages = pushMessage(state, `運試しの床が白く灯り、HPが${healed}回復した。`, "loot");
   } else if (actor.kind === "player" && roll <= 82) {
     revealAround(state, trapEntity.pos, 8);
-    state.messages = pushMessage(state, "運命の標が割れ、周囲の部屋と通路が浮かび上がった。", "explore");
+    state.messages = pushMessage(state, "運試しの床が割れ、周囲の部屋と通路が浮かび上がった。", "explore");
   } else if (actor.kind === "player" && roll <= 93) {
     const amount = 18 + state.floor * 5 + rng.int(0, 12);
     state.playerProgress = normalizeProgress({ ...state.playerProgress, gold: state.playerProgress.gold + amount });
-    state.messages = pushMessage(state, `運命の標から古銭がこぼれ、${amount} Goldを得た。`, "loot");
+    state.messages = pushMessage(state, `運試しの床から金貨がこぼれ、${amount} Goldを得た。`, "loot");
   } else if (actor.kind === "player") {
     actor.conditions = upsertCondition(actor.conditions, "guarded", 8);
     actor.stats.defense = baseDefense(state) + defenseBonus(actor);
-    state.messages = pushMessage(state, "運命の標が盾の紋に変わり、短い護りを得た。", "loot");
+    state.messages = pushMessage(state, "運試しの床が盾の紋に変わり、短い護りを得た。", "loot");
   } else {
     actor.stats.hp -= 4 + Math.floor(state.floor / 2);
-    state.messages = pushMessage(state, `${actorName}が運命の標の反動を受けた。`, "combat");
+    state.messages = pushMessage(state, `${actorName}が運試しの床の反動を受けた。`, "combat");
   }
 
   if (actor.stats.hp <= 0) {
     if (actor.kind === "player") {
       state.status = "lost";
       state.story.killedBy = { cause: "trap", contentId: trapEntity.contentId };
-      state.messages = pushMessage(state, "運命の標に命を奪われ、迷宮の暗闇に沈んだ。", "danger");
+      state.messages = pushMessage(state, "運試しの床に命を奪われ、迷宮の暗闇に沈んだ。", "danger");
     } else {
       state.entities = state.entities.filter((entity) => entity.id !== actor.id);
-      state.messages = pushMessage(state, `${getContentName(actor.contentId)}は運命の標に倒れた。`, "combat");
+      state.messages = pushMessage(state, `${getContentName(actor.contentId)}は運試しの床に倒れた。`, "combat");
     }
   }
   return state;
@@ -1187,7 +1187,7 @@ function resolveEvent(state: GameState, eventEntity: Entity): GameState {
     const xp = eventConfig?.xp ?? 6;
     state.playerProgress = normalizeProgress({ ...state.playerProgress, xp: state.playerProgress.xp + xp });
     state.entities = state.entities.filter((entity) => entity.id !== eventEntity.id);
-    state.messages = pushMessage(state, `血文字の碑文がほどけ、失われた探索者の記憶を得た。${xp} XPを得た。`, "explore");
+    state.messages = pushMessage(state, `血文字の石碑がほどけ、失われた探索者の記憶を得た。${xp} XPを得た。`, "explore");
     return applyLevelUps(state);
   }
   if (eventEntity.contentId === "event.mend-shrine") {
@@ -1210,13 +1210,13 @@ function resolveEvent(state: GameState, eventEntity: Entity): GameState {
       player.conditions = upsertCondition(player.conditions, eventConfig.condition.kind, eventConfig.condition.turns);
     }
     state.entities = state.entities.filter((entity) => entity.id !== eventEntity.id);
-    state.messages = pushMessage(state, `呪われた小箱から${amount} Goldを得たが、黒い刃で出血した。`, "danger");
+    state.messages = pushMessage(state, `呪われた宝箱から${amount} Goldを得たが、黒い刃で出血した。`, "danger");
     return state;
   }
   if (eventEntity.contentId === "event.warning-brazier") {
     revealAround(state, eventEntity.pos, eventConfig?.revealRadius ?? 7);
     state.entities = state.entities.filter((entity) => entity.id !== eventEntity.id);
-    state.messages = pushMessage(state, "警告の火皿が燃え上がり、周囲の通路が頭に刻まれた。", "explore");
+    state.messages = pushMessage(state, "かがり火が燃え上がり、周囲の通路が頭に刻まれた。", "explore");
     return state;
   }
   if (eventEntity.contentId === "event.dread-altar") {
@@ -1228,20 +1228,20 @@ function resolveEvent(state: GameState, eventEntity: Entity): GameState {
     }
     state = applyPriestCleansingGoal(state);
     state.entities = state.entities.filter((entity) => entity.id !== eventEntity.id);
-    state.messages = pushMessage(state, `忌み祭壇が低く鳴り、${revealed}個の罠の気配が床に残った。`, revealed > 0 ? "explore" : "danger");
+    state.messages = pushMessage(state, `呪いの祭壇が低く鳴り、${revealed}個の罠の気配が床に残った。`, revealed > 0 ? "explore" : "danger");
     return state;
   }
   if (eventEntity.contentId === "event.furnace-control-stone") {
     state.runObjectives = { ...state.runObjectives, lateEnemiesWeakened: true };
     weakenLateEnemies(state);
     state.entities = state.entities.filter((entity) => entity.id !== eventEntity.id);
-    state.messages = pushMessage(state, "炉心制御碑を砕いた。終盤階層の通常敵の火勢が弱まった。", "danger");
+    state.messages = pushMessage(state, "炉の制御石を砕いた。終盤階層の通常敵の火勢が弱まった。", "danger");
     return state;
   }
   if (eventEntity.contentId === "event.seal-key") {
     state.runObjectives = { ...state.runObjectives, bossRewardBonus: state.runObjectives.bossRewardBonus + (eventConfig?.bossRewardBonus ?? 1) };
     state.entities = state.entities.filter((entity) => entity.id !== eventEntity.id);
-    state.messages = pushMessage(state, "封印鍵を拾い上げた。次の守り手が抱える遺物の封が少し緩む。", "loot");
+    state.messages = pushMessage(state, "封印の鍵を拾い上げた。次の守り手が抱える遺物の封が少し緩む。", "loot");
     return state;
   }
   if (eventEntity.contentId === "event.broken-armory") {
@@ -1303,7 +1303,7 @@ function mournAtGrave(state: GameState, eventEntity: Entity): GameState {
   if (state.expedition && grave.lesson) {
     state.modifiers.lessons = [...new Set([...(state.modifiers.lessons ?? []), grave.lesson])];
     state.expedition.memories = [...state.expedition.memories, { name: grave.name, echoes: structuredClone(grave.echoes ?? []), lesson: grave.lesson }].slice(-3);
-    for (const echo of grave.echoes ?? []) state.messages = pushMessage(state, `${grave.name}の残響: ${echo.action}（命火${echo.hp}）。`, "system");
+    for (const echo of grave.echoes ?? []) state.messages = pushMessage(state, `${grave.name}の残響: ${echo.action}（HP${echo.hp}）。`, "system");
     state.messages = pushMessage(state, `${grave.name}の経験を受け継いだ。${grave.lesson === "ranged" ? "射線と遮蔽を重く見る" : grave.lesson === "traps" ? "罠の危険を重く見る" : "早めの回復を心がける"}。`, "system");
   }
   state.messages = pushMessage(state, `${grave.name}の墓標に祈りを捧げた。${recovered.length ? `${recovered.join("と")}を受け継いだ。` : "静かな灯が揺れた。"}`, "loot");
@@ -1335,9 +1335,9 @@ function triggerScoutCache(state: GameState, eventEntity: Entity): GameState {
     addInventoryItem(player, "item.ember-dart", 2);
     addInventoryItem(player, "item.glim-map", 1);
     state.runObjectives = { ...state.runObjectives, roleGoalProgress: state.runObjectives.roleGoalProgress + 1 };
-    state.messages = pushMessage(state, "灰弓の隠し印を読み、予備の投げ針と小地図を回収した。", "loot");
+    state.messages = pushMessage(state, "レンジャーの道しるべを読み、予備の投げ針と小地図を回収した。", "loot");
   } else {
-    state.messages = pushMessage(state, "古い斥候の印から、近くの道筋だけを読み取った。", "explore");
+    state.messages = pushMessage(state, "レンジャーの道しるべから、近くの道筋だけを読み取った。", "explore");
   }
   state.entities = state.entities.filter((entity) => entity.id !== eventEntity.id);
   return state;
@@ -1356,7 +1356,7 @@ function triggerLanternFont(state: GameState, eventEntity: Entity): GameState {
       player.stats.defense = baseDefense(state) + defenseBonus(player);
     }
     state.runObjectives = { ...state.runObjectives, roleGoalProgress: state.runObjectives.roleGoalProgress + 1 };
-    state.messages = pushMessage(state, "灯火の泉が穢れを払い、祈祷者の灯を強めた。", "loot");
+    state.messages = pushMessage(state, "灯火の泉が穢れを払い、プリーストの灯を強めた。", "loot");
   } else {
     state.messages = pushMessage(state, "灯火の泉で傷を少し洗い流した。", "loot");
   }
@@ -1449,7 +1449,7 @@ function openCandleGallery(state: GameState, eventEntity: Entity): GameState {
     state.entities.push(item(`${reward}.gallery.${state.turn}`, reward, rewardPoint, state.floor, rngForFloor(state.seed + state.turn + 41, state.floor)));
   }
   state.entities = state.entities.filter((entity) => entity.id !== eventEntity.id);
-  state.messages = pushMessage(state, "燭台廊に火が移り、部屋の輪郭と待ち伏せが浮かび上がった。", "danger");
+  state.messages = pushMessage(state, "燭台の回廊に火が移り、部屋の輪郭と待ち伏せが浮かび上がった。", "danger");
   return state;
 }
 
@@ -1497,7 +1497,7 @@ function openFurnaceChamber(state: GameState, eventEntity: Entity): GameState {
   }
   revealAround(state, eventEntity.pos, 5);
   state.entities = state.entities.filter((entity) => entity.id !== eventEntity.id);
-  state.messages = pushMessage(state, "炉心室が唸り、遮蔽と崩れ床の向こうに守り手の影が立った。", "danger");
+  state.messages = pushMessage(state, "炉心室が唸り、遮蔽と崩れる床の向こうに守り手の影が立った。", "danger");
   return state;
 }
 
@@ -1617,7 +1617,7 @@ function dropBonusBossRewards(state: GameState, defeatedPos: Point): GameState {
     state.entities.push(item(`${contentId}.boss-bonus.${state.floor}.${state.turn}.${index}`, contentId, point, state.floor, rng));
   }
   state.runObjectives = { ...state.runObjectives, bossRewardBonus: Math.max(0, bonus - rewards.length) };
-  state.messages = pushMessage(state, "封印鍵の力で、守り手の遺物から追加の報酬がこぼれた。", "loot");
+  state.messages = pushMessage(state, "封印の鍵の力で、守り手の遺物から追加の報酬がこぼれた。", "loot");
   return state;
 }
 
@@ -1650,7 +1650,7 @@ function applyScoutMappingGoal(state: GameState): GameState {
     player.inventory.push({ contentId: bonusItem, quantity: 1 });
   }
   state.runObjectives = { ...state.runObjectives, roleGoalProgress: state.runObjectives.roleGoalProgress + 1 };
-  state.messages = pushMessage(state, "灰弓の斥候は地図の余白を読み、追加の道筋と投げ針を確保した。", "loot");
+  state.messages = pushMessage(state, "レンジャーは地図の余白を読み、追加の道筋と投げ針を確保した。", "loot");
   return state;
 }
 
@@ -1660,7 +1660,7 @@ function applyPriestCleansingGoal(state: GameState): GameState {
     const healed = Math.min(roleTraits(player.contentId)!.cleansingHeal!, player.stats.maxHp - player.stats.hp);
     player.stats.hp += healed;
     state.runObjectives.roleGoalProgress += 1;
-    state.messages = pushMessage(state, `灰薬師は薬の残り香を整え、HPが${healed}回復した。`, "loot");
+    state.messages = pushMessage(state, `アルケミストは薬の残り香を整え、HPが${healed}回復した。`, "loot");
     return state;
   }
   if (player.contentId !== "role.lantern-priest" || !player.stats) {
@@ -1670,7 +1670,7 @@ function applyPriestCleansingGoal(state: GameState): GameState {
   player.conditions = upsertCondition(player.conditions, "guarded", roleTraits(player.contentId)?.priestGuardedTurns ?? 6);
   player.stats.defense = baseDefense(state) + defenseBonus(player);
   state.runObjectives = { ...state.runObjectives, roleGoalProgress: state.runObjectives.roleGoalProgress + 1 };
-  state.messages = pushMessage(state, "灯火の祈祷者は浄化の余熱を護りに変えた。", "loot");
+  state.messages = pushMessage(state, "プリーストは浄化の余熱を護りに変えた。", "loot");
   return state;
 }
 
@@ -1803,7 +1803,7 @@ function useItem(state: GameState, contentId: string, targetId?: string): GameSt
     player.stats.hp += healed;
     player.conditions = clearConditions(player.conditions, consumable?.cureConditions ?? ["bleeding", "venomed"]);
     consumeInventoryEntry(player, entry);
-    state.messages = pushMessage(state, `血苔の軟膏でHPが${healed}回復し、毒と出血を抑えた。`, "loot");
+    state.messages = pushMessage(state, `治療の軟膏でHPが${healed}回復し、毒と出血を抑えた。`, "loot");
     state = applyPriestCleansingGoal(state);
     return state;
   }
@@ -1826,7 +1826,7 @@ function useItem(state: GameState, contentId: string, targetId?: string): GameSt
   if (contentId === "item.glim-map" || (consumable?.revealRadius && !consumable.heal && !consumable.pushVisibleMonsters && !consumable.guardedTurns)) {
     revealAround(state, player.pos, consumable?.revealRadius ?? 8);
     consumeInventoryEntry(player, entry);
-    state.messages = pushMessage(state, "微光の小地図が開き、近くの部屋と通路が浮かび上がった。", "loot");
+    state.messages = pushMessage(state, "簡易地図が開き、近くの部屋と通路が浮かび上がった。", "loot");
     state = applyScoutMappingGoal(state);
     return state;
   }
@@ -1842,7 +1842,7 @@ function useItem(state: GameState, contentId: string, targetId?: string): GameSt
     revealAround(state, player.pos, consumable?.revealRadius ?? 12);
     const pushed = pushVisibleMonstersAway(state, player.pos);
     consumeInventoryEntry(player, entry);
-    state.messages = pushMessage(state, `虚空の角晶が割れ、広い範囲を照らして${pushed}体の敵を遠ざけた。`, "loot");
+    state.messages = pushMessage(state, `虚空のプリズムが割れ、広い範囲を照らして${pushed}体の敵を遠ざけた。`, "loot");
     state = applyScoutMappingGoal(state);
     return state;
   }
@@ -1856,7 +1856,7 @@ function useItem(state: GameState, contentId: string, targetId?: string): GameSt
       player.stats.defense = baseDefense(state) + defenseBonus(player);
     }
     consumeInventoryEntry(player, entry);
-    state.messages = pushMessage(state, `墓陽の護符でHPが${healed}回復し、毒と出血を払い、短い護りを得た。`, "loot");
+    state.messages = pushMessage(state, `清めのお守りでHPが${healed}回復し、毒と出血を払い、短い護りを得た。`, "loot");
     state = applyPriestCleansingGoal(state);
     return state;
   }
@@ -1865,7 +1865,7 @@ function useItem(state: GameState, contentId: string, targetId?: string): GameSt
     player.conditions = upsertCondition(player.conditions, "guarded", consumable?.guardedTurns ?? 24);
     player.stats.defense = baseDefense(state) + defenseBonus(player);
     consumeInventoryEntry(player, entry);
-    state.messages = pushMessage(state, "巨像の炉心片が脈打ち、長めの護りを得た。", "loot");
+    state.messages = pushMessage(state, "巨像のコアが脈打ち、長めの護りを得た。", "loot");
     return state;
   }
 
@@ -1930,7 +1930,7 @@ function resolveRoomReward(state: GameState, source: Entity, config: GameConfig[
   const traits = roleTraits(player.contentId);
   const tool = player.inventory?.find((entry) => getGameConfig().consumables[entry.contentId]?.unlockCache && entry.quantity > 0);
   const unlocked = !config.locked || !!traits?.lockpickBonusGold || !!tool;
-  // 解錠具がなくても遠征を止めない。こじ開けると少し傷つく。
+  // 解錠道具がなくても遠征を止めない。こじ開けると少し傷つく。
   if (config.locked && !unlocked && player.stats) {
     const damage = getGameConfig().expansion?.forcedLockDamage ?? 3;
     player.stats.hp -= damage;
@@ -1959,7 +1959,7 @@ function resolveRoomReward(state: GameState, source: Entity, config: GameConfig[
     state.entities.push(item(`${source.id}.reward`, loot, { ...source.pos }, state.floor, rng));
   }
   state.entities = state.entities.filter((entity) => entity.id !== source.id);
-  state.messages = pushMessage(state, `${getContentName(source.contentId)}を調べ、残された遺物を回収した。${gold ? `古銭+${gold}。` : ""}`, "loot");
+  state.messages = pushMessage(state, `${getContentName(source.contentId)}を調べ、残された遺物を回収した。${gold ? `金貨+${gold}。` : ""}`, "loot");
   return applyLevelUps(state);
 }
 
@@ -2306,7 +2306,7 @@ function reflectRangedStrike(state: GameState, attacker: Entity, defender: Entit
     if (reflected > 0) {
       attacker.stats.hp -= reflected;
       recordStrike(state, defender, attacker, true);
-      state.messages = pushMessage(state, `反射の盾が光を返し、${getContentName(attacker.contentId)}へ${reflected}ダメージを与えた。`, "combat");
+      state.messages = pushMessage(state, `ミラーシールドが光を返し、${getContentName(attacker.contentId)}へ${reflected}ダメージを与えた。`, "combat");
       if (attacker.stats.hp <= 0) state = defeatMonster(state, attacker);
     }
   }
@@ -2501,7 +2501,7 @@ function updateAwareness(state: GameState, monsterEntity: Entity, player: Entity
 
 function shouldKeepDistance(contentId: string): boolean {
   if (getGameConfig().expansion?.monsterTraits[contentId]?.keepDistance) return true;
-  // 影小鬼は盗人になったので距離を取らず、盗んでから逃げる。
+  // インプは盗人になったので距離を取らず、盗んでから逃げる。
   return contentId === "monster.hollow-archer" || contentId === "monster.cinder-cultist" || contentId === "monster.ash-warlock";
 }
 
@@ -2563,7 +2563,7 @@ function tickPlayerConditions(state: GameState): GameState {
     const healed = Math.min(rules.moonlitMailRegenAmount, player.stats.maxHp - player.stats.hp);
     if (healed > 0) {
       player.stats.hp += healed;
-      state.messages = pushMessage(state, "月光鎖帷子が淡く脈打ち、HPが1回復した。", "loot");
+      state.messages = pushMessage(state, "ムーンライトメイルが淡く脈打ち、HPが1回復した。", "loot");
     }
   }
   if (!player.conditions?.length) {

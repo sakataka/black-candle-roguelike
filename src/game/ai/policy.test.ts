@@ -15,7 +15,7 @@ describe("作戦と方針", () => {
     const player = state.entities.find((entity) => entity.id === state.playerId)!;
     player.pos = { x: 5, y: 5 };
     player.inventory = [{ contentId: "item.ember-dart", quantity: 2 }];
-    // 縫い止めを待機中にして、投げ針の狙いだけを確かめる。
+    // 足止め射撃を待機中にして、投げ針の狙いだけを確かめる。
     player.skillCooldown = 99;
     state.tiles = state.tiles.map(() => ({ kind: "floor", visible: true, explored: true }));
     state.entities = [player, ...[

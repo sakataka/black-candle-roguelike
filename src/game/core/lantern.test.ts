@@ -76,14 +76,14 @@ describe("描画演出イベント", () => {
     else expect(suggestion).toMatchObject({ urgency: "spare", action: { type: "invokeLantern", rite: "guide" } });
   });
 
-  test("命火が細い時の呼びかけは癒灯を理由つきで求める", () => {
+  test("HPが少ない時の呼びかけは癒灯を理由つきで求める", () => {
     const state = createInitialGame(20260504, "role.oathbound");
     const player = state.entities.find((entity) => entity.id === state.playerId)!;
     player.stats!.hp = 3;
     const suggestion = suggestLanternAction(observeGame(state));
     expect(suggestion?.urgency).toBe("crisis");
     expect(suggestion?.action).toEqual({ type: "invokeLantern", rite: "mend" });
-    expect(suggestion?.reason).toContain("命火");
+    expect(suggestion?.reason).toContain("HP");
   });
 
   test("攻撃とダメージを差分から導出する", () => {

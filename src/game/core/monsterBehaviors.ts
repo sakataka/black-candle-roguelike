@@ -64,7 +64,7 @@ export function afterMonsterHitsPlayer(state: GameState, monster: Entity): void 
       const amount = Math.min(state.playerProgress.gold, 10 + state.floor * 3);
       state.playerProgress = { ...state.playerProgress, gold: state.playerProgress.gold - amount };
       monster.goldAmount = (monster.goldAmount ?? 0) + amount;
-      state.messages = pushMessage(state, `${entityName(monster)}に古銭を${amount}枚かすめ取られた。`, "danger");
+      state.messages = pushMessage(state, `${entityName(monster)}に金貨を${amount}枚かすめ取られた。`, "danger");
     } else {
       return;
     }
@@ -151,7 +151,7 @@ export function onMonsterDefeated(state: GameState, defeated: Entity): void {
   }
   if (defeated.goldAmount) {
     state.playerProgress = { ...state.playerProgress, gold: state.playerProgress.gold + defeated.goldAmount };
-    state.messages = pushMessage(state, `取られた古銭${defeated.goldAmount}枚を取り返した。`, "loot");
+    state.messages = pushMessage(state, `取られた金貨${defeated.goldAmount}枚を取り返した。`, "loot");
   }
 }
 

@@ -213,7 +213,7 @@ function eventKindsFor(action: GameAction, messages: GameMessage[]): string[] {
     if (message.text.includes("回復")) {
       kinds.add("healing");
     }
-    if (message.text.includes("罠") || message.text.includes("毒霧") || message.text.includes("崩れ床")) {
+    if (message.text.includes("罠") || message.text.includes("毒霧") || message.text.includes("崩れる床")) {
       kinds.add("trap");
     }
     if (message.text.includes("出血")) {
@@ -239,7 +239,7 @@ function classifyDeathCause(entries: RunLogEntry[], finalMessages: GameMessage[]
   if (deathContext.includes("離れた位置")) {
     return "rangedCombat";
   }
-  if (deathContext.includes("罠") || deathContext.includes("毒霧") || deathContext.includes("崩れ床") || deathContext.includes("血針")) {
+  if (deathContext.includes("罠") || deathContext.includes("毒霧") || deathContext.includes("崩れる床") || deathContext.includes("血針")) {
     return "trap";
   }
   if (deathContext.includes("出血")) {

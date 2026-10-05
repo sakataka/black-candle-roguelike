@@ -117,7 +117,7 @@ export function useSkill(state: GameState, targetId?: string): GameState {
   state.messages = pushMessage(state, `${config.label}！`, "combat");
   if (plan.skillId === "oath-strike" && target) {
     const boss = contentEntities[target.contentId]?.tier === "boss";
-    state = playerStrike(state, target, { scale: boss ? config.bossScale ?? config.scale : config.scale, verb: "へ誓剣を振り下ろし、" });
+    state = playerStrike(state, target, { scale: boss ? config.bossScale ?? config.scale : config.scale, verb: "へ誓いの一撃を振り下ろし、" });
     if (!state.entities.includes(target) && player.stats) {
       const healed = Math.min(player.stats.maxHp - player.stats.hp, config.healOnKill ?? 0);
       player.stats.hp += healed;
@@ -131,7 +131,7 @@ export function useSkill(state: GameState, targetId?: string): GameState {
     return state;
   }
   if (plan.skillId === "sanctify") {
-    // 祈祷者は灯で周りを焼きながら、自分の傷を塞いで穢れを払う。亡者と悪魔には深く効く。
+    // プリーストは灯で周りを焼きながら、自分の傷を塞いで穢れを払う。亡者と悪魔には深く効く。
     const inRange = state.entities.filter((entity) => entity.kind === "monster" && entity.hostile && entity.stats && chebyshev(entity.pos, player.pos) <= (config.range ?? 3) && hasLineOfSight(state, player.pos, entity.pos));
     const unholy = inRange.filter((entity) => config.families?.includes(contentEntities[entity.contentId]?.family ?? "beast"));
     const damage = Math.floor((config.damage ?? 6) + level * (config.damagePerLevel ?? 1));
@@ -142,7 +142,7 @@ export function useSkill(state: GameState, targetId?: string): GameState {
       player.conditions = player.conditions?.filter((condition) => condition.kind !== "venomed" && condition.kind !== "bleeding");
       if (healed > 0) state.messages = pushMessage(state, `灯の温もりで傷が塞がった（+${healed}）。`, "loot");
     }
-    state = applyFixedDamage(state, unholy, damage * 2, "を聖灯が焼き、");
+    state = applyFixedDamage(state, unholy, damage * 2, "を聖なる光が焼き、");
     return applyFixedDamage(state, inRange.filter((entity) => !unholy.includes(entity) && state.entities.includes(entity)), damage, "を灯が照らし、");
   }
   if (plan.skillId === "appraise" && target) {
@@ -154,7 +154,7 @@ export function useSkill(state: GameState, targetId?: string): GameState {
   if (plan.skillId === "ash-flask" && target) {
     const splash = state.entities.filter((entity) => entity.kind === "monster" && entity.hostile && entity.stats && chebyshev(entity.pos, target.pos) <= 1);
     for (const enemy of splash) enemy.conditions = upsertCondition(enemy.conditions, "venomed", config.turns ?? 4);
-    return applyFixedDamage(state, splash, Math.floor((config.damage ?? 4) + level * (config.damagePerLevel ?? 0.5)), "に灰毒が降りかかり、");
+    return applyFixedDamage(state, splash, Math.floor((config.damage ?? 4) + level * (config.damagePerLevel ?? 0.5)), "に毒が降りかかり、");
   }
   if (plan.skillId === "charge" && target && plan.destination) {
     player.pos = { ...plan.destination };

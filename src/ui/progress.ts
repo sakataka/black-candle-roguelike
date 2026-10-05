@@ -30,7 +30,7 @@ export function candleRoadMarkup(campaign: CampaignState, fresh = new Set<string
       <ol class="candle-chapters">${progress.roadmap.map((chapter, i) => `<li class="${chapter.done ? "is-done" : chapter.id === next?.id ? "is-next" : ""}${fresh.has(chapter.id) ? " is-fresh" : ""}"${chapter.id === next?.id ? ' aria-current="step"' : ""}><span>${chapter.done ? "◆" : i + 1}</span><strong>${chapterNames[i]}</strong></li>`).join("")}</ol>
       <div class="truth-sockets" aria-label="持ち帰った三つの真相">${ROLE_TRUTH_IDS.map((truth, i) => {
         const found = campaign.roleTruths.includes(truth);
-        return `<span class="truth-socket${found ? " is-filled" : ""}${freshTruths.includes(truth) ? " is-fresh" : ""}" title="${escapeHtmlAttribute(roleTruthLabel(truth))} · ${escapeHtmlAttribute(truthRoleLabel(truth))} · ${found ? "回収済み" : "未回収"}"><i aria-hidden="true">${truthMarks[i]}</i><span>${escapeHtmlAttribute(roleTruthLabel(truth))}<small>${found ? "◆ 回収済み" : `${truthMarks[i] === "祈" ? "祈祷者" : truthMarks[i] === "剣" ? "探索者" : "斥候"}で帰還`}</small></span></span>`;
+        return `<span class="truth-socket${found ? " is-filled" : ""}${freshTruths.includes(truth) ? " is-fresh" : ""}" title="${escapeHtmlAttribute(roleTruthLabel(truth))} · ${escapeHtmlAttribute(truthRoleLabel(truth))} · ${found ? "回収済み" : "未回収"}"><i aria-hidden="true">${truthMarks[i]}</i><span>${escapeHtmlAttribute(roleTruthLabel(truth))}<small>${found ? "◆ 回収済み" : `${escapeHtmlAttribute(truthRoleLabel(truth))}で帰還`}</small></span></span>`;
       }).join("")}</div>
       <p class="progress-next">${next ? `<span>次へ</span><strong>${escapeHtmlAttribute(next.label)}</strong>` : `<span>第${campaign.cycle.number}周期</span><strong>結末を記録した</strong>`}</p>
     </div>
@@ -48,7 +48,7 @@ export function growthMarkup(campaign: CampaignState, before?: CampaignState | n
   return `<section class="growth-board" aria-label="繰り返しで育つ力">
     <div class="growth-power${previous && previous.rank < journey.rank ? " is-fresh" : ""}">
       <div class="progress-kicker">灰灯院の鍛錬${gain > 0 ? `<b>今回 +${gain}灯片</b>` : ""}</div>
-      <div class="power-line"><strong><small>Lv</small>${journey.rank}</strong><div><span>命火 <b>+${journey.maxHp}</b></span><span>攻撃 <b>+${journey.attack}</b></span></div></div>
+      <div class="power-line"><strong><small>Lv</small>${journey.rank}</strong><div><span>HP <b>+${journey.maxHp}</b></span><span>攻撃 <b>+${journey.attack}</b></span></div></div>
       <div class="power-vessel" role="progressbar" aria-label="次の鍛錬までの灯片" aria-valuemin="0" aria-valuemax="${perRank}" aria-valuenow="${filled}" aria-valuetext="${journey.shardsToNextRank ? `次の鍛錬まで${journey.shardsToNextRank}灯片` : "鍛錬は最大"}"><i style="width:${filled / perRank * 100}%"></i></div>
       <p class="growth-caption">${journey.shardsToNextRank ? `次のLvまで <b>${journey.shardsToNextRank}</b> 灯片` : "鍛錬は最大"}<small>全探索者に継承 · 消費しても減らない</small></p>
     </div>

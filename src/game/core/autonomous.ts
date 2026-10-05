@@ -1,6 +1,6 @@
 import { journeyProgress, journeyTotals } from "./journey";
 import { getGameConfig, runRules } from "../content/config";
-import { contentEntities } from "../content/entities";
+import { contentEntities, getContentName } from "../content/entities";
 import type {
   CampaignState,
   DecisionOption,
@@ -283,7 +283,7 @@ function crisisBase(state: GameState, id: string, title: string, body: string, o
 }
 
 function woundedCrisis(state: GameState, act: 1 | 2): PendingDecision {
-  return crisisBase(state, "wounded", "薄れる命火", "黒燭に映る探索者の命火が細い。先を急げば真相へ近づくが、次の戦闘に耐えられる保証はない。", [
+  return crisisBase(state, "wounded", "尽きかけるHP", "黒燭に映る探索者のHPが残り少ない。先を急げば真相へ近づくが、次の戦闘に耐えられる保証はない。", [
     { id: "wounded-rest", label: "安全な陰で休ませる", description: "12HPを回復し、生還を優先する。", outcome: "continue", directive: "survival", effect: { heal: 12 } },
     { id: "wounded-bargain", label: "血を灯へ変える", description: "最大HPを4失う代わりに20HPを回復し、探索を続ける。", outcome: "continue", directive: "discovery", effect: { maxHpCost: 4, heal: 20 } },
     { id: "wounded-revelation", label: "啓示で傷を封じる", description: "啓示を使い、18HP回復と12手の護りを得る。", outcome: "continue", directive: act === 1 ? "discovery" : "conquest", requiresRevelation: true, effect: { heal: 18, guardedTurns: 12 } },
@@ -308,9 +308,9 @@ function rangedCrisis(state: GameState, act: 1 | 2): PendingDecision {
 
 function burdenCrisis(state: GameState, act: 1 | 2): PendingDecision {
   const offering = Math.min(40, state.playerProgress.gold);
-  return crisisBase(state, "burden", "持ち帰るものの重さ", "遺物と古銭が足取りを鈍らせる。戦果を守るか、一部を灯路へ捧げて先を急ぐか。", [
+  return crisisBase(state, "burden", "持ち帰るものの重さ", "遺物と金貨が足取りを鈍らせる。戦果を守るか、一部を灯路へ捧げて先を急ぐか。", [
     { id: "burden-guard", label: "戦果を抱えて進む", description: "生還を優先し、10手の護りを得る。", outcome: "continue", directive: "survival", effect: { guardedTurns: 10 } },
-    { id: "burden-offer", label: `${offering}Gを灯路へ捧げる`, description: "古銭を失う代わりに周囲14マスを記録する。", outcome: "continue", directive: "discovery", effect: { goldCost: offering, revealRadius: 14 } },
+    { id: "burden-offer", label: `${offering}Gを灯路へ捧げる`, description: "金貨を失う代わりに周囲14マスを記録する。", outcome: "continue", directive: "discovery", effect: { goldCost: offering, revealRadius: 14 } },
     { id: "burden-revelation", label: "啓示で荷を軽くする", description: "啓示を使って敵を退け、征圧の速度を保つ。", outcome: "continue", directive: act === 1 ? "conquest" : defaultDirectiveForTemperament(state.runIdentity.temperament), requiresRevelation: true, effect: { pushVisibleMonsters: true, guardedTurns: 8 } },
   ]);
 }
@@ -736,10 +736,9 @@ export type CampaignProgress = {
   nextChapter: RoadmapChapter | null;
 };
 
-const ROLE_FOR_TRUTH: Record<RoleTruthId, string> = { "shared-oath": "誓約の探索者", "furnace-map": "灰弓の斥候", "purified-flame": "灯火の祈祷者" };
-
+/** その真相を持ち帰れる職業名を「・」でつなぐ。 */
 export function truthRoleLabel(truthId: RoleTruthId): string {
-  return ROLE_FOR_TRUTH[truthId];
+  return getGameConfig().roles.filter((role) => roleTruthFor(role.id) === truthId).map((role) => getContentName(role.id)).join("・");
 }
 
 export function campaignProgress(campaign: CampaignState): CampaignProgress {
@@ -760,7 +759,7 @@ export function campaignProgress(campaign: CampaignState): CampaignProgress {
       id: "three-truths",
       label: "三つの真相を揃える",
       hint: missingTruths.length
-        ? `真相は職業ごとに一つ。残り: ${missingTruths.map((truth) => `${roleTruthLabel(truth)}（${ROLE_FOR_TRUTH[truth]}）`).join("、")}`
+        ? `真相は職業ごとに一つ。残り: ${missingTruths.map((truth) => `${roleTruthLabel(truth)}（${truthRoleLabel(truth)}）`).join("、")}`
         : "三つの真相が揃った。",
       done: missingTruths.length === 0,
     },

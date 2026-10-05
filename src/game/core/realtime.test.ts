@@ -197,7 +197,7 @@ describe("止めずに介入する遠征", () => {
     let state = arena();
     state.biome = "crypt";
     state.expedition!.floorKills = realtimeConfig().laws.cryptWakeEveryKills - 1;
-    // 骨の従僕は鈍器か浄化でないと崩れたまま蠢くため、倒れ切る敵で数える。
+    // スケルトンは鈍器か浄化でないと崩れたまま蠢くため、倒れ切る敵で数える。
     const victim = enemy(state, "monster.ash-rat", { x: 5, y: 4 });
     victim.stats!.hp = 1;
     const sleeper = enemy(state, "monster.bone-thrall", { x: 7, y: 4 });

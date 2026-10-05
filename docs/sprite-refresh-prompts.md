@@ -6,9 +6,9 @@
 
 ## 納品素材と検証
 
-- `public/assets/sprites/oathbound-directions.png`：誓約の探索者、512×256。
-- `public/assets/sprites/ash-scout-directions.png`：灰弓の斥候、512×256。
-- `public/assets/sprites/lantern-priest-directions.png`：灯火の祈祷者、512×256。
+- `public/assets/sprites/oathbound-directions.png`：ナイト、512×256。
+- `public/assets/sprites/ash-scout-directions.png`：レンジャー、512×256。
+- `public/assets/sprites/lantern-priest-directions.png`：プリースト、512×256。
 - `public/assets/sprites/dungeon-connected-terrain.png`：床4種・壁4種、512×256。左から黒石・納骨堂・炉底・黒燭。
 - `public/assets/sprites/dungeon-cover-overlays.png`：遮蔽物4種、256×256。左上から上記の階層順。
 - `public/assets/sprites/dungeon-stairs-overlay.png`：床へ重ねる階段、128×128。

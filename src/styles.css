@@ -1,5 +1,5 @@
 /* 黒燭の迷宮 UI
- * 観戦が主役: マップ・灯の介入・探索者の命火を常に同じ画面に置き、
+ * 観戦が主役: マップ・灯の介入・探索者のHPを常に同じ画面に置き、
  * 節目の判断と遠征の支度はモーダル/全面シートに分ける。 */
 
 :root {
@@ -1380,7 +1380,7 @@ body::after {
 .vitals-heading strong { font-size: 1.3rem; }
 .vitals-heading em { font-family: var(--latin); font-size: 1.05rem; font-weight: 600; letter-spacing: 0.04em; }
 
-/* 命火: 細い芯に、先端の残り火が灯る。 */
+/* HP: 細い芯に、先端の残り火が灯る。 */
 .vitals-hp-track { height: 6px; border-radius: 0; background: linear-gradient(90deg, #070605, #0d0b09); box-shadow: inset 0 0 0 1px rgba(212, 173, 98, 0.12); overflow: visible; }
 .vitals-hp-track b, .vitals-hp-track i { border-radius: 0; }
 .vitals-hp-track i::after {

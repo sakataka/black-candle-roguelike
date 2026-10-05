@@ -36,7 +36,7 @@ export function suggestLanternAction(observation: GameObservation): WatcherSugge
   const stats = observation.player.stats;
   if (!stats) return null;
   const hpRatio = stats.hp / stats.maxHp;
-  const hpLabel = `命火${Math.round(hpRatio * 100)}%`;
+  const hpLabel = `HP${Math.round(hpRatio * 100)}%`;
   const afflicted = observation.player.conditions?.some((condition) => condition.kind === "bleeding" || condition.kind === "venomed") ?? false;
   const guarded = observation.player.conditions?.some((condition) => condition.kind === "guarded") ?? false;
   const hostiles = observation.visibleEntities.filter((entity) => entity.kind === "monster" && entity.hostile);

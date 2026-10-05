@@ -2,7 +2,7 @@ import type { ContentEntity } from "../types";
 
 export const expansionEntities: Record<string, ContentEntity> = {
   "monster.ash-claw": {
-    "name": "灰爪の小獣",
+    "name": "ジャッカル",
     "tier": "early",
     "family": "beast",
     "encounterRole": "skirmisher",
@@ -10,7 +10,7 @@ export const expansionEntities: Record<string, ContentEntity> = {
     "xpReward": 5
   },
   "monster.rust-footman": {
-    "name": "鉄錆びの小兵",
+    "name": "錆びた兵士",
     "tier": "early",
     "family": "cult",
     "encounterRole": "weapon-user",
@@ -18,7 +18,7 @@ export const expansionEntities: Record<string, ContentEntity> = {
     "xpReward": 8
   },
   "monster.blackstone-hexer": {
-    "name": "黒石の術者",
+    "name": "呪術師",
     "tier": "mid",
     "family": "cult",
     "encounterRole": "caster",
@@ -26,7 +26,7 @@ export const expansionEntities: Record<string, ContentEntity> = {
     "xpReward": 10
   },
   "monster.vein-gnawer": {
-    "name": "地潜り鉱喰い",
+    "name": "ロックワーム",
     "tier": "mid",
     "family": "beast",
     "encounterRole": "bruiser",
@@ -34,7 +34,7 @@ export const expansionEntities: Record<string, ContentEntity> = {
     "xpReward": 12
   },
   "monster.venom-swarm": {
-    "name": "毒牙の群虫",
+    "name": "毒虫の群れ",
     "tier": "early",
     "family": "beast",
     "encounterRole": "condition",
@@ -42,7 +42,7 @@ export const expansionEntities: Record<string, ContentEntity> = {
     "xpReward": 8
   },
   "monster.acid-ooze": {
-    "name": "酸だまりの塊",
+    "name": "アシッドスライム",
     "tier": "mid",
     "family": "beast",
     "encounterRole": "hazard",
@@ -50,7 +50,7 @@ export const expansionEntities: Record<string, ContentEntity> = {
     "xpReward": 11
   },
   "monster.grave-bloodling": {
-    "name": "墓所の吸血虫",
+    "name": "吸血虫",
     "tier": "mid",
     "family": "beast",
     "encounterRole": "condition",
@@ -58,7 +58,7 @@ export const expansionEntities: Record<string, ContentEntity> = {
     "xpReward": 11
   },
   "monster.coffer-maw": {
-    "name": "牙を剥く宝箱",
+    "name": "ミミック",
     "tier": "mid",
     "family": "demon",
     "encounterRole": "ambusher",
@@ -66,7 +66,7 @@ export const expansionEntities: Record<string, ContentEntity> = {
     "xpReward": 14
   },
   "monster.core-ant": {
-    "name": "炉心の火蟻",
+    "name": "ファイアアント",
     "tier": "mid",
     "family": "beast",
     "encounterRole": "skirmisher",
@@ -74,7 +74,7 @@ export const expansionEntities: Record<string, ContentEntity> = {
     "xpReward": 12
   },
   "monster.ember-hound": {
-    "name": "炎吐きの猟犬",
+    "name": "ヘルハウンド",
     "tier": "late",
     "family": "beast",
     "encounterRole": "ranged",
@@ -82,7 +82,7 @@ export const expansionEntities: Record<string, ContentEntity> = {
     "xpReward": 16
   },
   "monster.threefold-gatehound": {
-    "name": "三首の門番",
+    "name": "ケルベロス",
     "tier": "late",
     "family": "demon",
     "encounterRole": "guardian",
@@ -90,7 +90,7 @@ export const expansionEntities: Record<string, ContentEntity> = {
     "xpReward": 24
   },
   "monster.candle-root-knight": {
-    "name": "燭根の騎士",
+    "name": "樹根の騎士",
     "tier": "late",
     "family": "construct",
     "encounterRole": "guardian",
@@ -98,27 +98,27 @@ export const expansionEntities: Record<string, ContentEntity> = {
     "xpReward": 24
   },
   "item.light-throwing-blade": {
-    "name": "軽投げ刃",
+    "name": "スローイングナイフ",
     "tier": "mid",
     "economyValue": 60
   },
   "item.hunter-longbow": {
-    "name": "狩人の長弓",
+    "name": "ロングボウ",
     "tier": "mid",
     "economyValue": 60
   },
   "item.ironbreaker-greataxe": {
-    "name": "鉄割りの大斧",
+    "name": "グレートアックス",
     "tier": "mid",
     "economyValue": 60
   },
   "item.silver-banishing-saber": {
-    "name": "銀祓いの刃",
+    "name": "シルバーサーベル",
     "tier": "mid",
     "economyValue": 60
   },
   "item.sacred-pick": {
-    "name": "つるはしの聖具",
+    "name": "つるはし",
     "tier": "mid",
     "economyValue": 60
   },
@@ -128,17 +128,17 @@ export const expansionEntities: Record<string, ContentEntity> = {
     "economyValue": 60
   },
   "item.witchward-cloak": {
-    "name": "魔除けの外套",
+    "name": "魔除けのマント",
     "tier": "mid",
     "economyValue": 60
   },
   "item.venomguard-cloak": {
-    "name": "抗毒の外套",
+    "name": "毒よけのマント",
     "tier": "mid",
     "economyValue": 60
   },
   "item.reflecting-shield": {
-    "name": "反射の盾",
+    "name": "ミラーシールド",
     "tier": "mid",
     "economyValue": 60
   },
@@ -153,24 +153,24 @@ export const expansionEntities: Record<string, ContentEntity> = {
     "economyValue": 60
   },
   "item.lockpick-bundle": {
-    "name": "鍵束と解錠具",
+    "name": "解錠道具",
     "tier": "mid",
     "economyValue": 60
   },
   "role.relic-surveyor": {
-    "name": "遺物調査員",
+    "name": "トレジャーハンター",
     "tier": "mid"
   },
   "role.ash-apothecary": {
-    "name": "灰薬師",
+    "name": "アルケミスト",
     "tier": "mid"
   },
   "role.iron-oath-vanguard": {
-    "name": "鉄誓の重戦士",
+    "name": "ウォーリア",
     "tier": "mid"
   },
   "role.keyshadow-rogue": {
-    "name": "鍵影の盗賊",
+    "name": "シーフ",
     "tier": "mid"
   },
   "prop.ore-mine.cover-pillar": {

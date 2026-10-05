@@ -135,7 +135,7 @@ test("新しい投げ刃と透視水晶をAIが使い、投げ刃は射程を守
   expect(observeGame(applyAction(state, { type: "useItem", contentId: "item.scrying-crystal" })).knownTiles.length).toBeGreaterThan(1);
 });
 
-test("新4職は既存3つの真相へ接続し、灰薬師の治療効率と解毒後回復が効く", () => {
+test("新4職は既存3つの真相へ接続し、アルケミストの治療効率と解毒後回復が効く", () => {
   expect(roleTruthFor("role.relic-surveyor")).toBe("furnace-map");
   expect(roleTruthFor("role.ash-apothecary")).toBe("purified-flame");
   expect(roleTruthFor("role.iron-oath-vanguard")).toBe("shared-oath");
@@ -148,7 +148,7 @@ test("新4職は既存3つの真相へ接続し、灰薬師の治療効率と解
   expect(healed.conditions?.some((condition) => condition.kind === "venomed")).toBe(false);
 });
 
-test("解錠具の自動使用・盗賊の特性・満杯時に床へ残る報酬が成立する", () => {
+test("解錠道具の自動使用・シーフの特性・満杯時に床へ残る報酬が成立する", () => {
   for (const role of ["role.oathbound", "role.keyshadow-rogue"]) {
     const state = arena(role);
     getPlayer(state).inventory = [{ contentId: "item.lockpick-bundle", quantity: 1 }];
@@ -178,7 +178,7 @@ test("抗毒装備は継続毒を防ぎ、指輪1枠で探索か再生を選ぶ"
   expect([...preferredEquipment(getPlayer(state))].filter((id) => getGameConfig().equipment[id]?.slot === "ring")).toHaveLength(1);
 });
 
-test("反射の盾は可視遠隔敵へ反撃し、撃破処理と記録を通す", () => {
+test("ミラーシールドは可視遠隔敵へ反撃し、撃破処理と記録を通す", () => {
   for (const telegraphed of [false, true]) {
   const state = arena();
   getPlayer(state).inventory = [{ contentId: "item.reflecting-shield", quantity: 1, equipped: true }];

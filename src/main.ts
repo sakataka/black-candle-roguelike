@@ -690,7 +690,7 @@ function renderDepartSummary(delver: ReturnType<typeof resolveSelectedDelver>): 
     <span class="depart-who"><strong>${escapeHtml(delver.name)}${delver.veteran ? ` <span class="rank-stars">${"★".repeat(delver.veteran.rank)}</span>` : ""}</strong><small>${escapeHtml(delver.roleName)} · ${escapeHtml(delver.temperament)}</small></span>
     <span class="depart-plan">
       <span>目標 <b>${escapeHtml(missionDefinition(selectedMissionId).label)}</b><small>生還で灯片+${missionShards(selectedMissionId)}</small></span>
-      <span>鍛錬 <b>${journey.rank} · 命火+${journey.maxHp} / 攻撃+${journey.attack}</b></span>
+      <span>鍛錬 <b>${journey.rank} · HP+${journey.maxHp} / 攻撃+${journey.attack}</b></span>
       ${journey.trial ? `<span class="trial-plan">決戦 <b>${escapeHtml(journey.nextTrial!.label)}</b><small>第六階・第十層の守り手が覚醒</small></span>` : ""}
       <span>作戦 <b>${tactics.length ? escapeHtml(tactics.join("・")) : "なし"}</b></span>
       ${selectedLegacy ? `<span>継承品 <b>${escapeHtml(getGameConfig().legacies[selectedLegacy]?.label ?? "")}</b></span>` : ""}
@@ -1338,7 +1338,7 @@ function renderExpeditionDynamics(observation: ReturnType<typeof observeGame>): 
   place.title = `灯火${realtimeConfig().light.cost}。退路を${realtimeConfig().light.duration}手照らし、獣と亡者を引き寄せる。`;
   const borrow = requireElement<HTMLButtonElement>("#borrow-flame");
   borrow.disabled = !canBorrowFlame(state);
-  borrow.title = `一遠征一回。命火${realtimeConfig().loan.healPercent}%回復・護り${realtimeConfig().loan.guardedTurns}手・灯火+${realtimeConfig().loan.embers}。次に得る灯火${realtimeConfig().loan.debt}つを返す。未返済分は次の遠征へ。`;
+  borrow.title = `一遠征一回。HP${realtimeConfig().loan.healPercent}%回復・護り${realtimeConfig().loan.guardedTurns}手・灯火+${realtimeConfig().loan.embers}。次に得る灯火${realtimeConfig().loan.debt}つを返す。未返済分は次の遠征へ。`;
   setText("#expedition-note", dynamics?.debt ? `借灯の返済：次に得る灯火${dynamics.debt}つ` : "");
   const omen = state.floorOmen ? getGameConfig().omens.definitions[state.floorOmen] : undefined;
   setText("#floor-law", omen ? `兆し「${omen.label}」${omen.description} ／ ${floorLawDescription(state.biome)}` : floorLawDescription(state.biome));
