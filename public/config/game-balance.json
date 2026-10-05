@@ -344,8 +344,8 @@
       ],
       "traits": {
         "focus": "寄り道部屋の調査と遺物回収",
-        "strengths": ["部屋へ入ると周辺の地図を読む", "構造物に強いつるはしと解錠道具を持つ"],
-        "traitLabels": ["部屋調査: 周囲5マス", "構造物特効"],
+        "strengths": ["部屋へ入ると周辺の地図を読む", "ゴーレムに強いつるはしと解錠道具を持つ"],
+        "traitLabels": ["部屋調査: 周囲5マス", "ゴーレム特効"],
         "roomRevealRadius": 5,
         "trapAvoidPercent": 8,
         "truthId": "furnace-map",
@@ -384,7 +384,7 @@
       ],
       "traits": {
         "focus": "盾を捨てた重装の突破役",
-        "strengths": ["両手斧で高い威力と構造物特効", "重い鎧で守るが罠を避けにくい"],
+        "strengths": ["両手斧で高い威力とゴーレム特効", "重い鎧で守るが罠を避けにくい"],
         "traitLabels": ["両手斧・盾併用不可", "罠回避 -8%"],
         "trapAvoidPercent": -8,
         "bossReward": "item.guardian-draught",
@@ -858,7 +858,7 @@
     "crush": {
       "glyph": "砕",
       "label": "破砕",
-      "description": "構造物を砕く。",
+      "description": "ゴーレムを砕く。",
       "slots": ["weapon"],
       "weight": 2,
       "minFloor": 3,
@@ -1001,10 +1001,10 @@
   ],
   "rangedMonsters": ["monster.hollow-archer", "monster.cinder-cultist", "monster.ash-warlock", "monster.blackstone-hexer", "monster.ember-hound"],
   "monsterAttackEffects": {
-    "monster.grave-leech": { "condition": "bleeding", "turns": 6, "message": "墓蛭の牙が裂け目を残し、出血が始まった。" },
-    "monster.venom-bat": { "condition": "venomed", "turns": 5, "message": "毒羽の棘が刺さり、毒が回り始めた。" },
+    "monster.grave-leech": { "condition": "bleeding", "turns": 6, "message": "大ヒルの牙が裂け目を残し、出血が始まった。" },
+    "monster.venom-bat": { "condition": "venomed", "turns": 5, "message": "毒コウモリの牙が刺さり、毒が回り始めた。" },
     "monster.ash-warlock": { "condition": "venomed", "turns": 4, "message": "灰の呪いが肺に入り、毒が残った。" },
-    "monster.venom-swarm": { "condition": "venomed", "turns": 3, "message": "群虫の毒牙が肌に残った。" },
+    "monster.venom-swarm": { "condition": "venomed", "turns": 3, "message": "毒虫の牙が肌に残った。" },
     "monster.acid-ooze": { "condition": "bleeding", "turns": 3, "message": "酸が皮膚を焼き、血が滲んだ。" }
   },
   "trapEffects": {

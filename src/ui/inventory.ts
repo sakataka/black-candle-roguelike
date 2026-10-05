@@ -1,5 +1,6 @@
 import { getGameConfig } from "../game/content/config";
 import { assetForContent } from "../game/content/assets";
+import { getContentDescription } from "../game/content/descriptions";
 import { pieceName } from "../game/core/inventory";
 import type { Entity } from "../game/types";
 import { escapeHtml, requireElement, setText } from "./dom";
@@ -11,7 +12,7 @@ export function renderInventory(inventory: NonNullable<Entity["inventory"]>, obs
   setText("#inventory-count", `${inventory.length}/${config.rules.inventorySlotLimit}`);
   requireElement<HTMLDivElement>("#equipment-list").innerHTML = (["weapon", "armor", "shield", "ring"] as const).map((slot) => {
     const entry = inventory.find((item) => item.equipped && config.equipment[item.contentId]?.slot === slot);
-    return `<div class="equipment-slot${entry ? "" : " is-empty"}"${entry ? ` title="${escapeHtml(equipmentDetail(entry.contentId, entry))}"` : ""}><span>${equipmentSlotLabel(slot)}</span><i class="equipment-icon" data-equipped-slot="${slot}" aria-hidden="true"></i><strong>${entry ? escapeHtml(pieceName(entry)) : "なし"}</strong></div>`;
+    return `<div class="equipment-slot${entry ? "" : " is-empty"}"${entry ? ` title="${escapeHtml(withDescription(equipmentDetail(entry.contentId, entry), entry.contentId))}"` : ""}><span>${equipmentSlotLabel(slot)}</span><i class="equipment-icon" data-equipped-slot="${slot}" aria-hidden="true"></i><strong>${entry ? escapeHtml(pieceName(entry)) : "なし"}</strong></div>`;
   }).join("");
   for (const icon of document.querySelectorAll<HTMLElement>("[data-equipped-slot]")) {
     const entry = inventory.find((item) => item.equipped && config.equipment[item.contentId]?.slot === icon.dataset.equippedSlot);
@@ -35,7 +36,7 @@ export function renderInventory(inventory: NonNullable<Entity["inventory"]>, obs
   list.replaceChildren(...carried.map((entry) => {
     const item = document.createElement("li");
     const equipment = config.equipment[entry.contentId];
-    const label = `${pieceName(entry)}${equipment ? ` / ${equipmentDetail(entry.contentId, entry)}` : ` ×${entry.quantity}`}`;
+    const label = withDescription(`${pieceName(entry)}${equipment ? ` / ${equipmentDetail(entry.contentId, entry)}` : ` ×${entry.quantity}`}`, entry.contentId);
     const button = document.createElement("button");
     button.type = "button";
     button.className = "inventory-slot";
@@ -64,3 +65,9 @@ export function renderInventory(inventory: NonNullable<Entity["inventory"]>, obs
 }
 
 /** 「黒燭への道」。大目標を章で並べ、次の章だけ詳しく書く。 */
+
+/** 数値の説明の後ろに、どういう品かを添える。 */
+function withDescription(label: string, contentId: string): string {
+  const description = getContentDescription(contentId);
+  return description ? `${label} — ${description}` : label;
+}

@@ -59,6 +59,7 @@
 - 新しい敵・アイテムを追加する時は、少なくとも以下を更新する。
   - `src/game/content/entities.ts`
   - `src/game/content/assets.ts`
+  - `src/game/content/descriptions.ts`（図鑑と所持品の説明。数値は書かず、どう捉えればよいかを書く）
   - 必要なら `src/game/core/game.ts` の出現テーブルや効果処理
 - アイテム効果はまず小さく実装し、AIが扱えるように `GameAction` と `chooseAutoplayAction` も確認する。
 - フロアごとに敵とアイテムが寂しくならないよう、出現数と種類を確認する。

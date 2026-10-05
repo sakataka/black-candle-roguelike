@@ -78,6 +78,7 @@ import { deriveVisualEvents, type VisualEvent } from "./game/core/visualEvents";
 import type { LookaheadProgress, LookaheadRequest } from "./game/sim/lookahead.worker";
 import type { LookaheadSummary } from "./game/sim/rollout";
 import { PixiRoguelikeRenderer } from "./game/renderer/PixiRoguelikeRenderer";
+import { isGuideOpen, openGuide } from "./ui/guide";
 import type {
   CampaignState,
   FacilityId,
@@ -316,6 +317,8 @@ function installEvents(): void {
     if (!button || button.disabled) return;
     invokeLanternRite(button.dataset.rite as LanternRiteId);
   });
+  requireElement<HTMLButtonElement>("#open-guide").addEventListener("click", () => openGuide({ duringRun: runActive && state.status === "playing" }));
+  requireElement<HTMLButtonElement>("#open-guide-prepare").addEventListener("click", () => openGuide());
   requireElement<HTMLButtonElement>("#new-expedition").addEventListener("click", openNewExpedition);
   requireElement<HTMLButtonElement>("#end-new-expedition").addEventListener("click", openNewExpedition);
   runInsightsPanel.addEventListener("click", (event) => {
@@ -420,6 +423,8 @@ function installEvents(): void {
   });
   window.addEventListener("keydown", (event) => {
     if (app?.inert) return;
+    // 手引きを読んでいる間のキーで、灯の介入や出発を起こさない。
+    if (isGuideOpen()) return;
     // タイトルを開いたEnterの長押しで、続けて探索者を送り出さない。
     if (event.key === "Enter" && event.repeat) {
       event.preventDefault();

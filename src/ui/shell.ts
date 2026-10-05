@@ -31,6 +31,7 @@ export const observerShellMarkup = `
           <button type="button" data-speed="2" aria-pressed="false">2×</button>
           <button type="button" data-speed="3" aria-pressed="false">3×</button>
         </div>
+        <button id="open-guide" class="secondary-button" type="button" title="遊び方と図鑑（遠征は止まりません）">遊び方</button>
         <button id="new-expedition" class="secondary-button" type="button" title="遠征を終えて灰灯院へ">灰灯院</button>
       </div>
     </header>
@@ -123,6 +124,7 @@ export const observerShellMarkup = `
         <div class="prepare-header-actions">
           <div class="shard-balance" title="遠征から持ち帰る。到達・守り手・任務・真相・生還で増え、施設の強化と療房に使う。"><i id="shard-icon" class="shard-icon" aria-hidden="true"></i><span>灯片</span><strong id="institute-shards">0</strong></div>
           <button id="resume-run" class="secondary-button" type="button" hidden>観戦に戻る <kbd>Esc</kbd></button>
+          <button id="open-guide-prepare" class="secondary-button" type="button" title="遊び方と図鑑">遊び方</button>
           <button id="switch-save" class="secondary-button" type="button" title="タイトルへ戻り、別の記録を選ぶか新しい記録を始める">記録を切り替える</button>
         </div>
       </header>

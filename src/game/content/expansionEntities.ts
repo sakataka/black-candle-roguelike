@@ -174,51 +174,51 @@ export const expansionEntities: Record<string, ContentEntity> = {
     "tier": "mid"
   },
   "prop.ore-mine.cover-pillar": {
-    "name": "黒石鉱脈・cover-pillar",
+    "name": "折れた石柱",
     "tier": "mid"
   },
   "prop.ore-mine.cover-cart": {
-    "name": "黒石鉱脈・cover-cart",
+    "name": "鉱石車",
     "tier": "mid"
   },
   "prop.ore-mine.ore-cluster": {
-    "name": "銅鉱の残脈",
+    "name": "鉱石の塊",
     "tier": "mid"
   },
   "prop.ore-mine.locked-cache": {
-    "name": "鉄帯の小箱",
+    "name": "鍵付きの小箱",
     "tier": "mid"
   },
   "prop.sunken-archive.cover-books": {
-    "name": "浸水書庫・cover-books",
+    "name": "崩れた本棚",
     "tier": "mid"
   },
   "prop.sunken-archive.cover-statue": {
-    "name": "浸水書庫・cover-statue",
+    "name": "欠けた石像",
     "tier": "mid"
   },
   "prop.sunken-archive.sealed-book": {
-    "name": "封印古書",
+    "name": "封じられた古書",
     "tier": "mid"
   },
   "prop.sunken-archive.memory-vessel": {
-    "name": "記憶壺",
+    "name": "記憶の壺",
     "tier": "mid"
   },
   "prop.thorn-chapel.cover-root": {
-    "name": "茨の礼拝堂・cover-root",
+    "name": "太い根",
     "tier": "mid"
   },
   "prop.thorn-chapel.cover-pillar": {
-    "name": "茨の礼拝堂・cover-pillar",
+    "name": "礼拝堂の柱",
     "tier": "mid"
   },
   "prop.thorn-chapel.thorn-altar": {
-    "name": "供物皿",
+    "name": "茨の供物皿",
     "tier": "mid"
   },
   "prop.thorn-chapel.seed-reliquary": {
-    "name": "種子聖櫃",
+    "name": "種の聖櫃",
     "tier": "mid"
   }
 };
