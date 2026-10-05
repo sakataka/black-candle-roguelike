@@ -186,7 +186,7 @@
       "maxHpPerRank": 5,
       "attackPerRank": 1,
       "trials": [
-        { "label": "石の覚醒", "victories": 2, "hpScale": 2.4, "attack": 5, "defense": 2 },
+        { "label": "石の覚醒", "victories": 2, "hpScale": 2.0, "attack": 4, "defense": 2 },
         { "label": "炉心の覚醒", "victories": 5, "hpScale": 2.6, "attack": 5, "defense": 2 },
         { "label": "黒燭の覚醒", "victories": 8, "hpScale": 2.8, "attack": 6, "defense": 3 }
       ]
