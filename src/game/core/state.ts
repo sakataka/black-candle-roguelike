@@ -1,4 +1,40 @@
-import type { Entity, GameState, RunModifiers, RunStoryState } from "../types";
+import type { AttackTelegraph, Entity, ExpeditionDynamics, GameState, RunModifiers, RunStoryState, Tile } from "../types";
+
+/** 大量に並ぶ固定構造のタイルは、汎用のオブジェクト複製を避ける。 */
+export function cloneTile(tile: Tile): Tile {
+  const copy: Tile = { kind: tile.kind, explored: tile.explored, visible: tile.visible };
+  if ("roomTheme" in tile) copy.roomTheme = tile.roomTheme;
+  if ("coverAsset" in tile) copy.coverAsset = tile.coverAsset;
+  return copy;
+}
+
+export function cloneTelegraph(telegraph: AttackTelegraph): AttackTelegraph {
+  return { ...telegraph, origin: { ...telegraph.origin }, tiles: telegraph.tiles.map((point) => ({ ...point })) };
+}
+
+export function cloneEntity(entity: Entity): Entity {
+  return {
+    ...entity,
+    pos: { ...entity.pos },
+    stats: entity.stats ? { ...entity.stats } : undefined,
+    inventory: entity.inventory?.map((entry) => ({ ...entry })),
+    conditions: entity.conditions?.map((condition) => ({ ...condition })),
+    telegraph: entity.telegraph ? cloneTelegraph(entity.telegraph) : undefined,
+  };
+}
+
+/** 独立した写しを保ちつつ、毎手の structuredClone の走査・直列化を避ける。 */
+export function cloneExpedition(expedition: ExpeditionDynamics, heat = expedition.heat): ExpeditionDynamics {
+  return {
+    ...expedition,
+    lights: expedition.lights.map((light) => ({ ...light, pos: { ...light.pos } })),
+    heat: heat.map((vent) => ({ ...vent, pos: { ...vent.pos } })),
+    trail: expedition.trail.map((moment) => ({ ...moment, pos: { ...moment.pos } })),
+    memories: expedition.memories.map((memory) => ({ ...memory, echoes: memory.echoes.map((moment) => ({ ...moment, pos: { ...moment.pos } })) })),
+    ...(expedition.lastRite ? { lastRite: { ...expedition.lastRite } } : {}),
+    stats: { ...expedition.stats },
+  };
+}
 
 export function getPlayer(state: GameState): Entity {
   const player = state.entities.find((entity) => entity.id === state.playerId);
@@ -22,7 +58,7 @@ export function cloneModifiers(modifiers: RunModifiers): RunModifiers {
 export function cloneState(state: GameState): GameState {
   return {
     ...state,
-    expedition: state.expedition ? structuredClone(state.expedition) : undefined,
+    expedition: state.expedition ? cloneExpedition(state.expedition) : undefined,
     playerProgress: { ...state.playerProgress },
     runObjectives: { ...state.runObjectives },
     runIdentity: { ...state.runIdentity },
@@ -35,15 +71,8 @@ export function cloneState(state: GameState): GameState {
       options: state.pendingDecision.options.map((option) => ({ ...option })),
     } : null,
     story: cloneStory(state.story),
-    tiles: state.tiles.map((tile) => ({ ...tile })),
-    entities: state.entities.map((entity) => ({
-      ...entity,
-      pos: { ...entity.pos },
-      stats: entity.stats ? { ...entity.stats } : undefined,
-      inventory: entity.inventory?.map((entry) => ({ ...entry })),
-      conditions: entity.conditions?.map((condition) => ({ ...condition })),
-      telegraph: entity.telegraph ? structuredClone(entity.telegraph) : undefined,
-    })),
+    tiles: state.tiles.map(cloneTile),
+    entities: state.entities.map(cloneEntity),
     messages: state.messages.map((entry) => ({ ...entry })),
     strikes: [],
   };
@@ -57,5 +86,7 @@ export function cloneStory(story: RunStoryState): RunStoryState {
     decisions: story.decisions.map((entry) => ({ ...entry })),
     contextActs: [...story.contextActs],
     crisisKinds: [...story.crisisKinds],
+    ...(story.recoveredGraves ? { recoveredGraves: [...story.recoveredGraves] } : {}),
+    ...(story.killedBy ? { killedBy: { ...story.killedBy } } : {}),
   };
 }

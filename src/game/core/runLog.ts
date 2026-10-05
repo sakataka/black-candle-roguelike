@@ -196,8 +196,31 @@ function entitySummary(
 }
 
 function newMessages(before: GameMessage[], after: GameMessage[]): GameMessage[] {
+  if (!after.length) return [];
+  if (!before.length) return after.map((entry) => ({ ...entry }));
+  // 通常は前手のログの末尾へ追加し、上限を超えた先頭だけが落ちる。
+  // その重なりを値で確認できれば、毎手80件分の文字列キーと Set は不要。
+  const last = before[before.length - 1];
+  const end = after.findLastIndex((entry) => sameMessage(entry, last));
+  if (end >= 0 && end < before.length) {
+    const offset = before.length - end - 1;
+    let overlap = true;
+    for (let index = 0; index <= end; index += 1) {
+      if (!sameMessage(before[offset + index], after[index])) {
+        overlap = false;
+        break;
+      }
+    }
+    if (overlap) {
+      return after.slice(end + 1).filter((entry) => !before.some((previous) => sameMessage(previous, entry))).map((entry) => ({ ...entry }));
+    }
+  }
   const seen = new Set(before.map((entry) => messageKey(entry)));
   return after.filter((entry) => !seen.has(messageKey(entry))).map((entry) => ({ ...entry }));
+}
+
+function sameMessage(a: GameMessage, b: GameMessage): boolean {
+  return a.turn === b.turn && a.tone === b.tone && a.text === b.text;
 }
 
 function messageKey(entry: GameMessage): string {

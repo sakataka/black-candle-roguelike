@@ -71,34 +71,42 @@ function exploreKnownTiles(
   const { width, height } = state;
   const player = getPlayer(state);
   const start = player.pos;
-  const queue: Array<Point & { distance: number }> = [{ ...start, distance: 0 }];
-  const reached = new Uint8Array(width * height);
+  const size = width * height;
+  const queue = new Int32Array(size);
+  const distances = new Int32Array(size);
+  queue[0] = start.y * width + start.x;
+  let length = 1;
+  const reached = new Uint8Array(size);
   if (inBounds(state, start)) reached[start.y * width + start.x] = 1;
   const frontiers: GameObservation["exploration"]["reachableFrontiers"] = [];
 
   let cursor = 0;
-  while (cursor < queue.length) {
-    const current = queue[cursor];
+  while (cursor < length) {
+    const cell = queue[cursor];
+    const currentX = cell % width;
+    const currentY = Math.floor(cell / width);
+    const currentDistance = distances[cell];
     cursor += 1;
 
     let unseenNeighbors = 0;
     for (const delta of cardinals) {
-      const x = current.x + delta.x;
-      const y = current.y + delta.y;
+      const x = currentX + delta.x;
+      const y = currentY + delta.y;
       if (x >= 0 && y >= 0 && x < width && y < height && !grid.known[y * width + x]) unseenNeighbors += 1;
     }
-    if (current.distance > 0 && unseenNeighbors > 0) {
-      frontiers.push({ x: current.x, y: current.y, distance: current.distance, unseenNeighbors });
+    if (currentDistance > 0 && unseenNeighbors > 0) {
+      frontiers.push({ x: currentX, y: currentY, distance: currentDistance, unseenNeighbors });
     }
 
     for (const delta of movementDeltas) {
-      const x = current.x + delta.x;
-      const y = current.y + delta.y;
+      const x = currentX + delta.x;
+      const y = currentY + delta.y;
       if (x < 0 || y < 0 || x >= width || y >= height) continue;
       const index = y * width + x;
       if (reached[index] || !grid.passable[index]) continue;
       reached[index] = 1;
-      queue.push({ x, y, distance: current.distance + 1 });
+      distances[index] = currentDistance + 1;
+      queue[length++] = index;
     }
   }
 

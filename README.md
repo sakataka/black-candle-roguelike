@@ -151,7 +151,7 @@ bun run simulate:batch -- --seeds 20260504:20260603 --decision-policy always-con
 
 `--variant label=key:value,...` のキーは `config`（列の設定ファイル）、`stage`、`abilities`（`+` 区切り、`none` で無し）、`tactics`、`rank`、`trial`、`watcher`、`decision`、`heat`。`--stage fresh|early|mid|late` は全体の条件を育ち具合のプリセットにします（中身は `src/game/sim/scenarios.ts`）。小さな効果は30 seedだと揺れに埋もれるので、100 seed（`20260504:20260603`）で比べるのがおすすめです。
 
-batchは `--jobs` 本の常駐ワーカー（`src/game/sim/worker.ts`）で遠征を流します。遠征ごとにプロセスを立て直さないのでJITが温まったまま回り、標準batch（30 seed × 7職、1600手）は約7秒です。ワーカーは起動時にソースを読み込むので、batchの実行中にコードを編集しても走行中の結果は変わりません。
+batchは `--jobs` 本の常駐ワーカー（`src/game/sim/worker.ts`）で遠征を流します。遠征ごとにプロセスを立て直さないのでJITが温まったまま回ります。2026-10-05のM4 Proでの計測では、標準batch（30 seed × 7職、1600手、8並列）は約3.2秒、100 seedの3条件比較は約32秒でした。追加改善の倍率は条件により約1.6〜1.9倍です（[測定条件と設計](docs/simulation-performance.md)）。ワーカーは起動時にソースを読み込むので、batchの実行中にコードを編集しても走行中の結果は変わりません。
 
 presetは用途で使い分けます。`smoke`は機能追加直後の短時間確認、`standard`は完了前の標準確認、`compare`はbaseline/candidateの同一seed比較、`deep`は問題seedの長ターン再現と`--trace` / `--profile`付きの詳細確認です。通常のbatchは`--log-limit 40`で直近40手のログと全体の集計値を保持します。遠征全体のログが必要な時は`--log-limit none`を指定します。CPU負荷を下げたい時は`--jobs 4`、単純な再現確認では`--jobs 1`を指定します。
 

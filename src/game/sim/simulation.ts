@@ -4,7 +4,8 @@ import { chooseWatcherAction, type WatcherPolicy } from "../ai/watcher";
 import { realtimeConfig } from "../content/realtime";
 import { isInstantIntervention } from "../core/realtime";
 import { getGameConfig, loadBunGameConfig } from "../content/config";
-import { applyAction, createInitialGame, observeGame } from "../core/game";
+import { applyAction, applyOwnedAction, createInitialGame, observeGame } from "../core/game";
+import { cloneEntity } from "../core/state";
 import { paceDelayMs, paceKindFor, type PaceKind } from "../core/pacing";
 import { analyzeRun, createRunLog, recordTurn } from "../core/runLog";
 import { calculateShards, campaignRunModifiers, campaignTacticSlots, chooseDecisionAction, createCampaignState, createRunIdentity, type DecisionPolicy } from "../core/autonomous";
@@ -18,6 +19,8 @@ export type SimulationRunInput = {
   label: string;
   trace?: boolean;
   profile?: boolean;
+  /** 通常の状態複製経路との結果照合用。バッチは遠征の状態を単独で所有する。 */
+  copyState?: boolean;
   logLimit?: number | null;
   decisionPolicy?: DecisionPolicy;
   watcherPolicy?: WatcherPolicy;
@@ -137,7 +140,14 @@ export async function runSimulation(input: SimulationRunInput): Promise<Simulati
   let executedTurns = 0;
   let projectedDisplayMs = 0;
   let scheduledPace: PaceKind = "exploration";
-  let observation = timeProfile(profile, "observeGame", () => observeGame(state));
+  const observe = (current: GameState) => {
+    const result = observeGame(current);
+    // observeGame の player は状態への参照。直接更新しても前手のログが変わらないよう保存する。
+    if (!input.copyState) result.player = cloneEntity(result.player);
+    return result;
+  };
+  const advance = input.copyState ? applyAction : applyOwnedAction;
+  let observation = timeProfile(profile, "observeGame", () => observe(state));
   let lastKnownTiles = observation.knownTiles.length;
   let turnsWithoutKnownTileGrowth = 0;
   let maxTurnsWithoutKnownTileGrowth = 0;
@@ -163,11 +173,11 @@ export async function runSimulation(input: SimulationRunInput): Promise<Simulati
     if (!isInstantIntervention(action)) projectedDisplayMs += paceDelayMs(scheduledPace);
     const debug = timeProfile(profile, "getAutoplayDebugState", () => getAutoplayDebugState(beforeObservation));
     actions[action.type] += 1;
-    const before = state;
-    state = timeProfile(profile, "applyAction", () => applyAction(state, action));
-    const afterObservation = timeProfile(profile, "observeGame", () => observeGame(state));
+    const before = input.copyState ? state : { ...state };
+    const hpBefore = beforeObservation.player.stats;
+    state = timeProfile(profile, "applyAction", () => advance(state, action));
+    const afterObservation = timeProfile(profile, "observeGame", () => observe(state));
     const logEntry = timeProfile(profile, "recordTurn", () => recordTurn({ log: runLog, before, action, after: state, actor: "ai", aiDebug: debug, beforeObservation, afterObservation }));
-    const hpBefore = before.entities.find((entity) => entity.id === before.playerId)?.stats;
     const hpAfter = state.entities.find((entity) => entity.id === state.playerId)?.stats;
     if (state.floor !== before.floor) {
       floorProfile.push({ ...floorEntry, turns: before.runTurn - floorEntry.turns });

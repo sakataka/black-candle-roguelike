@@ -29,8 +29,18 @@ export function equippedWeaponType(player: Pick<Entity, "inventory">): { type: W
 
 /** 固有の印と個体の印を合わせ、重複を除いた印の一覧。 */
 export function pieceSeals(piece: EquipmentPiece): SealConfig[] {
-  const ids = [...(getGameConfig().equipment[piece.contentId]?.innateSeals ?? []), ...(piece.seals ?? [])];
-  return [...new Set(ids)].flatMap((id) => getGameConfig().seals[id] ? [getGameConfig().seals[id]] : []);
+  const config = getGameConfig();
+  const innate = config.equipment[piece.contentId]?.innateSeals ?? [];
+  const carried = piece.seals ?? [];
+  if (!innate.length && !carried.length) return [];
+  const ids = [...innate, ...carried];
+  const seals: SealConfig[] = [];
+  // 印は数個だけ。毎手の装備評価で Set と flatMap 用の配列を作らない。
+  for (let index = 0; index < ids.length; index += 1) {
+    const id = ids[index];
+    if (ids.indexOf(id) === index && config.seals[id]) seals.push(config.seals[id]);
+  }
+  return seals;
 }
 
 export function equippedSeals(player: Pick<Entity, "inventory">): SealConfig[] {

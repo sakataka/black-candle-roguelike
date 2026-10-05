@@ -1,4 +1,4 @@
-import { isKnownClear, isKnownTile, isKnownWalkable, isVisibleBlockerAt, walkKnownPaths, type PathOptions } from "./navigation";
+import { isKnownClear, isKnownTile, isKnownWalkable, isVisibleBlockerAt, knownPathDistance, walkKnownPaths, type PathOptions } from "./navigation";
 import { DIRECTION_DELTAS, chebyshev as distance, isWalkable, linePoints, pointKey, samePoint } from "../core/spatial";
 import { getGameConfig, runRules } from "../content/config";
 import { contentEntities } from "../content/entities";
@@ -958,10 +958,7 @@ function stepTowardKnownReachableWeighted(observation: GameObservation, target: 
 }
 
 function pathDistanceFrom(observation: GameObservation, from: Point, target: Point, options: PathOptions = {}): number | null {
-  for (const path of walkKnownPaths(observation, from, options)) {
-    if (samePoint(path.point, target)) return path.distance;
-  }
-  return null;
+  return knownPathDistance(observation, from, target, options);
 }
 
 function stepOntoAdjacentKnownTrap(observation: GameObservation): GameAction | null {

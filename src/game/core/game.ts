@@ -4,7 +4,7 @@ import { biomeThemeForFloor, biomeThemeName, bossForFloor, eventPoolForFloor, gu
 export { biomeThemeName } from "../content/floors";
 import { bossPointNearStairs, buildFloorPlan, chooseCoverPoints, createPointTaker, generateFloorMap, rngForFloor, setTileKind } from "./generation";
 import { buildExplorationStatus } from "./exploration";
-import { cloneModifiers, cloneState, cloneStory, getPlayer } from "./state";
+import { cloneExpedition, cloneModifiers, cloneState, cloneStory, cloneTile, getPlayer } from "./state";
 import { DIRECTION_DELTAS, blocksSight, chebyshev, inBounds, isWalkable, linePoints, manhattan, samePoint, tileAt } from "./spatial";
 import { bossTrialDefinition, foundationBonus } from "./journey";
 import * as ROT from "rot-js";
@@ -26,6 +26,7 @@ import type {
   RunIdentity,
   RunModifiers,
   RoleTruthId,
+  Tile,
   Stats,
   TrapKind,
 } from "../types";
@@ -331,6 +332,21 @@ function createFloorState(
 }
 
 export function applyAction(state: GameState, action: GameAction): GameState {
+  return advanceGame(state, action, true);
+}
+
+/**
+ * 過去の状態を参照しない単独所有者向け。同じルールで入力の状態を消費する。
+ * 呼出元は返された状態だけを保持し、更新前の観測・ログは別に保存すること。
+ */
+export function applyOwnedAction(state: GameState, action: GameAction): GameState {
+  if (!visibilityCaches.has(state.tiles)) {
+    visibilityCaches.set(state.tiles, { width: state.width, height: state.height, opaque: new Uint8Array(state.tiles.length), areas: new Map() });
+  }
+  return advanceGame(state, action, false);
+}
+
+function advanceGame(state: GameState, action: GameAction, copyState: boolean): GameState {
   if (state.status !== "playing") {
     return state;
   }
@@ -356,7 +372,8 @@ export function applyAction(state: GameState, action: GameAction): GameState {
     const range = getGameConfig().consumables[action.contentId].range ?? Infinity;
     if (!target || target.kind !== "monster" || !target.hostile || !tileAt(state, target.pos).visible || chebyshev(getPlayer(state).pos, target.pos) > range || !hasLineOfSight(state, getPlayer(state).pos, target.pos)) return state;
   }
-  let next = cloneState(state);
+  let next = copyState ? cloneState(state) : state;
+  if (!copyState) next.strikes = [];
   if (action.type === "resolveDecision") {
     if (action.tactics && next.pendingDecision?.kind === "checkpoint") {
       next.tactics = normalizeTactics(action.tactics, next.modifiers.tacticSlots);
@@ -829,17 +846,16 @@ export function observeGame(state: GameState): GameObservation {
   for (let index = 0; index < state.tiles.length; index += 1) {
     const tile = state.tiles[index];
     if (!tile.explored && !tile.visible) continue;
-    const copy = { ...tile, x: index % state.width, y: Math.floor(index / state.width) };
+    const copy = cloneTile(tile) as typeof tile & { x: number; y: number };
+    copy.x = index % state.width;
+    copy.y = Math.floor(index / state.width);
     knownTiles.push(copy);
     if (tile.visible) visibleTiles.push(copy);
   }
   const aliveBoss = bossAlive(state);
 
   return {
-    expedition: state.expedition ? { ...structuredClone(state.expedition),
-      heat: state.expedition.heat.filter((h) => tileAt(state, h.pos).explored).map((h) => structuredClone(h)),
-      trail: state.expedition.trail.map((e) => ({ ...e, pos: { ...e.pos } })),
-    } : undefined,
+    expedition: state.expedition ? cloneExpedition(state.expedition, state.expedition.heat.filter((h) => tileAt(state, h.pos).explored)) : undefined,
     seed: state.seed,
     turn: state.turn,
     runTurn: state.runTurn,
@@ -861,7 +877,7 @@ export function observeGame(state: GameState): GameObservation {
     tactics: [...state.tactics],
     modifiers: cloneModifiers(state.modifiers),
     pendingDecision: state.pendingDecision ? structuredClone(state.pendingDecision) : null,
-    story: structuredClone(state.story),
+    story: cloneStory(state.story),
     messages: state.messages.slice(-8),
     status: state.status,
     bossAlive: aliveBoss,
@@ -2708,7 +2724,24 @@ function nextStepToward(state: GameState, from: Point, to: Point): Point | null 
   return blockedByMonster ? null : candidate;
 }
 
+type VisibilityCache = { width: number; height: number; opaque: Uint8Array; areas: Map<string, number[]> };
+// 単独所有の遠征だけが同じ地形配列を使い続ける。通常の複製経路には適用しない。
+const visibilityCaches = new WeakMap<Tile[], VisibilityCache>();
+
 function updateVisibility(state: GameState): GameState {
+  const cache = visibilityCaches.get(state.tiles);
+  if (cache) {
+    let changed = cache.width !== state.width || cache.height !== state.height || cache.opaque.length !== state.tiles.length;
+    if (changed) cache.opaque = new Uint8Array(state.tiles.length);
+    for (let index = 0; index < state.tiles.length; index += 1) {
+      const opaque = Number(blocksSight(state.tiles[index].kind));
+      if (opaque !== cache.opaque[index]) changed = true;
+      cache.opaque[index] = opaque;
+    }
+    if (changed) cache.areas.clear();
+    cache.width = state.width;
+    cache.height = state.height;
+  }
   for (const tile of state.tiles) tile.visible = false;
   const omenFov = state.floorOmen ? getGameConfig().omens.definitions[state.floorOmen]?.fovDelta ?? 0 : 0;
   revealVisibleArea(state, getPlayer(state).pos, Math.max(3, runRules(state.modifiers).fovRadius + omenFov));
@@ -2719,6 +2752,17 @@ function updateVisibility(state: GameState): GameState {
 }
 
 function revealVisibleArea(state: GameState, origin: Point, radius: number): void {
+  const cache = visibilityCaches.get(state.tiles);
+  const key = `${origin.x},${origin.y}:${radius}`;
+  const remembered = cache?.areas.get(key);
+  if (remembered) {
+    for (const index of remembered) {
+      state.tiles[index].visible = true;
+      state.tiles[index].explored = true;
+    }
+    return;
+  }
+  const visible: number[] = [];
   const lightPasses = (x: number, y: number) => {
     const point = { x, y };
     return inBounds(state, point) && (samePoint(point, origin) || !blocksSight(tileAt(state, point).kind));
@@ -2727,9 +2771,10 @@ function revealVisibleArea(state: GameState, origin: Point, radius: number): voi
   fov.compute(origin.x, origin.y, radius, (x, y) => {
     const point = { x, y };
     if (!inBounds(state, point)) return;
+    if (cache) visible.push(y * state.width + x);
     const tile = tileAt(state, point);
     tile.visible = true;
     tile.explored = true;
   });
+  if (cache) cache.areas.set(key, visible);
 }
-

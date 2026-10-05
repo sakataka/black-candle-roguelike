@@ -96,12 +96,13 @@ export function bossPointNearStairs(points: Point[], stairs: Point, rng: Rng): P
 
 export function chooseCoverPoints(walkable: Point[], start: Point, stairs: Point, rng: Rng, preferred: Point[] = []): Point[] {
   const { rules } = getGameConfig();
+  const walkableKeys = new Set(walkable.map(pointKey));
   const count = Math.min(rules.coverCountBase + Math.floor(rng.int(0, Math.max(1, rules.coverCountFloorDivisor * 4)) / rules.coverCountFloorDivisor), rules.coverCountMax);
   const candidates = walkable.filter((point) => {
     if (samePoint(point, start) || samePoint(point, stairs)) {
       return false;
     }
-    return manhattan(point, start) > 3 && manhattan(point, stairs) > 2 && openNeighborCount(walkable, point) >= 3;
+    return manhattan(point, start) > 3 && manhattan(point, stairs) > 2 && openNeighborCount(walkableKeys, point) >= 3;
   });
   const cover: Point[] = [];
   while (cover.length < count && candidates.length > 0) {
@@ -116,8 +117,12 @@ export function chooseCoverPoints(walkable: Point[], start: Point, stairs: Point
   return cover;
 }
 
-function openNeighborCount(walkable: Point[], point: Point): number {
-  return cardinalDeltas().filter((delta) => walkable.some((candidate) => samePoint(candidate, { x: point.x + delta.x, y: point.y + delta.y }))).length;
+function openNeighborCount(walkableKeys: Set<string>, point: Point): number {
+  let count = 0;
+  for (const delta of cardinalDeltas()) {
+    if (walkableKeys.has(`${point.x + delta.x},${point.y + delta.y}`)) count += 1;
+  }
+  return count;
 }
 
 export function buildFloorPlan(walkable: Point[], roomCenters: Point[], start: Point, stairs: Point): FloorPlan {
@@ -131,7 +136,8 @@ export function buildFloorPlan(walkable: Point[], roomCenters: Point[], start: P
   const sideRoomPoints = pointsNearAny(walkable, sideRoomCenters, 5);
   const farRoomPoints = pointsNearAny(walkable, farSideRooms.length > 0 ? farSideRooms : [exitRoom], 5);
   const exitRoomPoints = pointsNearAny(walkable, [exitRoom, stairs], 6);
-  const widePoints = walkable.filter((point) => openNeighborCount(walkable, point) >= 3);
+  const walkableKeys = new Set(walkable.map(pointKey));
+  const widePoints = walkable.filter((point) => openNeighborCount(walkableKeys, point) >= 3);
 
   return {
     guaranteedLootPoints: uniquePoints([...nearStart, ...pointsNearAny(walkable, [firstSideRoom], 4), ...sideRoomPoints]),
@@ -144,8 +150,15 @@ export function buildFloorPlan(walkable: Point[], roomCenters: Point[], start: P
 
 export function createPointTaker(points: Point[], rng: Rng, fallback: Point): (preferred?: Point[]) => Point {
   return (preferred = []) => {
+    // 候補の順序・重複・乱数の消費を保つ。守り手の配置も points を変更するので、
+    // 索引は選択の直前に作る（古い splice 位置を再利用しない）。
+    const indexes = new Map<string, number>();
+    for (let index = 0; index < points.length; index += 1) {
+      const key = pointKey(points[index]);
+      if (!indexes.has(key)) indexes.set(key, index);
+    }
     const preferredIndexes = preferred
-      .map((point) => points.findIndex((candidate) => samePoint(candidate, point)))
+      .map((point) => indexes.get(pointKey(point)) ?? -1)
       .filter((index) => index >= 0);
     const index = preferredIndexes.length > 0 ? rng.pick(preferredIndexes) : rng.int(0, Math.max(0, points.length - 1));
     const [point] = points.splice(index, 1);
