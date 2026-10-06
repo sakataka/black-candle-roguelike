@@ -233,7 +233,7 @@
   margin-left: 0.3em;
   padding: 16px 22px 16px 18px;
   border: 1px solid rgba(240, 204, 123, 0.38);
-  border-radius: 2px;
+  border-radius: var(--r-tag);
   background: linear-gradient(180deg, rgba(40, 30, 18, 0.72), rgba(16, 12, 8, 0.72));
   color: #f6e6c2;
   font-family: var(--display);
@@ -406,7 +406,7 @@
   overflow-y: auto;
   padding: 18px;
   border: 1px solid rgba(212, 173, 98, 0.32);
-  border-radius: 4px;
+  border-radius: var(--r-control);
   background: linear-gradient(180deg, rgba(22, 17, 11, 0.96), rgba(10, 8, 6, 0.97));
   box-shadow: 0 24px 64px rgba(0, 0, 0, 0.65);
   transform: translateY(-50%);
@@ -417,23 +417,23 @@
 .title-saves-head { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 12px; }
 .title-saves-head h2 { margin: 0; color: var(--ink); font-family: var(--display); font-size: 1.125rem; font-weight: 700; letter-spacing: 0.24em; }
 .title-saves-head small { grid-column: 1; color: var(--muted); font-size: 0.75rem; }
-.title-saves-close { grid-column: 2; grid-row: 1 / 3; align-self: start; width: 32px; height: 32px; border: 1px solid var(--line); border-radius: 50%; background: none; color: var(--muted); font-size: 1rem; cursor: pointer; }
+.title-saves-close { grid-column: 2; grid-row: 1 / 3; align-self: start; width: 32px; height: 32px; border: 1px solid var(--line); border-radius: var(--r-control); background: none; color: var(--muted); font-size: 1rem; cursor: pointer; }
 .title-save-list { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
-.title-save { display: grid; gap: 7px; padding: 11px 12px; border: 1px solid var(--line-soft); border-radius: 3px; background: rgba(255, 255, 255, 0.02); }
+.title-save { display: grid; gap: 7px; padding: 11px 12px; border: 1px solid var(--line-soft); border-radius: var(--r-control); background: rgba(255, 255, 255, 0.02); }
 .title-save.is-active { border-color: rgba(240, 204, 123, 0.5); background: rgba(212, 173, 98, 0.07); }
 .title-save-head { display: flex; align-items: baseline; gap: 10px; }
 .title-save-head strong { color: var(--ink); font-family: var(--display); font-size: 1rem; letter-spacing: 0.14em; }
 .title-save-head em { color: var(--gold); font-size: 0.75rem; font-style: normal; }
 .title-save-head small { margin-left: auto; color: var(--faint); font-size: 0.6875rem; }
-.title-save-badge { padding: 0 7px; border: 1px solid var(--gold); border-radius: 99px; color: var(--gold-bright); font-size: 0.625rem; font-weight: 800; letter-spacing: 0.1em; }
+.title-save-badge { padding: 0 7px; border: 1px solid var(--gold); border-radius: var(--r-tag); color: var(--gold-bright); font-size: 0.625rem; font-weight: 800; letter-spacing: 0.1em; }
 .title-save-road { display: flex; align-items: center; gap: 10px; color: var(--ink-soft); font-size: 0.75rem; }
 .title-save-steps { display: flex; gap: 3px; }
-.title-save-steps i { width: 14px; height: 4px; border-radius: 2px; background: #2c251b; }
+.title-save-steps i { width: 14px; height: 4px; border-radius: 0; background: #2c251b; }
 .title-save-steps i.is-done { background: var(--gold); }
 .title-save-stats { display: flex; flex-wrap: wrap; gap: 2px 14px; color: var(--muted); font-size: 0.6875rem; }
 .title-save-stats b { color: var(--ink-soft); font-size: 0.8125rem; }
 .title-save-actions { display: flex; gap: 8px; }
-.title-save-actions button, .title-save-new { min-height: 36px; padding: 6px 12px; border: 1px solid var(--line); border-radius: 3px; background: rgba(0, 0, 0, 0.25); color: var(--ink-soft); font-size: 0.8125rem; cursor: pointer; }
+.title-save-actions button, .title-save-new { min-height: 36px; padding: 6px 12px; border: 1px solid var(--line); border-radius: var(--r-control); background: rgba(0, 0, 0, 0.25); color: var(--ink-soft); font-size: 0.8125rem; cursor: pointer; }
 .title-save-main { flex: 1; border-color: rgba(240, 204, 123, 0.45) !important; color: var(--gold-bright) !important; }
 /* 使用中の記録で続ける札は、支度・結果の主ボタンと同じ金の札と明朝にそろえる。 */
 .title-save.is-active .title-save-main { background: linear-gradient(180deg, #f6d88e, #d2a456 55%, #b8873d) !important; color: #1b130a !important; font-family: var(--display); font-weight: 800; letter-spacing: 0.16em; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.5), inset 0 1px rgba(255, 255, 255, 0.45); }

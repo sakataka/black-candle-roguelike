@@ -8,7 +8,7 @@ import { observerShellMarkup } from "./ui/shell";
 import { applySprite, spriteStyle } from "./ui/sprites";
 import { escapeHtml, requireElement, setText } from "./ui/dom";
 import { bossTrialDefinition, journeyProgress } from "./game/core/journey";
-import { candleRoadMarkup, growthMarkup } from "./ui/progress";
+import { candleRoadMarkup, growthMarkup, progressStripMarkup, resultProgressMarkup } from "./ui/progress";
 import "@fontsource/shippori-mincho-b1/500.css";
 import "@fontsource/shippori-mincho-b1/600.css";
 import "@fontsource/shippori-mincho-b1/800.css";
@@ -17,6 +17,8 @@ import "@fontsource/cormorant-garamond/600.css";
 import "./styles.css";
 import { showTitle, type SaveSlotSummary, type TitleLedger } from "./ui/title";
 import "./ui/interface.css";
+import "./ui/prepare.css";
+import "./ui/result.css";
 import {
   activateSaveSlot,
   campaignStorageKey,
@@ -193,12 +195,12 @@ const endKicker = requireElement<HTMLParagraphElement>("#end-kicker");
 const endTitle = requireElement<HTMLHeadingElement>("#end-title");
 const endSummary = requireElement<HTMLParagraphElement>("#end-summary");
 const runComparison = requireElement<HTMLDivElement>("#run-comparison");
-const endStats = requireElement<HTMLDivElement>("#end-stats");
+const endStats = requireElement<HTMLElement>("#end-stats");
 const departButton = requireElement<HTMLButtonElement>("#depart-button");
 const resumeButton = requireElement<HTMLButtonElement>("#resume-run");
-const shardBreakdown = requireElement<HTMLDivElement>("#shard-breakdown");
+const shardBreakdown = requireElement<HTMLElement>("#shard-breakdown");
 const endRoadmap = requireElement<HTMLElement>("#end-roadmap");
-const decisionHistory = requireElement<HTMLDivElement>("#decision-history");
+const decisionHistory = requireElement<HTMLElement>("#decision-history");
 const runInsightsPanel = requireElement<HTMLElement>("#run-insights");
 const endMilestone = requireElement<HTMLElement>("#end-milestone");
 
@@ -470,7 +472,7 @@ function installEvents(): void {
       }
       // 選択済みの探索者カードか、ボタン以外にフォーカスがある時の Enter は出発にする。
       const active = document.activeElement;
-      if (event.key === "Enter" && (!(active instanceof HTMLButtonElement) || active.matches(".candidate-card.is-selected"))) {
+      if (event.key === "Enter" && (!(active instanceof HTMLButtonElement) || active.matches(".delver-tile.is-selected"))) {
         event.preventDefault();
         departButton.click();
         return;
@@ -591,9 +593,11 @@ function renderCandidateSelection(): void {
   renderInstitute();
   renderCycle();
   renderVeterans();
-  setText("#recruit-capacity", campaign.roster.length >= getGameConfig().campaign.rosterLimit
+  const rosterLimit = getGameConfig().campaign.rosterLimit;
+  setText("#veteran-capacity", campaign.roster.length ? `${campaign.roster.length}/${rosterLimit}人` : "");
+  setText("#recruit-capacity", campaign.roster.length >= rosterLimit
     ? "遠征団は満員。志願者は遠征できるが、生還しても加入しない（古参は全員残る）。"
-    : `生還すると遠征団に加わる（${campaign.roster.length}/${getGameConfig().campaign.rosterLimit}人）。`);
+    : "生還すると遠征団に加わる。");
   const indexOffset = campaign.roster.length;
   const recruits = recruitIdentities();
   candidateList.replaceChildren(...playableRoles().map((role, index) => {
@@ -607,10 +611,10 @@ function renderCandidateSelection(): void {
       name: escapeHtml(identity.name),
       meta: getContentName(role.id),
       temperament: identity.temperament,
-      extra: `<small>${temperamentDescription(identity.temperament)}</small><small class="role-focus">${escapeHtml(role.traits.focus)}</small><small class="role-focus">得意武器: ${escapeHtml(weaponTypeLabels(role.traits.weaponMastery?.types))} · 技: ${escapeHtml(roleSkill(role.id)?.config.label ?? "なし")}</small>`,
       stats: startingStats(role.id),
     });
   }));
+  renderDelverDetail(delver);
   renderDepartSummary(delver);
   renderRoadmap();
   renderArchive();
@@ -640,49 +644,89 @@ function renderMissionOptions(roleId: string): void {
       ? campaign.roleTruths.includes(truth) ? `この職業の真相「${roleTruthLabel(truth)}」は記録済み` : `この職業なら真相「${roleTruthLabel(truth)}」を記録できる（+灯片${getGameConfig().campaign.shards.newTruth}）`
       : mission.id === "memorial" ? `墓標: ${pendingGraves(campaign).map((grave) => `${grave.name}（第${grave.floor}階）`).join("・")}`
         : mission.id === "black-core" ? "第六階の帰還路を越えると、番人を倒すまで帰れない" : "";
-    button.innerHTML = `${mission.id === recommended ? '<span class="mission-badge">推奨</span>' : ""}<strong>${escapeHtml(mission.label)}</strong><small>${escapeHtml(mission.description)}</small><em>${escapeHtml(mission.targetLabel)}</em>${note ? `<small class="mission-note">${escapeHtml(note)}</small>` : ""}<span class="mission-reward">生還で灯片+${missionShards(mission.id)} · 達成時 灯火+${embers}</span>`;
+    button.innerHTML = `${mission.id === recommended ? '<span class="tag mission-badge">推奨</span>' : ""}<strong>${escapeHtml(mission.label)}</strong><small>${escapeHtml(mission.description)}</small><em>${escapeHtml(mission.targetLabel)}</em>${note ? `<small class="mission-note">${escapeHtml(note)}</small>` : ""}<span class="mission-reward">生還で灯片+${missionShards(mission.id)} · 達成時 灯火+${embers}</span>`;
     return button;
   }));
 }
 
+/** 探索者の一覧に並べる小さな札。肖像・名前・職業・気質・能力だけを載せ、説明は詳細欄に任せる。 */
 function candidateCard(options: {
   dataKey: ["roleId" | "veteranId", string];
   selected: boolean;
-  veteran?: boolean;
+  veteran?: Veteran;
   shortcut: number;
   roleId: string;
   name: string;
   meta: string;
   temperament: Veteran["identity"]["temperament"];
-  extra: string;
   stats: { hp: number; attack: number; defense: number };
 }): HTMLButtonElement {
   const foundation = journeyProgress(campaign);
   const button = document.createElement("button");
   button.type = "button";
   button.dataset[options.dataKey[0]] = options.dataKey[1];
-  button.className = `candidate-card${options.veteran ? " is-veteran" : ""}${options.selected ? " is-selected" : ""}`;
+  button.className = `delver-tile${options.veteran ? " is-veteran" : ""}${options.selected ? " is-selected" : ""}`;
   button.setAttribute("aria-pressed", String(options.selected));
-  // 肖像はアーチ形の龕に立たせ、選ぶと足元の灯がともる。
+  const truthOpen = !campaign.roleTruths.includes(roleTruthFor(options.roleId));
+  const scars = options.veteran?.scars.length ?? 0;
   const portrait = document.createElement("span");
-  portrait.className = "candidate-portrait";
+  portrait.className = "delver-tile-portrait";
   const figure = document.createElement("i");
-  figure.className = "candidate-figure";
+  figure.className = "delver-figure";
   applySprite(figure, assetForContent(options.roleId), 112);
   portrait.append(figure);
   const body = document.createElement("span");
-  body.className = "candidate-body";
+  body.className = "delver-tile-body";
   body.innerHTML = `
-    ${options.shortcut <= 4 ? `<kbd class="candidate-index">${options.shortcut}</kbd>` : ""}
     <strong>${options.name}</strong>
-    <em>${escapeHtml(options.meta)}</em>
-    <span class="temperament-tag temperament-${options.temperament}">${temperamentLabel(options.temperament)}</span>
-    ${campaign.roleTruths.includes(roleTruthFor(options.roleId)) ? "" : `<span class="truth-tag" title="第六階の守り手を倒して生きて帰れば、真相「${escapeHtml(roleTruthLabel(roleTruthFor(options.roleId)))}」を記録できる">◇ 真相を持ち帰れる</span>`}
-    ${options.extra}
-    <span class="mini-stats"><span>HP <b>${options.stats.hp + foundation.maxHp}</b></span><span>攻撃 <b>${options.stats.attack + foundation.attack}</b></span><span>防御 <b>${options.stats.defense}</b></span></span>
+    <span class="delver-tile-meta">${escapeHtml(options.meta)}<span class="tag temperament-tag temperament-${options.temperament}">${temperamentLabel(options.temperament)}</span></span>
+    <span class="mini-stats" aria-label="HP ${options.stats.hp + foundation.maxHp}、攻撃 ${options.stats.attack + foundation.attack}、防御 ${options.stats.defense}"><span>HP<b>${options.stats.hp + foundation.maxHp}</b></span><span>攻<b>${options.stats.attack + foundation.attack}</b></span><span>防<b>${options.stats.defense}</b></span></span>
   `;
-  button.append(portrait, body);
+  const marks = document.createElement("span");
+  marks.className = "delver-tile-marks";
+  marks.innerHTML = `${options.shortcut <= 4 ? `<kbd>${options.shortcut}</kbd>` : ""}${truthOpen ? '<i class="mark-truth" title="真相を持ち帰れる職業">◇<span class="sr-only">真相を持ち帰れる</span></i>' : ""}${scars ? `<i class="mark-scar" title="古傷 ${scars}">傷${scars > 1 ? scars : ""}<span class="sr-only">古傷あり</span></i>` : ""}`;
+  button.append(portrait, body, marks);
   return button;
+}
+
+/** 選んだ探索者の詳しい姿。気質・得意・技・真相・古傷をここだけで読ませる。 */
+function renderDelverDetail(delver: ReturnType<typeof resolveSelectedDelver>): void {
+  const panel = requireElement<HTMLElement>("#delver-detail");
+  if (!delver) {
+    panel.innerHTML = '<p class="empty-state">送り出す探索者を選んでください。</p>';
+    return;
+  }
+  const role = playableRoles().find((candidate) => candidate.id === delver.roleId);
+  const foundation = journeyProgress(campaign);
+  const veteran = delver.veteran;
+  const temperament: Veteran["identity"]["temperament"] = veteran?.identity.temperament ?? recruitIdentities().find((identity) => identity.roleId === delver.roleId)?.temperament ?? "cautious";
+  const base = startingStats(delver.roleId);
+  const bonus = getGameConfig().campaign.veteranRankBonus;
+  const stats = veteran
+    ? { hp: base.hp + bonus.maxHp * veteran.rank, attack: base.attack + bonus.attack * veteran.rank, defense: base.defense }
+    : base;
+  const truth = roleTruthFor(delver.roleId);
+  const scarDefinitions = getGameConfig().scars;
+  panel.innerHTML = `
+    <span class="delver-detail-portrait" aria-hidden="true"><i class="delver-figure"></i></span>
+    <div class="delver-detail-body">
+      <p class="delver-detail-kicker">${veteran ? `遠征団 · 遠征${veteran.expeditions}回` : "新たな志願者"}</p>
+      <h4>${escapeHtml(delver.name)}${veteran ? ` <span class="rank-stars" aria-label="位階${veteran.rank}">${"★".repeat(veteran.rank)}</span>` : ""}</h4>
+      <p class="delver-detail-role">${escapeHtml(delver.roleName)}<span class="tag temperament-tag temperament-${temperament}">${escapeHtml(delver.temperament)}</span></p>
+      <dl class="delver-stats">
+        <div><dt>HP</dt><dd>${stats.hp + foundation.maxHp}</dd></div>
+        <div><dt>攻撃</dt><dd>${stats.attack + foundation.attack}</dd></div>
+        <div><dt>防御</dt><dd>${stats.defense}</dd></div>
+      </dl>
+      <ul class="delver-traits">
+        <li><span>気質</span>${escapeHtml(temperamentDescription(temperament))}</li>
+        ${role ? `<li><span>得意</span>${escapeHtml(role.traits.focus)}</li><li><span>武器と技</span>得意武器: ${escapeHtml(weaponTypeLabels(role.traits.weaponMastery?.types))} · 技: ${escapeHtml(roleSkill(role.id)?.config.label ?? "なし")}</li>` : ""}
+        ${campaign.roleTruths.includes(truth) ? "" : `<li class="is-truth"><span>真相</span>第六階の守り手を倒して生きて帰れば、真相「${escapeHtml(roleTruthLabel(truth))}」を記録できる</li>`}
+        ${veteran?.scars.map((id) => `<li class="is-scar"><span>古傷</span><b>${escapeHtml(scarDefinitions[id]?.label ?? id)}</b> ${escapeHtml(scarDefinitions[id]?.description ?? "")}</li>`).join("") ?? ""}
+      </ul>
+    </div>
+  `;
+  applySprite(panel.querySelector<HTMLElement>(".delver-figure") as HTMLElement, assetForContent(delver.roleId), 112);
 }
 
 function renderDepartSummary(delver: ReturnType<typeof resolveSelectedDelver>): void {
@@ -758,7 +802,7 @@ function renderInstitute(): void {
     button.dataset.facilityId = facilityId;
     button.className = "facility-card";
     button.disabled = cost === null || campaign.shards < cost;
-    button.innerHTML = `<span class="facility-icon" aria-hidden="true"></span><strong>${escapeHtml(facility.label)} <em>Lv${level}/${facility.costs.length}</em></strong><small>${escapeHtml(facility.description)}</small><span>${cost === null ? "最大" : `強化 · 灯片${cost}`}</span>`;
+    button.innerHTML = `<span class="facility-icon" aria-hidden="true"></span><strong>${escapeHtml(facility.label)} <em>Lv${level}/${facility.costs.length}</em></strong><small>${escapeHtml(facility.description)}</small><span class="tag">${cost === null ? "最大" : `強化 · 灯片${cost}`}</span>`;
     applySprite(button.querySelector<HTMLElement>(".facility-icon") as HTMLElement, assetForContent(`facility.${facilityId}`), 44);
     return button;
   }));
@@ -784,7 +828,7 @@ function renderCycle(): void {
   const bonus = runShardBonusPercent(campaign.heat.selected, campaign.cycle.aftermath);
   const locked = campaign.heat.unlocked < tiers.length ? `<small class="heat-next">燭階${campaign.heat.unlocked}で第十層を踏破すると燭階${campaign.heat.unlocked + 1}「${escapeHtml(tiers[campaign.heat.unlocked].label)}」が開く。</small>` : "";
   instituteCycle.innerHTML = `
-    <div class="cycle-head"><span class="cycle-emblem" aria-hidden="true"${emblemAsset ? ` style="${spriteStyle(emblemAsset, 26)}"` : ""}></span><strong>第${campaign.cycle.number}周期</strong>${aftermath ? `<em>${escapeHtml(aftermath.label)}</em>` : "<em>始まりの周期</em>"}${bonus > 0 ? `<span class="cycle-bonus">灯片 +${bonus}%</span>` : ""}</div>
+    <div class="cycle-head"><span class="cycle-emblem" aria-hidden="true"${emblemAsset ? ` style="${spriteStyle(emblemAsset, 26)}"` : ""}></span><strong>第${campaign.cycle.number}周期</strong>${aftermath ? `<em>${escapeHtml(aftermath.label)}</em>` : "<em>始まりの周期</em>"}${bonus > 0 ? `<span class="tag cycle-bonus">灯片 +${bonus}%</span>` : ""}</div>
     ${aftermath ? `<p class="cycle-text">${escapeHtml(campaign.cycle.aftermath === "inherit-flame" && campaign.cycle.keeperName ? `${campaign.cycle.keeperName}が堕ちた灯守として第十層に立ちはだかる。` : aftermath.description)}</p>` : `<p class="cycle-text">結末を選ぶと周期が進み、選んだ結末が次の迷宮を変える。</p>`}
     ${graves.length ? `<p class="cycle-text">墓標 ${graves.map((grave) => `${escapeHtml(grave.name)}（F${grave.floor}）`).join("・")} が迷宮に残っている。弔えば遺品と灯火を受け継げる。</p>` : ""}
     <div class="heat-options" role="group" aria-label="燭階">${heatButtons}</div>
@@ -794,29 +838,24 @@ function renderCycle(): void {
 }
 
 function renderVeterans(): void {
-  const scars = getGameConfig().scars;
   if (campaign.roster.length === 0) {
     veteranList.innerHTML = '<p class="empty-state">まだ帰還した古参はいない。生還した探索者はここに残る。</p>';
     return;
   }
   const bonus = getGameConfig().campaign.veteranRankBonus;
   veteranList.replaceChildren(...campaign.roster.map((veteran, index) => {
-    const role = playableRoles().find((candidate) => candidate.id === veteran.identity.roleId);
     const selected = selectedDelver?.kind === "veteran" && selectedDelver.id === veteran.id;
+    const base = startingStats(veteran.identity.roleId);
     return candidateCard({
       dataKey: ["veteranId", veteran.id],
       selected,
-      veteran: true,
+      veteran,
       shortcut: index + 1,
       roleId: veteran.identity.roleId,
       name: `${escapeHtml(veteran.identity.name)} <span class="rank-stars" aria-label="位階${veteran.rank}">${"★".repeat(veteran.rank)}</span>`,
-      meta: `${getContentName(veteran.identity.roleId)} · 遠征${veteran.expeditions}回`,
+      meta: getContentName(veteran.identity.roleId),
       temperament: veteran.identity.temperament,
-      extra: veteran.scars.length ? `<span class="scar-tags">${veteran.scars.map((id) => `<i title="${escapeHtml(scars[id]?.description ?? "")}">${escapeHtml(scars[id]?.label ?? id)}</i>`).join("")}</span>` : "",
-      stats: (() => {
-        const base = startingStats(veteran.identity.roleId);
-        return { hp: base.hp + bonus.maxHp * veteran.rank, attack: base.attack + bonus.attack * veteran.rank, defense: base.defense };
-      })(),
+      stats: { hp: base.hp + bonus.maxHp * veteran.rank, attack: base.attack + bonus.attack * veteran.rank, defense: base.defense },
     });
   }));
 }
@@ -1274,27 +1313,33 @@ function renderTacticPicker(container: HTMLElement, selected: string[], slots: n
 }
 
 /** アビリティ。未解放のものも並べ、何をすれば手に入るかを示す。 */
+/** 解放済みのアビリティだけを札で並べ、未解放のものは条件の一覧として畳んでおく。 */
 function renderAbilityPicker(): void {
   const definitions = getGameConfig().abilities.definitions;
   const unlocked = new Set(unlockedAbilityIds(campaign));
   const loadout = normalizeAbilityLoadout(campaign);
   const slots = abilitySlots(campaign);
+  const entries = Object.entries(definitions);
+  const locked = entries.filter(([abilityId]) => !unlocked.has(abilityId));
   setText("#ability-count", `${loadout.length}/${slots}`);
-  setText("#ability-unlocked", `解放 ${unlocked.size}/${Object.keys(definitions).length}`);
-  abilityList.replaceChildren(...Object.entries(definitions).map(([abilityId, ability]) => {
-    const open = unlocked.has(abilityId);
+  setText("#ability-unlocked", `${locked.length}/${entries.length}`);
+  const cards = entries.filter(([abilityId]) => unlocked.has(abilityId)).map(([abilityId, ability]) => {
     const active = loadout.includes(abilityId);
     const button = document.createElement("button");
     button.type = "button";
     button.dataset.abilityId = abilityId;
-    button.className = `tactic-card ability-card${active ? " is-selected" : ""}${open ? "" : " is-locked"}`;
-    button.disabled = !open;
+    button.className = `tactic-card ability-card${active ? " is-selected" : ""}`;
     button.setAttribute("aria-pressed", String(active));
-    button.innerHTML = `<span class="tactic-icon" aria-hidden="true"></span><strong>${escapeHtml(open ? ability.label : "？？？")}</strong><small>${escapeHtml(open ? ability.description : abilityUnlockHint(ability.unlock))}</small>`;
+    button.innerHTML = `<span class="tactic-icon" aria-hidden="true"></span><strong>${escapeHtml(ability.label)}</strong><small>${escapeHtml(ability.description)}</small>`;
     applySprite(button.querySelector<HTMLElement>(".tactic-icon") as HTMLElement, assetForContent(abilityId), 40);
-    button.title = open ? `${ability.label}: ${ability.description}` : abilityUnlockHint(ability.unlock);
+    button.title = `${ability.label}: ${ability.description}`;
     return button;
-  }));
+  });
+  if (cards.length) abilityList.replaceChildren(...cards);
+  else abilityList.innerHTML = '<p class="empty-state">まだ解放したアビリティはない。職業ごとの初めての第十層踏破や、黒燭への道の章で解放される。</p>';
+  const lockedList = requireElement<HTMLUListElement>("#ability-locked-list");
+  lockedList.closest("details")!.hidden = locked.length === 0;
+  lockedList.innerHTML = locked.map(([, ability]) => `<li>${escapeHtml(abilityUnlockHint(ability.unlock))}</li>`).join("");
 }
 
 function loadSelectedTactics(): string[] {
@@ -1362,11 +1407,17 @@ function renderExpeditionDynamics(observation: ReturnType<typeof observeGame>): 
 function renderRoadmap(): void {
   const progress = campaignProgress(campaign);
   const done = progress.roadmap.filter((chapter) => chapter.done).length;
-  setText("#roadmap-count", `${done}/${progress.roadmap.length}`);
-  requireElement<HTMLOListElement>("#roadmap-list").innerHTML = roadmapMarkup(progress.roadmap, progress.nextChapter?.id ?? null, new Set());
-  const banner = requireElement<HTMLElement>("#next-goal");
-  banner.innerHTML = `${candleRoadMarkup(campaign)}${growthMarkup(campaign)}
-    <details class="progress-help"><summary>進め方</summary><p>${escapeHtml(progress.nextChapter?.hint ?? "結末を選ぶと新しい周期へ。真相と鍛錬は引き継がれる。")}</p><p>帰還・敗北で得た灯片も鍛錬に積み重なる。第十層を踏破すると覚醒への印が灯る。</p></details>`;
+  requireElement<HTMLElement>("#progress-strip").innerHTML = progressStripMarkup(campaign);
+  requireElement<HTMLElement>("#next-goal").innerHTML = `${candleRoadMarkup(campaign)}${growthMarkup(campaign)}
+    <section class="progress-chapters" aria-label="章の達成条件">
+      <h4>章の達成条件 <span>${done}/${progress.roadmap.length}</span></h4>
+      <ol class="roadmap-list">${roadmapMarkup(progress.roadmap, progress.nextChapter?.id ?? null, new Set())}</ol>
+    </section>
+    <section class="progress-help" aria-label="進め方">
+      <h4>進め方</h4>
+      <p>${escapeHtml(progress.nextChapter?.hint ?? "結末を選ぶと新しい周期へ。真相と鍛錬は引き継がれる。")}</p>
+      <p>帰還・敗北で得た灯片も鍛錬に積み重なる。第十層を踏破すると覚醒への印が灯る。</p>
+    </section>`;
 }
 
 function roadmapMarkup(chapters: ReturnType<typeof campaignProgress>["roadmap"], nextId: string | null, fresh: Set<string>, freshTruths: RoleTruthId[] = []): string {
@@ -1399,7 +1450,7 @@ function renderArchive(): void {
   list.replaceChildren(...campaign.expeditions.slice(0, 6).map((record) => {
     const item = document.createElement("li");
     const mission = missionDefinition(record.missionId);
-    item.innerHTML = `<span class="archive-status status-${record.status}">${statusLabel(record.status)}</span><span><strong>${escapeHtml(record.identity.name)}${record.missionCompleted ? " · 任務達成" : ""}${record.bossTrial ? ` · ${escapeHtml(bossTrialDefinition(record.bossTrial)?.label ?? "覚醒")}${record.status === "won" ? "突破" : "挑戦"}` : ""}</strong><small>${getContentName(record.identity.roleId)} / ${escapeHtml(mission.label)} / F${record.floor} / 灯片+${record.shards.total}</small></span>`;
+    item.innerHTML = `<span class="tag archive-status status-${record.status}">${statusLabel(record.status)}</span><span><strong>${escapeHtml(record.identity.name)}${record.missionCompleted ? " · 任務達成" : ""}${record.bossTrial ? ` · ${escapeHtml(bossTrialDefinition(record.bossTrial)?.label ?? "覚醒")}${record.status === "won" ? "突破" : "挑戦"}` : ""}</strong><small>${getContentName(record.identity.roleId)} / ${escapeHtml(mission.label)} / F${record.floor} / 灯片+${record.shards.total}</small></span>`;
     return item;
   }));
 }
@@ -1621,19 +1672,23 @@ function renderEnd(): void {
   panel.dataset.tone = endTone;
   const progress = missionProgress(state);
   const missionDone = progress.completed && survived;
+  const mission = missionDefinition(state.story.missionId);
+  const previous = record ? campaign.expeditions[1] : undefined;
+  const cell = (label: string, value: string, note = "", className = "") =>
+    `<div${className ? ` class="${className}"` : ""}><dt>${label}</dt><dd><b>${value}</b>${note ? `<small>${note}</small>` : ""}</dd></div>`;
   endStats.innerHTML = [
-    ["今回の目標", missionDone ? "達成" : "未達"],
-    ["到達", `地下${state.story.maxFloorReached}階`],
-    ["観測", `${state.runTurn}手`],
-    ["灯片", `+${shards.total}`],
-  ].map(([label, value]) => `<div${label === "今回の目標" ? ` class="is-${missionDone ? "done" : "missed"}"` : ""}><span>${label}</span><strong>${value}</strong></div>`).join("");
+    cell("今回の目標", missionDone ? "達成" : "未達", escapeHtml(missionDone ? `${mission.label} · 灯片+${shards.mission}` : progress.completed ? `${mission.label} · 条件は満たしたが、生きて帰れなかった` : `${mission.label} · ${progress.label}`), `is-${missionDone ? "done" : "missed"}`),
+    cell("到達", `地下${state.story.maxFloorReached}階`, previous ? `前回比 ${signed(state.story.maxFloorReached - previous.floor)}階` : ""),
+    cell("観測", `${state.runTurn}手`),
+    cell("灯片", `+${shards.total}`, previous ? `前回比 ${signed(shards.total - previous.shards.total)}` : "", "is-shards"),
+  ].join("");
   renderRunInsights(runInsightsPanel, buildRunInsights(runLog, state, review.deathCause, campaign), selectedTactics);
   const rows: Array<[string, number]> = [
     ["到達", shards.depth], ["守り手", shards.guardians], ["発見", shards.discoveries], ["弔い", shards.graves],
     ["生還", shards.survival], ["持ち帰り", shards.carried], ["任務", shards.mission], ["真相", shards.truth],
   ];
   const maxRow = Math.max(1, ...rows.map(([, value]) => value));
-  shardBreakdown.innerHTML = rows.map(([label, value]) => `<div class="${value === 0 ? "is-zero" : ""}"><span>${label}</span><strong>+${value}</strong><i style="width:${Math.round(value / maxRow * 100)}%"></i></div>`).join("");
+  shardBreakdown.innerHTML = rows.map(([label, value]) => `<div class="${value === 0 ? "is-zero" : ""}"><dt>${label}</dt><dd><b>+${value}</b></dd><i aria-hidden="true" style="width:${Math.round(value / maxRow * 100)}%"></i></div>`).join("");
   const keepPercent = getGameConfig().campaign.shards.keepPercentOnLoss;
   setText("#shard-note", [
     `鍛錬の累計に灯片+${shards.total}。${journeyProgress(campaign).shardsToNextRank ? `次の鍛錬まで${journeyProgress(campaign).shardsToNextRank}。` : "鍛錬は最大。"}`,
@@ -1652,7 +1707,7 @@ function renderEnd(): void {
     `溢れた灯火 ${state.lantern.overflowed ?? 0}`,
     `残った灯火 ${state.lantern.embers}`,
   ].filter(Boolean).join(" · ");
-  decisionHistory.innerHTML = `<h3>灯守の判断</h3><p class="lantern-summary${(state.lantern.overflowed ?? 0) >= 2 ? " is-wasteful" : ""}">${escapeHtml(lanternSummary)}</p>${review.decisions.length === 0 ? "<p>介入記録なし</p>" : `<ol>${review.decisions.map((entry) => `<li><span>F${entry.floor}</span><strong>${escapeHtml(entry.optionLabel)}${entry.effectSummary ? `<small>${escapeHtml(entry.effectSummary)}</small>` : ""}</strong>${entry.usedRevelation ? "<em>啓示</em>" : ""}</li>`).join("")}</ol>`}`;
+  decisionHistory.innerHTML = `<div class="result-section-heading"><h3>灯守の判断</h3><small class="lantern-summary${(state.lantern.overflowed ?? 0) >= 2 ? " is-wasteful" : ""}">${escapeHtml(lanternSummary)}</small></div>${review.decisions.length === 0 ? '<p class="empty-state">伝言への応答はなかった。</p>' : `<ol class="ledger-rows">${review.decisions.map((entry) => `<li><span class="ledger-key">F${entry.floor}</span><div class="ledger-body"><strong>${escapeHtml(entry.optionLabel)}</strong>${entry.effectSummary ? `<small>${escapeHtml(entry.effectSummary)}</small>` : ""}</div>${entry.usedRevelation ? '<span class="tag tag-gold">啓示</span>' : ""}</li>`).join("")}</ol>`}`;
   endDialog.hidden = false;
   if (firstReveal) revealResult();
 }
@@ -1664,7 +1719,7 @@ function revealResult(): void {
   void panel.offsetWidth;
   panel.classList.add("is-revealing");
   if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-  const targets = [...panel.querySelectorAll<HTMLElement>(".end-stats strong, .score-breakdown strong")];
+  const targets = [...panel.querySelectorAll<HTMLElement>(".end-stats dd > b, .score-breakdown dd > b")];
   targets.forEach((element, index) => {
     const text = element.textContent ?? "";
     const match = text.match(/^([^\d]*)([\d,]+)(.*)$/);
@@ -1682,7 +1737,7 @@ function revealResult(): void {
   });
 }
 
-/** 結果画面の「黒燭への道」。今回の遠征で進んだ章を光らせ、次の目標を示す。 */
+/** 結果画面の「黒燭への道」。この遠征で動いた行を光らせ、次の目標を一つだけ示す。 */
 function renderEndRoadmap(): void {
   const current = campaign.expeditions[0];
   if (!current || current.id !== archivedRunId) {
@@ -1693,26 +1748,24 @@ function renderEndRoadmap(): void {
   const before = campaignBeforeRun ? campaignProgress(campaignBeforeRun) : null;
   const fresh = new Set(after.roadmap.filter((chapter) => chapter.done && !before?.roadmap.find((entry) => entry.id === chapter.id)?.done).map((chapter) => chapter.id));
   const freshTruths = campaign.roleTruths.filter((truth) => !campaignBeforeRun?.roleTruths.includes(truth));
-  const done = after.roadmap.filter((chapter) => chapter.done).length;
   const next = after.nextChapter;
   const note = fresh.size ? "この遠征で進んだ章が光っている。"
     : freshTruths.length ? `真相「${roleTruthLabel(freshTruths[0])}」を記録した。三つの真相まで、あと${ROLE_TRUTH_IDS.length - campaign.roleTruths.length}つ。`
-      : "この遠征では道は進まなかった。";
+      : "この遠征では章は進まなかった。";
   endRoadmap.innerHTML = `
-    <div class="result-section-heading"><h3>黒燭への道 ${done}/${after.roadmap.length}</h3><small>${escapeHtml(note)}</small></div>
-    ${candleRoadMarkup(campaign, fresh, freshTruths)}
-    ${growthMarkup(campaign, campaignBeforeRun)}
-    ${next ? `<p class="end-next-goal">次の目標: <strong>${escapeHtml(next.label)}</strong> — ${escapeHtml(next.hint)}</p>` : ""}
+    <div class="result-section-heading"><h3>黒燭への道</h3><small>${escapeHtml(note)}</small></div>
+    ${resultProgressMarkup(campaign, campaignBeforeRun, fresh, freshTruths)}
+    ${next ? `<p class="callout"><span>次の目標</span><strong>${escapeHtml(next.label)}</strong>${escapeHtml(next.hint)}</p>` : ""}
   `;
 }
 
+/** 今回の結果に添える記録の更新。前回比は数値の欄に置き、ここには節目の札だけを並べる。 */
 function renderRunComparison(): void {
   const current = campaign.expeditions[0];
   if (!current || current.id !== archivedRunId) {
     runComparison.innerHTML = "";
     return;
   }
-  const previous = campaign.expeditions[1];
   const older = campaign.expeditions.slice(1);
   const newDepthRecord = current.floor > older.reduce((best, record) => Math.max(best, record.floor), 0);
   const newShardRecord = current.shards.total > older.reduce((best, record) => Math.max(best, record.shards.total), 0);
@@ -1725,16 +1778,8 @@ function renderRunComparison(): void {
     // 墓標・昇格・結末などは上の碑に刻むので、ここでは碑にならない結果だけを添える。
     current.veteranOutcome === "roster-full" ? veteranOutcomeLabel(current) : "",
   ].filter(Boolean);
-  const comparison = previous
-    ? `前回比: 深度 ${signed(current.floor - previous.floor)}階 / 灯片 ${signed(current.shards.total - previous.shards.total)}`
-    : "最初の遠征記録です。ここから灯守の記録が始まります。";
-  const mission = missionDefinition(current.missionId);
-  const survived = current.status === "won" || current.status === "returned";
-  const progress = missionProgress(state);
-  const verdict = current.missionCompleted && survived
-    ? `達成 · 灯片+${current.shards.mission}`
-    : progress.completed ? "条件は満たしたが、生きて帰れなかった" : `未達 · ${progress.label}`;
-  runComparison.innerHTML = `<strong>今回の目標「${escapeHtml(mission.label)}」 ${escapeHtml(verdict)}</strong><p>${escapeHtml(comparison)}</p>${badges.length ? `<div>${badges.map((badge) => `<span>${escapeHtml(badge)}</span>`).join("")}</div>` : ""}`;
+  const lead = older.length === 0 ? "最初の遠征記録です。ここから灯守の記録が始まります。" : "";
+  runComparison.innerHTML = `${lead ? `<p>${escapeHtml(lead)}</p>` : ""}${badges.length ? `<div class="tag-row">${badges.map((badge) => `<span class="tag tag-gold">◆ ${escapeHtml(badge)}</span>`).join("")}</div>` : ""}`;
 }
 
 /**

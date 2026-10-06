@@ -16,6 +16,13 @@ function bossPortrait(): string {
   return `<i style="background-image:url('${import.meta.env.BASE_URL}${asset.path.replace(/^\//, "")}');background-size:${columns * 100}% ${rows * 100}%;background-position:${x}% ${y}%"></i>`;
 }
 
+/** 五つの章を一列に並べた道。済んだ章は◆、次の章は縁を明るくする。 */
+function chapterRibbonMarkup(campaign: CampaignState, fresh = new Set<string>()): string {
+  const progress = campaignProgress(campaign);
+  const next = progress.nextChapter;
+  return `<ol class="candle-chapters">${progress.roadmap.map((chapter, i) => `<li class="${chapter.done ? "is-done" : chapter.id === next?.id ? "is-next" : ""}${fresh.has(chapter.id) ? " is-fresh" : ""}"${chapter.id === next?.id ? ' aria-current="step"' : ""}><span>${chapter.done ? "◆" : i + 1}</span><strong>${chapterNames[i]}</strong></li>`).join("")}</ol>`;
+}
+
 /** 黒燭は章、三つのくぼみは持ち帰った真相を表す。途中の収集も独立して見える。 */
 export function candleRoadMarkup(campaign: CampaignState, fresh = new Set<string>(), freshTruths: RoleTruthId[] = []): string {
   const progress = campaignProgress(campaign);
@@ -27,7 +34,7 @@ export function candleRoadMarkup(campaign: CampaignState, fresh = new Set<string
     </div>
     <div class="candle-road-content">
       <div class="progress-kicker">黒燭への道 <b>${done}/${progress.roadmap.length}</b></div>
-      <ol class="candle-chapters">${progress.roadmap.map((chapter, i) => `<li class="${chapter.done ? "is-done" : chapter.id === next?.id ? "is-next" : ""}${fresh.has(chapter.id) ? " is-fresh" : ""}"${chapter.id === next?.id ? ' aria-current="step"' : ""}><span>${chapter.done ? "◆" : i + 1}</span><strong>${chapterNames[i]}</strong></li>`).join("")}</ol>
+      ${chapterRibbonMarkup(campaign, fresh)}
       <div class="truth-sockets" aria-label="持ち帰った三つの真相">${ROLE_TRUTH_IDS.map((truth, i) => {
         const found = campaign.roleTruths.includes(truth);
         return `<span class="truth-socket${found ? " is-filled" : ""}${freshTruths.includes(truth) ? " is-fresh" : ""}" title="${escapeHtmlAttribute(roleTruthLabel(truth))} · ${escapeHtmlAttribute(truthRoleLabel(truth))} · ${found ? "回収済み" : "未回収"}"><i aria-hidden="true">${truthMarks[i]}</i><span>${escapeHtmlAttribute(roleTruthLabel(truth))}<small>${found ? "◆ 回収済み" : `${escapeHtmlAttribute(truthRoleLabel(truth))}で帰還`}</small></span></span>`;
@@ -35,6 +42,30 @@ export function candleRoadMarkup(campaign: CampaignState, fresh = new Set<string
       <p class="progress-next">${next ? `<span>次へ</span><strong>${escapeHtmlAttribute(next.label)}</strong>` : `<span>第${campaign.cycle.number}周期</span><strong>結末を記録した</strong>`}</p>
     </div>
   </section>`;
+}
+
+/**
+ * 支度画面の上端に置く一行の進捗。章・真相・鍛錬・次の強敵を並べ、開くと詳細の器を見せる。
+ * 探索者選びを押し下げないよう、ここでは数と次の一歩だけを読ませる。
+ */
+export function progressStripMarkup(campaign: CampaignState): string {
+  const progress = campaignProgress(campaign);
+  const done = progress.roadmap.filter((chapter) => chapter.done).length;
+  const next = progress.nextChapter;
+  const journey = journeyProgress(campaign);
+  const perRank = getGameConfig().campaign.journey?.shardsPerRank ?? 60;
+  const filled = journey.shardsToNextRank ? perRank - journey.shardsToNextRank : perRank;
+  const trial = journey.trial
+    ? `<b class="is-challenge">${escapeHtmlAttribute(journey.nextTrial?.label ?? "覚醒")}に挑戦中</b>`
+    : journey.nextTrial ? `あと<b>${journey.victoriesToTrial}</b>回の踏破で${escapeHtmlAttribute(journey.nextTrial.label)}` : "覚醒はすべて突破";
+  return `<span class="strip-road" role="img" aria-label="黒燭への道 ${done}/${progress.roadmap.length}章">${progress.roadmap.map((chapter) => `<i class="${chapter.done ? "is-lit" : chapter.id === next?.id ? "is-next" : ""}" aria-hidden="true"></i>`).join("")}</span>
+    <span class="strip-goal"><small>${next ? "次へ" : `第${campaign.cycle.number}周期`}</small><strong>${next ? escapeHtmlAttribute(next.label) : "結末を記録した"}</strong></span>
+    <span class="strip-facts">
+      <span class="strip-fact" aria-label="真相 ${campaign.roleTruths.length}/${ROLE_TRUTH_IDS.length}"><small>真相</small>${ROLE_TRUTH_IDS.map((truth, i) => `<i class="strip-truth${campaign.roleTruths.includes(truth) ? " is-filled" : ""}" aria-hidden="true">${truthMarks[i]}</i>`).join("")}</span>
+      <span class="strip-fact"><small>鍛錬</small><b>Lv${journey.rank}</b><span class="strip-meter" aria-hidden="true"><i style="width:${filled / perRank * 100}%"></i></span></span>
+      <span class="strip-fact strip-trial"><small>次の強敵</small><span>${trial}</span></span>
+    </span>
+    <span class="strip-toggle" aria-hidden="true">詳しく</span>`;
 }
 
 /** 消費しても減らない累計の鍛錬と、踏破数で開く覚醒を別の器で表す。 */
@@ -65,4 +96,32 @@ export function growthMarkup(campaign: CampaignState, before?: CampaignState | n
       <p class="growth-caption">${journey.trial ? "第6階・第10層の守り手が覚醒。第10層の踏破で突破。" : journey.nextTrial ? `あと <b>${journey.victoriesToTrial}</b> 回の踏破で${escapeHtmlAttribute(journey.nextTrial.label)}` : "すべての覚醒を突破した"}</p>
     </div>
   </section>`;
+}
+
+/**
+ * 結果画面の「黒燭への道」。支度画面の器を再掲せず、章・真相・鍛錬・次の強敵を一行ずつ並べ、
+ * この遠征で動いた行だけを光らせる。
+ */
+export function resultProgressMarkup(campaign: CampaignState, before: CampaignState | null, fresh: Set<string>, freshTruths: RoleTruthId[]): string {
+  const progress = campaignProgress(campaign);
+  const done = progress.roadmap.filter((chapter) => chapter.done).length;
+  const journey = journeyProgress(campaign);
+  const previous = before ? journeyProgress(before) : null;
+  const gain = previous ? journey.lifetimeShards - previous.lifetimeShards : 0;
+  const rankUp = previous ? journey.rank > previous.rank : false;
+  const perRank = getGameConfig().campaign.journey?.shardsPerRank ?? 60;
+  const filled = journey.shardsToNextRank ? perRank - journey.shardsToNextRank : perRank;
+  const trialCleared = previous ? journey.trialsCleared > previous.trialsCleared : false;
+  const trialText = journey.trial
+    ? `${escapeHtmlAttribute(journey.nextTrial?.label ?? "覚醒")}に挑戦中。第6階・第10層の守り手が覚醒し、第10層の踏破で突破。`
+    : journey.nextTrial ? `あと${journey.victoriesToTrial}回の踏破で${escapeHtmlAttribute(journey.nextTrial.label)}` : "すべての覚醒を突破した";
+  return `<ul class="ledger-rows result-progress">
+    <li class="${fresh.size ? "is-fresh" : ""}"><span class="ledger-key">章</span><div class="ledger-body">${chapterRibbonMarkup(campaign, fresh)}</div><b class="ledger-value">${done}/${progress.roadmap.length}</b></li>
+    <li class="${freshTruths.length ? "is-fresh" : ""}"><span class="ledger-key">真相</span><div class="ledger-body result-truths">${ROLE_TRUTH_IDS.map((truth, i) => {
+      const found = campaign.roleTruths.includes(truth);
+      return `<span class="${found ? "is-filled" : ""}${freshTruths.includes(truth) ? " is-fresh" : ""}"><i class="strip-truth${found ? " is-filled" : ""}" aria-hidden="true">${truthMarks[i]}</i>${escapeHtmlAttribute(roleTruthLabel(truth))}<small>${found ? "回収済み" : `${escapeHtmlAttribute(truthRoleLabel(truth))}で帰還`}</small></span>`;
+    }).join("")}</div><b class="ledger-value">${campaign.roleTruths.length}/${ROLE_TRUTH_IDS.length}</b></li>
+    <li class="${rankUp ? "is-fresh" : ""}"><span class="ledger-key">鍛錬</span><div class="ledger-body"><span class="ledger-meter" role="progressbar" aria-label="次の鍛錬までの灯片" aria-valuemin="0" aria-valuemax="${perRank}" aria-valuenow="${filled}"><i style="width:${filled / perRank * 100}%"></i></span><small>${gain > 0 ? `今回 +${gain}灯片 · ` : ""}${journey.shardsToNextRank ? `次のLvまで ${journey.shardsToNextRank}灯片` : "鍛錬は最大"} · HP+${journey.maxHp} / 攻撃+${journey.attack} を全探索者に継承</small></div><b class="ledger-value">Lv${journey.rank}${rankUp ? '<small>上昇</small>' : ""}</b></li>
+    <li class="${trialCleared ? "is-fresh" : ""}${journey.trial ? " is-challenge" : ""}"><span class="ledger-key">次の強敵</span><div class="ledger-body"><span>${trialText}</span></div><b class="ledger-value">踏破${journey.victories}回</b></li>
+  </ul>`;
 }

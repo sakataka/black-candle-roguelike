@@ -117,7 +117,7 @@ export const observerShellMarkup = `
   <section id="candidate-dialog" class="modal-layer prepare-layer">
     <div class="prepare-screen" role="dialog" aria-modal="true" aria-labelledby="candidate-title">
       <header class="prepare-header">
-        <div>
+        <div class="prepare-title">
           <p class="eyebrow">灰灯院 · 遠征の支度 · <span id="save-slot-name"></span></p>
           <h2 id="candidate-title">誰を黒燭の迷宮へ送るか</h2>
         </div>
@@ -128,15 +128,23 @@ export const observerShellMarkup = `
           <button id="switch-save" class="secondary-button" type="button" title="タイトルへ戻り、別の記録を選ぶか新しい記録を始める">記録を切り替える</button>
         </div>
       </header>
-      <section id="next-goal" class="progress-overview" aria-label="探索全体の進捗"></section>
+      <details id="progress-drawer" class="progress-drawer">
+        <summary id="progress-strip" class="progress-strip" aria-label="探索全体の進捗。開くと章・真相・鍛錬・覚醒の詳細を表示"></summary>
+        <div id="next-goal" class="progress-overview"></div>
+      </details>
       <div class="prepare-body">
         <div class="prepare-main">
           <section class="prepare-step prepare-step-delver" aria-labelledby="step-delver">
             <div class="step-heading"><span class="step-no" aria-hidden="true">I</span><h3 id="step-delver">探索者</h3><small>生還した古参は位階が上がって強くなる。瀕死で帰ると古傷を負い、倒れた者は戻らない。番号キー 1〜4 でも選べる。</small></div>
-            <div class="candidate-group"><strong>遠征団</strong></div>
-            <div id="veteran-list" class="candidate-list"></div>
-            <div class="candidate-group"><strong>新たな志願者</strong><small id="recruit-capacity"></small></div>
-            <div id="candidate-list" class="candidate-list"></div>
+            <div class="delver-layout">
+              <div class="delver-roster">
+                <div class="candidate-group"><strong>遠征団</strong><small id="veteran-capacity"></small></div>
+                <div id="veteran-list" class="candidate-list"></div>
+                <div class="candidate-group"><strong>新たな志願者</strong><small id="recruit-capacity"></small></div>
+                <div id="candidate-list" class="candidate-list"></div>
+              </div>
+              <article id="delver-detail" class="delver-detail" aria-label="選んだ探索者" aria-live="polite"></article>
+            </div>
           </section>
           <section class="prepare-step" aria-labelledby="step-mission">
             <div class="step-heading"><span class="step-no" aria-hidden="true">II</span><h3 id="step-mission">今回の目標</h3><small>探索者は任務に沿って帰還か続行かを決める。報酬は生きて帰った時に受け取る。</small></div>
@@ -147,8 +155,12 @@ export const observerShellMarkup = `
             <div id="tactic-list" class="tactic-list"></div>
           </section>
           <section class="prepare-step" aria-labelledby="step-ability">
-            <div class="step-heading"><span class="step-no" aria-hidden="true">IV</span><h3 id="step-ability">アビリティ</h3><em id="ability-count">0/2</em><small>常に効く心得。職業の踏破や黒燭への道の節目で解放され、どの職業にも付けられる。枠は修練場で増える。<span id="ability-unlocked"></span></small></div>
+            <div class="step-heading"><span class="step-no" aria-hidden="true">IV</span><h3 id="step-ability">アビリティ</h3><em id="ability-count">0/2</em><small>常に効く心得。職業の踏破や黒燭への道の節目で解放され、どの職業にも付けられる。枠は修練場で増える。</small></div>
             <div id="ability-list" class="tactic-list"></div>
+            <details class="ability-locked">
+              <summary>まだ解放していないアビリティ <span id="ability-unlocked"></span></summary>
+              <ul id="ability-locked-list" class="ability-locked-list"></ul>
+            </details>
           </section>
         </div>
         <aside class="prepare-side" aria-label="灰灯院">
@@ -157,17 +169,13 @@ export const observerShellMarkup = `
             <div id="institute-facilities" class="institute-facilities"></div>
             <div id="institute-infirmary" class="institute-infirmary"></div>
           </section>
-          <details class="side-section progress-conditions">
-            <summary>章の達成条件 <span id="roadmap-count">0/5</span></summary>
-            <ol id="roadmap-list" class="roadmap-list"></ol>
-          </details>
+          <section class="side-section">
+            <div id="institute-cycle" class="institute-cycle"></div>
+          </section>
           <section class="side-section">
             <div class="side-heading"><h3>遠征録</h3><span id="archive-count">0件</span></div>
             <div id="campaign-summary" class="campaign-summary"></div>
             <ol id="archive-list" class="archive-list"></ol>
-          </section>
-          <section class="side-section">
-            <div id="institute-cycle" class="institute-cycle"></div>
           </section>
         </aside>
       </div>
@@ -200,17 +208,23 @@ export const observerShellMarkup = `
 
   <section id="end-dialog" class="modal-layer" hidden>
     <div class="modal-panel result-panel" role="dialog" aria-modal="true" aria-labelledby="end-title">
-      <p id="end-kicker" class="eyebrow">遠征終了</p>
-      <h2 id="end-title">遠征記録</h2>
-      <p id="end-summary" class="modal-lead"></p>
+      <header class="result-hero">
+        <p id="end-kicker" class="eyebrow">遠征終了</p>
+        <h2 id="end-title">遠征記録</h2>
+        <p id="end-summary" class="modal-lead"></p>
+      </header>
       <div id="end-milestone" class="end-milestone" hidden></div>
-      <div id="end-stats" class="end-stats"></div>
-      <div id="run-comparison" class="run-comparison"></div>
-      <div class="result-section-heading"><h3>持ち帰った灯片</h3><small id="shard-note"></small></div>
-      <div id="shard-breakdown" class="score-breakdown"></div>
-      <section id="end-roadmap" class="end-roadmap" aria-label="黒燭への道"></section>
-      <section id="run-insights" class="run-insights" aria-label="遠征の軌跡"></section>
-      <div id="decision-history" class="decision-history"></div>
+      <section class="result-section result-outcome" aria-label="今回の結果">
+        <dl id="end-stats" class="ledger-cells end-stats"></dl>
+        <div id="run-comparison" class="result-notes"></div>
+      </section>
+      <section class="result-section" aria-labelledby="shard-heading">
+        <div class="result-section-heading"><h3 id="shard-heading">持ち帰った灯片</h3><small id="shard-note"></small></div>
+        <dl id="shard-breakdown" class="ledger-cells score-breakdown"></dl>
+      </section>
+      <section id="end-roadmap" class="result-section" aria-label="黒燭への道"></section>
+      <div id="run-insights" class="run-insights"></div>
+      <section id="decision-history" class="result-section decision-history" aria-label="灯守の判断"></section>
       <div class="modal-footer">
         <button id="end-new-expedition" class="primary-button" type="button">灰灯院へ戻り、次の遠征の支度をする</button>
       </div>

@@ -35,7 +35,6 @@ export function renderRunInsights(runInsightsPanel: HTMLElement, insights: RunIn
   }).join("");
   const chart = points.length > 1
     ? `<figure class="insight-chart">
-        <figcaption><strong>遠征の軌跡</strong><span>HP の推移 · <i class="key key-decision"></i>判断 <i class="key key-lantern"></i>灯の介入</span></figcaption>
         <div class="insight-plot">
           <svg viewBox="0 0 ${width} ${height}" preserveAspectRatio="none" role="img" aria-label="遠征中のHP推移">
             ${floorBands.join("")}
@@ -49,12 +48,15 @@ export function renderRunInsights(runInsightsPanel: HTMLElement, insights: RunIn
       </figure>`
     : "";
   const turning = insights.turningPoints.length
-    ? `<ol class="turning-points">${insights.turningPoints.map((point) => `<li class="tone-${point.tone}"><span>F${point.floor} · ${point.runTurn}手</span><strong>${escapeHtml(point.title)}</strong><small>${escapeHtml(point.detail)}</small></li>`).join("")}</ol>`
+    ? `<ol class="ledger-rows turning-points">${insights.turningPoints.map((point) => `<li class="tone-${point.tone}"><span class="ledger-key">F${point.floor} · ${point.runTurn}手</span><div class="ledger-body"><strong>${escapeHtml(point.title)}</strong><small>${escapeHtml(point.detail)}</small></div></li>`).join("")}</ol>`
+    : "";
+  const trail = chart || turning
+    ? `<section class="result-section" aria-labelledby="insight-heading"><div class="result-section-heading"><h3 id="insight-heading">遠征の軌跡</h3><small class="insight-legend">HP の推移 · <i class="key key-decision"></i>判断 <i class="key key-lantern"></i>灯の介入</small></div>${chart}${turning}</section>`
     : "";
   const advice = insights.advice.length
-    ? `<div class="run-advice"><h3>次の遠征への示唆</h3><ul>${insights.advice.map((item) => `<li><span class="advice-icon" style="${adviceIconStyle(item)}">${item.kind === "tactic" ? "作戦" : "灯"}</span><strong>${escapeHtml(item.label)}</strong><small>${escapeHtml(item.reason)}</small>${item.kind === "tactic" ? `<button type="button" class="advice-adopt" data-adopt-tactic="${escapeHtml(item.id)}"${selectedTactics.includes(item.id) ? " disabled" : ""}>${selectedTactics.includes(item.id) ? "採用済み" : "次の遠征で使う"}</button>` : ""}</li>`).join("")}</ul></div>`
+    ? `<section class="result-section run-advice" aria-labelledby="advice-heading"><div class="result-section-heading"><h3 id="advice-heading">次の遠征への示唆</h3></div><ul class="ledger-rows">${insights.advice.map((item) => `<li><span class="ledger-key advice-icon" style="${adviceIconStyle(item)}"><span class="sr-only">${item.kind === "tactic" ? "作戦" : "灯"}</span></span><div class="ledger-body"><strong>${escapeHtml(item.label)}</strong><small>${escapeHtml(item.reason)}</small></div>${item.kind === "tactic" ? `<button type="button" class="secondary-button advice-adopt" data-adopt-tactic="${escapeHtml(item.id)}"${selectedTactics.includes(item.id) ? " disabled" : ""}>${selectedTactics.includes(item.id) ? "採用済み" : "次の遠征で使う"}</button>` : ""}</li>`).join("")}</ul></section>`
     : "";
-  runInsightsPanel.innerHTML = chart + turning + advice;
+  runInsightsPanel.innerHTML = trail + advice;
   const plot = runInsightsPanel.querySelector<HTMLElement>(".insight-plot");
   if (plot) installInsightHover(plot, points, insights.totalTurns, width);
 }

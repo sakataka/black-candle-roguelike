@@ -27,122 +27,6 @@ button:focus-visible, summary:focus-visible {
 .secondary-button:disabled:hover { color: var(--muted); border-color: var(--line-soft); background: #ffffff03; }
 .secondary-button:disabled:active { transform: none; }
 
-/* 支度: セクション間の余白は広く、ひとつの札の中はまとまりを作る。 */
-.prepare-screen { width: min(1440px, 100%); }
-.prepare-header { padding: 28px 32px 22px; align-items: center; }
-.prepare-header h2 { font-size: clamp(1.7rem, 3vw, 2.5rem); letter-spacing: 0.07em; line-height: 1.45; text-wrap: balance; }
-.prepare-header .eyebrow { letter-spacing: 0.2em; }
-.prepare-header::after { inset-inline: 32px; }
-.prepare-header-actions { flex-wrap: wrap; gap: 10px; }
-.progress-overview { margin: 20px 32px 0; gap: 10px 28px; padding-top: 18px; border-top: 1px solid var(--line-soft); }
-.candle-road, .growth-board { padding: 0; border: 0; background: none; }
-.candle-road { grid-template-columns: 54px minmax(0, 1fr); gap: 18px; }
-.candle-road-content { display: grid; }
-.progress-next { grid-row: 2; margin: 6px 0 12px; gap: 4px 10px; }
-.progress-next strong { font-size: var(--fs-lg); letter-spacing: .04em; }
-.growth-board { padding-left: 28px; border-left: 1px solid var(--line); gap: 20px; }
-.power-vessel { height: 5px; border: 0; border-radius: 0; background: var(--line-soft); box-shadow: none; }
-.candle-chapters { margin: 0 0 12px; }
-.candle-chapters strong, .trial-path strong { font-size: 12px; }
-.candle-chapters li { color: var(--muted); }
-.truth-socket { padding: 8px 0 0; border: 0; border-top: 1px solid var(--line); background: none; font-size: 12px; line-height: 1.5; }
-.truth-socket > i { width: 22px; height: 26px; }
-.truth-socket small, .growth-caption small, .trial-path small { font-size: 11px; }
-.progress-help summary { min-height: 44px; display: flex; align-items: center; gap: 8px; }
-.progress-help summary::before { content: '›'; color: var(--gold); font-size: 18px; transition: transform 160ms ease; }
-.progress-help[open] summary::before { transform: rotate(90deg); }
-.progress-help p { max-width: 80ch; }
-.prepare-body { padding: 24px 32px 36px; gap: 32px; grid-template-columns: minmax(0, 1fr) 320px; }
-.prepare-main { gap: 32px; }
-.prepare-step { gap: 14px; }
-.prepare-step + .prepare-step { padding-top: 26px; border-top: 1px solid var(--line); }
-.step-heading { gap: 8px 12px; }
-.step-heading small { padding-left: 38px; line-height: 1.75; letter-spacing: 0; }
-.candidate-group { gap: 6px 12px; margin-top: 0; }
-.candidate-body { gap: 6px; }
-.candidate-body > strong { line-height: 1.5; }
-.candidate-body > small { color: var(--ink-soft); line-height: 1.7; }
-.candidate-body > em { line-height: 1.6; }
-.temperament-tag { padding: 2px 9px; }
-.mini-stats { gap: 6px 12px; margin-top: 6px; }
-.truth-tag { line-height: 1.5; }
-
-/* 推奨と選択の印が本文に重ならず、名前の長さが変わっても揃う。 */
-.mission-list { gap: 12px; }
-.mission-option { padding: 18px 16px 14px; gap: 8px; background: var(--surface-choice); box-shadow: none; }
-.mission-option strong { line-height: 1.6; font-size: 16px; }
-.mission-option small { line-height: 1.7; }
-.mission-option em { line-height: 1.6; }
-.mission-reward { align-self: end; padding-top: 8px; border-top: 1px solid var(--line-soft); line-height: 1.6; }
-.mission-badge { right: 12px; top: -10px; padding: 2px 9px; font-size: 11px; }
-.tactic-list { gap: 12px; }
-.tactic-card { min-height: 84px; padding: 14px; gap: 6px 12px; background: var(--surface-choice); box-shadow: none; }
-.tactic-card small { font-size: 12px; line-height: 1.65; }
-.tactic-card:disabled { opacity: 0.7; }
-.mission-option.is-selected, .tactic-card.is-selected, .candidate-card.is-selected, .heat-option.is-selected {
-  border-color: var(--gold-bright);
-  background: var(--surface-selected);
-  box-shadow: inset 3px 0 var(--gold), 0 8px 24px #0003;
-}
-.mission-option.is-selected::before, .mission-option.is-selected::after,
-.tactic-card.is-selected::before, .tactic-card.is-selected::after,
-.candidate-card.is-selected::before, .candidate-card.is-selected::after { display: none; }
-.tactic-card.is-selected strong::before, .mission-option.is-selected strong::before {
-  content: '◆'; margin-right: 7px; font-size: 10px; vertical-align: 2px;
-}
-.facility-card { gap: 5px 10px; padding: 12px 0; border: 0; border-bottom: 1px solid var(--line-soft); border-radius: 0; background: none; }
-.facility-card strong, .facility-card small { line-height: 1.6; }
-.facility-card > span:last-child { padding: 5px 8px; font-size: 11px; }
-.side-heading small { line-height: 1.7; }
-.archive-list .empty-state { display: block; padding: 14px 0; line-height: 1.7; }
-.campaign-summary div { padding: 9px 7px; }
-.progress-conditions summary { gap: 10px; min-height: 48px; }
-.progress-conditions summary::before { content: '›'; color: var(--gold); transition: transform 160ms ease; }
-.progress-conditions summary span { margin-left: auto; }
-.progress-conditions[open] summary::before { transform: rotate(90deg); }
-
-.prepare-footer { gap: 18px; padding: 14px 32px calc(14px + env(safe-area-inset-bottom)); background: #15110df5; }
-.depart-summary { gap: 8px 14px; }
-.depart-who strong { font-size: 20px; }
-.depart-plan { gap: 6px 16px; line-height: 1.65; }
-.depart-plan > span > small { margin-left: 5px; }
-.prepare-footer .primary-button { min-height: 52px; min-width: 224px; font-size: 16px; letter-spacing: 0.1em; }
-.prepare-layer { scroll-padding-block: 24px var(--prepare-footer-height, 150px); }
-
-@media (min-width: 701px) {
-  .prepare-step-delver .candidate-list { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
-  .prepare-step-delver .candidate-card { grid-template-columns: 100px minmax(0, 1fr); grid-template-rows: auto; align-items: stretch; gap: 16px; padding: 16px; text-align: left; }
-  .prepare-step-delver .candidate-portrait { height: 100%; min-height: 156px; border-bottom: 0; background: none; }
-  .prepare-step-delver .candidate-portrait::before { inset: 12px 0 0; }
-  .prepare-step-delver .candidate-figure { align-self: center; }
-  .prepare-step-delver .candidate-body { display: flex; flex-direction: column; align-items: flex-start; align-self: stretch; padding: 0; }
-  .prepare-step-delver .candidate-body > strong { font-size: 22px; padding-right: 16px; }
-  .prepare-step-delver .candidate-body > small { text-align: left; text-wrap: pretty; }
-  .prepare-step-delver .truth-tag { font-size: 11px; }
-  .prepare-step-delver .mini-stats { width: 100%; margin-top: auto; padding-top: 10px; border-top: 1px solid var(--line-soft); justify-content: flex-start; }
-}
-@media (min-width: 1100px) {
-  .prepare-step-delver:not(:has(#veteran-list > :nth-child(2))) { grid-template-columns: minmax(0, 1fr); grid-template-areas: none; }
-  .prepare-step-delver:not(:has(#veteran-list > :nth-child(2))) > :nth-child(n) { grid-area: auto; }
-  .prepare-step-delver:not(:has(#veteran-list > :nth-child(2))) #veteran-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .prepare-step-delver:not(:has(#veteran-list > :nth-child(2))) #candidate-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  /* 古参なしの注記は一行にまとめ、志願者の一覧に幅を渡す。 */
-  .prepare-step-delver:has(#veteran-list > .empty-state) {
-    grid-template-columns: auto minmax(0, 1fr);
-    grid-template-areas: 'head head' 'vlabel vlist' 'rlabel rlabel' 'rlist rlist';
-    gap: 12px 16px;
-  }
-  .prepare-step-delver:has(#veteran-list > .empty-state) > :nth-child(1) { grid-area: head; }
-  .prepare-step-delver:has(#veteran-list > .empty-state) > :nth-child(2) { grid-area: vlabel; align-self: center; }
-  .prepare-step-delver:has(#veteran-list > .empty-state) > :nth-child(3) { grid-area: vlist; }
-  .prepare-step-delver:has(#veteran-list > .empty-state) > :nth-child(4) { grid-area: rlabel; }
-  .prepare-step-delver:has(#veteran-list > .empty-state) > :nth-child(5) { grid-area: rlist; }
-  .prepare-step-delver:has(#veteran-list > .empty-state) #veteran-list { grid-template-columns: minmax(0, 1fr); align-self: start; }
-  .prepare-step-delver:has(#veteran-list > .empty-state) #veteran-list .empty-state {
-    width: auto; height: auto; padding: 8px 0; border: 0; background: none; line-height: 1.7;
-  }
-  .prepare-step-delver:has(#veteran-list > .empty-state) #candidate-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-}
 
 /* 観戦: 数字が増減しても位置を保ち、操作と状況を二段で読み取る。 */
 .topbar { grid-template-columns: minmax(0, 1fr) auto; gap: 12px 24px; padding: 14px 18px; border: 0; border-bottom: 1px solid var(--rule-emphasis); border-radius: 0; background: none; }
@@ -152,9 +36,9 @@ button:focus-visible, summary:focus-visible {
 .route-track { max-width: none; width: 100%; }
 .live-progress { min-width: 0; }
 .turn-meter { min-width: 0; }
-.speed-selector { padding: 3px; border-radius: 5px; }
+.speed-selector { padding: 3px; border-radius: var(--r-control); }
 .speed-selector button { min-height: 40px; min-width: 46px; font-size: 13px; }
-.speed-selector button.is-active { border-radius: 3px; }
+.speed-selector button.is-active { border-radius: var(--r-tag); }
 .depth-chip strong { font-size: 17px; }
 .shard-forecast strong, .turn-meter-label strong { font-variant-numeric: tabular-nums; }
 .turn-meter-label strong { white-space: nowrap; }
@@ -173,7 +57,7 @@ button:focus-visible, summary:focus-visible {
 /* 灯の祭壇: 灯火の残り → 四つの灯 → 置灯・借灯と、左から右へ一続きに読む。 */
 .lantern-dock { grid-template-columns: 150px minmax(0, 1fr); gap: 12px 16px; padding: 16px; background: var(--panel-sunken); }
 .lantern-rites { gap: 10px; }
-.lantern-rite { padding: 12px 10px; gap: 5px 8px; border-radius: 4px; background: var(--surface-choice); }
+.lantern-rite { padding: 12px 10px; gap: 5px 8px; border-radius: var(--r-control); background: var(--surface-choice); }
 .lantern-rite strong { font-size: 15px; }
 .lantern-rite small { white-space: normal; text-wrap: pretty; word-break: auto-phrase; line-height: 1.6; font-size: 12px; }
 /* 灯火が足りない灯も同じ札の形のまま沈め、空き枠ではなく「今は捧げられない」と読ませる。 */
@@ -181,7 +65,7 @@ button:focus-visible, summary:focus-visible {
 .lantern-rite:disabled strong, .lantern-rite:disabled small { color: var(--faint); }
 .lantern-rite:disabled .rite-icon { filter: grayscale(1) brightness(.75); }
 .extra-rites { gap: 10px; }
-.extra-rites button { flex: 1 1 0; grid-template-columns: 28px minmax(0, 1fr) auto; border-radius: 4px; padding: 10px 12px; }
+.extra-rites button { flex: 1 1 0; grid-template-columns: 28px minmax(0, 1fr) auto; border-radius: var(--r-control); padding: 10px 12px; }
 .extra-rites strong { font-family: var(--display); font-size: var(--fs-sm); font-weight: 700; letter-spacing: 0.04em; }
 .extra-rites kbd { justify-self: end; margin-left: 0; }
 .extra-rites small { white-space: normal; }
@@ -242,50 +126,10 @@ button:focus-visible, summary:focus-visible {
 .stake { align-content: start; }
 /* 伝言を開いている間は、階の名を伝言の札の裏に半端に覗かせない。 */
 .stage:has(.realtime-choice:not([hidden])) .floor-card { visibility: hidden; }
-.modal-panel { border-radius: 6px; }
-.result-panel { width: min(860px, 100%); }
-.result-panel .end-stats { border-inline: 0; border-radius: 0; background: none; }
-.score-breakdown { gap: 0; border-block: 1px solid var(--line); }
-.score-breakdown > div { padding: 12px; border: 0; border-radius: 0; background: none; }
-.score-breakdown strong { font-family: var(--latin); font-size: 24px; }
-.score-breakdown > div + div { border-left: 1px solid var(--line-soft); }
 .modal-layer:not(.prepare-layer) { scroll-padding-block: 24px 90px; }
-.modal-footer { border-radius: 0 0 6px 6px; padding-block: 16px; }
-.result-section-heading { gap: 8px 20px; flex-wrap: wrap; }
-/* 結果の各節は同じ見出しで区切る。観戦の帳面と同じ菱形の留めを付け、節の間は広く取る。 */
-.result-panel :is(.result-section-heading h3, .run-advice h3, .decision-history h3, .insight-chart figcaption strong) {
-  color: var(--ink);
-  font-family: var(--display);
-  font-size: var(--fs-md);
-  font-weight: 700;
-  letter-spacing: 0.14em;
-}
-.result-panel :is(.result-section-heading h3, .run-advice h3, .decision-history h3, .insight-chart figcaption strong)::before {
-  content: "";
-  display: inline-block;
-  width: 6px;
-  height: 6px;
-  margin: 0 10px 0.2em 1px;
-  border: 1px solid var(--gold);
-  transform: rotate(45deg);
-  vertical-align: middle;
-}
-.result-panel .result-section-heading, .result-panel .decision-history { margin-top: 30px; }
-.result-panel .result-section-heading { align-items: baseline; margin-bottom: 4px; }
-.result-panel .run-insights { gap: 22px; margin-top: 30px; }
-.result-panel .insight-chart figcaption { align-items: baseline; margin-bottom: 10px; }
-.result-panel .run-advice h3, .result-panel .decision-history h3 { margin-bottom: 10px; }
-.end-stats strong { font-variant-numeric: tabular-nums; }
-.run-comparison p, .run-advice li, .decision-history p { line-height: 1.7; }
+.modal-footer { border-radius: 0 0 var(--r-panel) var(--r-panel); padding-block: 16px; }
 
-@media (min-width: 701px) and (max-width: 1100px) {
-  .growth-board { padding: 16px 0 0; border-left: 0; border-top: 1px solid var(--line); }
-}
 @media (min-width: 701px) and (max-width: 1099px) {
-  .prepare-body { grid-template-columns: minmax(0, 1fr); }
-  .prepare-side { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
-  .prepare-side .side-section { padding: 16px; border: 1px solid var(--line); background: var(--panel); }
-  .prepare-side .side-section::before, .prepare-side .side-section::after { display: none; }
   .topbar-run { grid-template-columns: auto minmax(0, 1fr) auto; gap: 14px; }
   .live-progress { grid-column: 1 / 3; grid-row: 2; flex-basis: auto; }
   .turn-meter { grid-column: 3; grid-row: 2; }
@@ -295,64 +139,6 @@ button:focus-visible, summary:focus-visible {
 }
 
 @media (max-width: 700px) {
-  .prepare-header { padding: calc(16px + env(safe-area-inset-top)) 16px 12px; gap: 10px; }
-  .prepare-header h2 { font-size: 25px; letter-spacing: .035em; }
-  .prepare-header .eyebrow { font-size: 11px; }
-  .prepare-header::after { inset-inline: 16px; }
-  .prepare-header-actions { width: 100%; justify-content: space-between; }
-  .progress-overview { margin: 16px 16px 0; padding-top: 0; border-top: 0; gap: 16px; }
-  .candle-road { grid-template-columns: 30px minmax(0, 1fr); padding: 0; gap: 12px; }
-  .black-candle { width: 36px; padding-top: 18px; }
-  .candle-flame { left: 13px; width: 10px; height: 16px; }
-  .candle-wax { height: 100px; }
-  .candle-seals i { font-size: 11px; line-height: 19px; }
-  .candle-chapters { margin-block: 8px; }
-  .candle-chapters strong { font-size: 10px; letter-spacing: -.025em; }
-  .candle-chapters li { gap: 5px; }
-  .truth-sockets { grid-template-columns: minmax(0, 1fr); gap: 0; }
-  .truth-socket { display: block; text-align: left; padding: 6px 0; font-size: 11px; }
-  .truth-socket > span { display: grid; grid-template-columns: 82px minmax(0, 1fr); gap: 8px; }
-  .truth-socket > i { display: none; }
-  .truth-socket small { margin: 0; font-size: 11px; line-height: 1.5; }
-  .progress-next { margin: 6px 0 12px; }
-  .progress-next strong { font-size: 16px; }
-  .growth-board { padding: 14px 0 0; border-left: 0; border-top: 1px solid var(--line); gap: 14px; grid-template-columns: minmax(0, .85fr) minmax(0, 1.15fr); }
-  .power-line { margin-block: 6px; }
-  .power-line > strong { font-size: 30px; }
-  .growth-caption { font-size: 11px; margin-top: 6px; }
-  .trial-path strong { font-size: 10px; }
-  .trial-path small { font-size: 10px; }
-  .progress-help { margin-top: -5px; }
-  .prepare-body { padding: 6px 16px 28px; gap: 28px; grid-template-columns: minmax(0, 1fr); }
-  .prepare-main { gap: 28px; }
-  .prepare-step { gap: 10px; }
-  .step-heading small { padding-left: 0; font-size: 12px; line-height: 1.65; }
-  .candidate-list { gap: 12px; }
-  #veteran-list > .empty-state { padding: 8px 0; border: 0; background: none; }
-  .candidate-card { padding: 14px; grid-template-columns: 76px minmax(0, 1fr); gap: 14px; }
-  .candidate-portrait { margin-top: 4px; }
-  .candidate-body > strong { font-size: 20px; padding-right: 18px; }
-  .candidate-body { gap: 4px; }
-  .candidate-index { right: 10px; top: 10px; }
-  .truth-tag { justify-self: start; font-size: 11px; }
-  .mini-stats { gap: 4px 12px; }
-  .mission-list, .tactic-list { grid-template-columns: minmax(0, 1fr); gap: 12px; }
-  .mission-option:not(.is-selected) small { display: block; }
-  .mission-option { padding: 16px; }
-  .mission-option strong { font-size: 17px; }
-  .tactic-card { min-height: 78px; }
-  .prepare-side { grid-template-columns: minmax(0, 1fr); gap: 16px; }
-  .prepare-footer { display: grid; grid-template-columns: minmax(0, 1fr) 158px; padding: 10px 16px calc(10px + env(safe-area-inset-bottom)); gap: 6px 12px; }
-  .depart-summary { display: contents; }
-  .depart-portrait { grid-column: 1; grid-row: 1; }
-  .depart-who { grid-column: 1; grid-row: 1; margin-left: 52px; }
-  .depart-who strong { font-size: 18px; }
-  .depart-who small { font-size: 11px; }
-  .depart-plan { grid-column: 1 / -1; font-size: 11px; gap: 3px 12px; padding-left: 0; }
-  .depart-plan b { font-size: 11px; }
-  .depart-plan > span > small { font-size: 10px; }
-  .depart-note { grid-column: 1 / -1; }
-  .prepare-footer .primary-button { grid-column: 2; grid-row: 1; min-width: 0; min-height: 48px; padding-inline: 10px; font-size: 14px; letter-spacing: 0.04em; }
   .topbar { display: flex; gap: 6px 10px; padding: 8px 12px; }
   .topbar-run, .topbar-controls { display: contents; }
   /* 遊び方は階と灯片の並びの右端に置き、先頭の一番目立つ位置を補助の操作に譲らない。 */
@@ -397,9 +183,6 @@ button:focus-visible, summary:focus-visible {
   .realtime-choice .modal-hint { font-size: 12px; line-height: 1.6; }
   .sidebar .panel { padding: 14px 16px; }
   .vitals-heading { grid-template-columns: 58px minmax(0, 1fr) auto; }
-  .result-panel .end-milestone { padding-inline: 8px; }
-  .score-breakdown > div { padding: 10px 6px; }
-  .result-section-heading small { line-height: 1.6; }
   .modal-footer { padding-bottom: calc(12px + env(safe-area-inset-bottom)); }
 }
 
