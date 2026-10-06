@@ -171,7 +171,8 @@
 @media (max-width: 640px) {
   .guide-dialog { width: 100vw; height: 100dvh; border: 0; border-radius: 0; }
   .guide-header { padding: 16px 16px 10px; }
-  .guide-tabs { padding: 0 8px; }
+  /* 項目の列は横に続くので、右端を闇へ溶かして続きがあることを示す。 */
+  .guide-tabs { padding: 0 32px 0 8px; mask-image: linear-gradient(to right, #000 calc(100% - 32px), transparent); }
   .guide-tab { padding: 10px 10px; }
   .guide-body { padding: 16px 16px 32px; }
   #guide-panel-rules { display: block; }

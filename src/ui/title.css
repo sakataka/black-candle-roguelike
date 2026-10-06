@@ -435,7 +435,8 @@
 .title-save-actions { display: flex; gap: 8px; }
 .title-save-actions button, .title-save-new { min-height: 36px; padding: 6px 12px; border: 1px solid var(--line); border-radius: 3px; background: rgba(0, 0, 0, 0.25); color: var(--ink-soft); font-size: 0.8125rem; cursor: pointer; }
 .title-save-main { flex: 1; border-color: rgba(240, 204, 123, 0.45) !important; color: var(--gold-bright) !important; }
-.title-save.is-active .title-save-main { background: linear-gradient(180deg, var(--gold-bright), var(--gold)) !important; color: #1b130a !important; font-weight: 700; }
+/* 使用中の記録で続ける札は、支度・結果の主ボタンと同じ金の札と明朝にそろえる。 */
+.title-save.is-active .title-save-main { background: linear-gradient(180deg, #f6d88e, #d2a456 55%, #b8873d) !important; color: #1b130a !important; font-family: var(--display); font-weight: 800; letter-spacing: 0.16em; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.5), inset 0 1px rgba(255, 255, 255, 0.45); }
 .title-save-delete { color: var(--muted) !important; }
 .title-save-delete.is-confirming { border-color: var(--danger) !important; color: var(--danger) !important; }
 .title-save-new { width: 100%; border-style: dashed; color: var(--gold); }

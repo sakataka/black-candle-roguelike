@@ -11,7 +11,11 @@
 }
 
 ::selection { color: #fff2d2; background: #695030; }
+/* 見出しや短い題は文節で折り返し、「真 / 相」のように語の途中で切らない。 */
+:is(h1, h2, h3, h4, .milestone-title, .mission-name, .landmark strong, .objective strong) { word-break: auto-phrase; }
 button:disabled { cursor: not-allowed; }
+/* 読み上げだけに渡す文。画面には出さない。 */
+.sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
 button, summary { scroll-margin-block: 24px; }
 button:focus-visible, summary:focus-visible {
   outline: 2px solid var(--focus-ring);
@@ -153,19 +157,57 @@ button:focus-visible, summary:focus-visible {
 .speed-selector button.is-active { border-radius: 3px; }
 .depth-chip strong { font-size: 17px; }
 .shard-forecast strong, .turn-meter-label strong { font-variant-numeric: tabular-nums; }
+.turn-meter-label strong { white-space: nowrap; }
+/* 計器の列: 見出しは同じ小ささ、値は明朝と欧文数字。9pxの注記は読めないので下限を11pxにする。 */
+.live-progress { gap: 18px; }
+.live-mission { gap: 4px; }
+.live-mission strong { font-family: var(--display); font-size: var(--fs-sm); font-weight: 600; letter-spacing: 0.04em; }
+.live-mission > small, .live-power small { font-size: 11px; }
+.live-power { gap: 2px; }
+.live-power b { font-family: var(--latin); font-size: 1.15rem; font-weight: 600; }
+@media (min-width: 1360px) {
+  .topbar-run > :is(.route-track, .shard-forecast, .turn-meter) { padding-left: 20px; border-left: 1px solid var(--line-soft); }
+  .live-progress { padding-left: 20px; border-left-color: var(--line-soft); }
+}
+
+/* 灯の祭壇: 灯火の残り → 四つの灯 → 置灯・借灯と、左から右へ一続きに読む。 */
 .lantern-dock { grid-template-columns: 150px minmax(0, 1fr); gap: 12px 16px; padding: 16px; background: var(--panel-sunken); }
 .lantern-rites { gap: 10px; }
 .lantern-rite { padding: 12px 10px; gap: 5px 8px; border-radius: 4px; background: var(--surface-choice); }
 .lantern-rite strong { font-size: 15px; }
-.lantern-rite small { white-space: normal; text-wrap: pretty; line-height: 1.6; font-size: 12px; }
-.lantern-rite:disabled { opacity: 0.7; border-color: transparent; background: none; }
-.lantern-rite:disabled strong { color: var(--muted); }
-.lantern-rite:disabled .rite-icon { filter: grayscale(.65); opacity: .65; }
+.lantern-rite small { white-space: normal; text-wrap: pretty; word-break: auto-phrase; line-height: 1.6; font-size: 12px; }
+/* 灯火が足りない灯も同じ札の形のまま沈め、空き枠ではなく「今は捧げられない」と読ませる。 */
+.lantern-rite:disabled { opacity: .62; border-color: var(--line-soft); background: none; }
+.lantern-rite:disabled strong, .lantern-rite:disabled small { color: var(--faint); }
+.lantern-rite:disabled .rite-icon { filter: grayscale(1) brightness(.75); }
 .extra-rites { gap: 10px; }
-.extra-rites button { border-radius: 4px; padding: 10px 12px; }
+.extra-rites button { flex: 1 1 0; grid-template-columns: 28px minmax(0, 1fr) auto; border-radius: 4px; padding: 10px 12px; }
+.extra-rites strong { font-family: var(--display); font-size: var(--fs-sm); font-weight: 700; letter-spacing: 0.04em; }
+.extra-rites kbd { justify-self: end; margin-left: 0; }
+.extra-rites small { white-space: normal; }
 .expedition-note { line-height: 1.6; }
 .expedition-note:empty { display: none; }
+/* 一画面に収める時は、地図を残りの高さに合わせて縮め、介入欄の上へはみ出させない。 */
+@media (min-width: 1000px) and (min-height: 660px) {
+  .map-stage { min-height: 0; }
+}
+@media (min-width: 1360px) {
+  .lantern-dock { grid-template-columns: 136px minmax(0, 1fr) 216px; align-items: stretch; gap: 10px 12px; padding: 14px 16px 12px; }
+  .lantern-embers { align-content: center; }
+  .lantern-rite { grid-template-columns: 40px minmax(0, 1fr); grid-template-rows: 40px auto; align-content: start; row-gap: 6px; padding: 10px 12px; }
+  .lantern-rite .rite-icon { grid-column: 1; grid-row: 1; }
+  .lantern-rite strong { grid-column: 2; grid-row: 1; flex-direction: column; align-items: flex-start; gap: 0; white-space: nowrap; }
+  .lantern-rite strong em { line-height: 1.3; }
+  .lantern-rite small { grid-column: 1 / -1; grid-row: 2; }
+  .extra-rites { grid-column: 3; grid-row: 1; display: grid; grid-template-rows: repeat(2, minmax(0, 1fr)); gap: 6px; }
+  .extra-rites button { row-gap: 1px; align-content: center; min-height: 0; padding: 6px 10px; }
+  .extra-rites small { font-size: 11px; line-height: 1.4; white-space: nowrap; }
+  .expedition-note { padding-top: 9px; border-top: 1px solid var(--line-soft); }
+  .expedition-note:not(:empty) ~ .expedition-note { padding-top: 0; border-top: 0; }
+}
 .sidebar .panel-label { letter-spacing: 0.12em; }
+/* 状態は目標名より控えめな札にし、目標名を先に読ませる。 */
+.mission-line em { padding: 1px 9px; font-family: inherit; font-size: var(--fs-2xs); font-weight: 700; letter-spacing: 0.08em; }
 .sidebar .panel-heading h2 { letter-spacing: 0.12em; }
 .message-list li:nth-child(n) { opacity: 1; }
 .message-list li:nth-child(n + 4) p { color: var(--muted); }
@@ -190,13 +232,16 @@ button:focus-visible, summary:focus-visible {
   border-top-color: var(--line-strong);
   box-shadow: 0 -12px 30px #0008;
 }
-.realtime-choice h2 { margin: 6px 0; font-size: 20px; line-height: 1.5; }
+.realtime-choice h2 { margin: 6px 0; font-family: var(--display); font-size: 22px; font-weight: 700; line-height: 1.5; letter-spacing: 0.08em; }
 .realtime-choice .modal-lead { font-size: 13px; line-height: 1.7; }
 .realtime-choice .decision-options { gap: 10px; }
 .realtime-choice .decision-option { padding: 12px; gap: 6px; }
 .realtime-choice .decision-option strong { font-size: 14px; line-height: 1.6; }
 .realtime-choice .decision-option small { font-size: 12px; line-height: 1.65; }
 .decision-details summary { min-height: 48px; line-height: 1.65; }
+.stake { align-content: start; }
+/* 伝言を開いている間は、階の名を伝言の札の裏に半端に覗かせない。 */
+.stage:has(.realtime-choice:not([hidden])) .floor-card { visibility: hidden; }
 .modal-panel { border-radius: 6px; }
 .result-panel { width: min(860px, 100%); }
 .result-panel .end-stats { border-inline: 0; border-radius: 0; background: none; }
@@ -207,6 +252,29 @@ button:focus-visible, summary:focus-visible {
 .modal-layer:not(.prepare-layer) { scroll-padding-block: 24px 90px; }
 .modal-footer { border-radius: 0 0 6px 6px; padding-block: 16px; }
 .result-section-heading { gap: 8px 20px; flex-wrap: wrap; }
+/* 結果の各節は同じ見出しで区切る。観戦の帳面と同じ菱形の留めを付け、節の間は広く取る。 */
+.result-panel :is(.result-section-heading h3, .run-advice h3, .decision-history h3, .insight-chart figcaption strong) {
+  color: var(--ink);
+  font-family: var(--display);
+  font-size: var(--fs-md);
+  font-weight: 700;
+  letter-spacing: 0.14em;
+}
+.result-panel :is(.result-section-heading h3, .run-advice h3, .decision-history h3, .insight-chart figcaption strong)::before {
+  content: "";
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin: 0 10px 0.2em 1px;
+  border: 1px solid var(--gold);
+  transform: rotate(45deg);
+  vertical-align: middle;
+}
+.result-panel .result-section-heading, .result-panel .decision-history { margin-top: 30px; }
+.result-panel .result-section-heading { align-items: baseline; margin-bottom: 4px; }
+.result-panel .run-insights { gap: 22px; margin-top: 30px; }
+.result-panel .insight-chart figcaption { align-items: baseline; margin-bottom: 10px; }
+.result-panel .run-advice h3, .result-panel .decision-history h3 { margin-bottom: 10px; }
 .end-stats strong { font-variant-numeric: tabular-nums; }
 .run-comparison p, .run-advice li, .decision-history p { line-height: 1.7; }
 
@@ -287,6 +355,8 @@ button:focus-visible, summary:focus-visible {
   .prepare-footer .primary-button { grid-column: 2; grid-row: 1; min-width: 0; min-height: 48px; padding-inline: 10px; font-size: 14px; letter-spacing: 0.04em; }
   .topbar { display: flex; gap: 6px 10px; padding: 8px 12px; }
   .topbar-run, .topbar-controls { display: contents; }
+  /* 遊び方は階と灯片の並びの右端に置き、先頭の一番目立つ位置を補助の操作に譲らない。 */
+  #open-guide { order: 2; min-height: 40px; padding-inline: 10px; }
   .live-progress { gap: 12px; padding-block: 4px; }
   .live-mission { column-gap: 8px; row-gap: 3px; }
   .depth-chip { line-height: 1.3; }
