@@ -129,21 +129,21 @@ export const observerShellMarkup = `
         </div>
       </header>
       <details id="progress-drawer" class="progress-drawer">
-        <summary id="progress-strip" class="progress-strip" aria-label="探索全体の進捗。開くと章・真相・鍛錬・覚醒の詳細を表示"></summary>
+        <summary id="progress-strip" class="progress-strip"></summary>
         <div id="next-goal" class="progress-overview"></div>
       </details>
       <div class="prepare-body">
         <div class="prepare-main">
           <section class="prepare-step prepare-step-delver" aria-labelledby="step-delver">
-            <div class="step-heading"><span class="step-no" aria-hidden="true">I</span><h3 id="step-delver">探索者</h3><small>生還した古参は位階が上がって強くなる。瀕死で帰ると古傷を負い、倒れた者は戻らない。番号キー 1〜4 でも選べる。</small></div>
+            <div class="step-heading"><span class="step-no" aria-hidden="true">I</span><h3 id="step-delver">探索者</h3><small>生還した古参は位階が上がって強くなる。瀕死で帰ると古傷を負い、倒れた者は戻らない。<span class="kbd-hint">番号キー 1〜4 でも選べる。</span></small></div>
             <div class="delver-layout">
               <div class="delver-roster">
                 <div class="candidate-group"><strong>遠征団</strong><small id="veteran-capacity"></small></div>
                 <div id="veteran-list" class="candidate-list"></div>
-                <div class="candidate-group"><strong>新たな志願者</strong><small id="recruit-capacity"></small></div>
+                <div class="candidate-group"><strong>新たな志願者</strong><small id="recruit-capacity"></small><small id="truth-legend" class="truth-legend"><i aria-hidden="true">◇</i>真相を持ち帰れる職業</small></div>
                 <div id="candidate-list" class="candidate-list"></div>
               </div>
-              <article id="delver-detail" class="delver-detail" aria-label="選んだ探索者" aria-live="polite"></article>
+              <article id="delver-detail" class="delver-detail" aria-label="選んだ探索者"></article>
             </div>
           </section>
           <section class="prepare-step" aria-labelledby="step-mission">

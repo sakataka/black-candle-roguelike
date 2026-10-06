@@ -58,14 +58,14 @@ export function progressStripMarkup(campaign: CampaignState): string {
   const trial = journey.trial
     ? `<b class="is-challenge">${escapeHtmlAttribute(journey.nextTrial?.label ?? "覚醒")}に挑戦中</b>`
     : journey.nextTrial ? `あと<b>${journey.victoriesToTrial}</b>回の踏破で${escapeHtmlAttribute(journey.nextTrial.label)}` : "覚醒はすべて突破";
-  return `<span class="strip-road" role="img" aria-label="黒燭への道 ${done}/${progress.roadmap.length}章">${progress.roadmap.map((chapter) => `<i class="${chapter.done ? "is-lit" : chapter.id === next?.id ? "is-next" : ""}" aria-hidden="true"></i>`).join("")}</span>
+  return `<span class="sr-only">黒燭への道 ${done}/${progress.roadmap.length}章。</span><span class="strip-road" aria-hidden="true">${progress.roadmap.map((chapter) => `<i class="${chapter.done ? "is-lit" : chapter.id === next?.id ? "is-next" : ""}"></i>`).join("")}</span>
     <span class="strip-goal"><small>${next ? "次へ" : `第${campaign.cycle.number}周期`}</small><strong>${next ? escapeHtmlAttribute(next.label) : "結末を記録した"}</strong></span>
     <span class="strip-facts">
-      <span class="strip-fact" aria-label="真相 ${campaign.roleTruths.length}/${ROLE_TRUTH_IDS.length}"><small>真相</small>${ROLE_TRUTH_IDS.map((truth, i) => `<i class="strip-truth${campaign.roleTruths.includes(truth) ? " is-filled" : ""}" aria-hidden="true">${truthMarks[i]}</i>`).join("")}</span>
+      <span class="strip-fact"><small>真相</small><span class="sr-only">${campaign.roleTruths.length}/${ROLE_TRUTH_IDS.length}</span>${ROLE_TRUTH_IDS.map((truth, i) => `<i class="strip-truth${campaign.roleTruths.includes(truth) ? " is-filled" : ""}" aria-hidden="true">${truthMarks[i]}</i>`).join("")}</span>
       <span class="strip-fact"><small>鍛錬</small><b>Lv${journey.rank}</b><span class="strip-meter" aria-hidden="true"><i style="width:${filled / perRank * 100}%"></i></span></span>
       <span class="strip-fact strip-trial"><small>次の強敵</small><span>${trial}</span></span>
     </span>
-    <span class="strip-toggle" aria-hidden="true">詳しく</span>`;
+    <span class="strip-toggle">詳しく<span class="sr-only">（章・真相・鍛錬・覚醒の詳細）</span></span>`;
 }
 
 /** 消費しても減らない累計の鍛錬と、踏破数で開く覚醒を別の器で表す。 */

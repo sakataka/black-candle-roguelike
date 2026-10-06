@@ -206,6 +206,3 @@ button:focus-visible, summary:focus-visible {
   .title-cta kbd { display: none; }
   .title-cta { min-height: 60px; }
 }
-@media (prefers-reduced-motion: reduce) {
-  .progress-help summary::before, .progress-conditions summary::before { transition: none; }
-}

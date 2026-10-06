@@ -101,10 +101,13 @@
 .ledger-body { display: grid; gap: 2px; min-width: 0; }
 .ledger-body strong { font-size: var(--fs-sm); font-weight: 600; line-height: 1.6; }
 .ledger-body small { color: var(--ink-soft); font-size: var(--fs-xs); line-height: 1.65; }
+.ledger-body > span { font-size: var(--fs-sm); line-height: 1.7; }
 .ledger-value { justify-self: end; color: var(--ink); font-family: var(--latin); font-size: 1.15rem; font-weight: 600; font-variant-numeric: lining-nums tabular-nums; white-space: nowrap; }
-.ledger-value small { margin-left: 6px; color: var(--safe); font-family: var(--serif); font-size: var(--fs-2xs); }
-.ledger-rows > li.is-fresh { background: linear-gradient(90deg, rgba(140, 191, 150, 0.07), transparent 55%); }
-.ledger-rows > li.is-fresh .ledger-key { color: var(--safe); }
+.ledger-value small { margin-left: 6px; color: var(--gold-bright); font-family: var(--serif); font-size: var(--fs-2xs); }
+/* この遠征で動いた行は、進捗の色（金）の左罫と◆で示す。 */
+.ledger-rows > li.is-fresh { box-shadow: inset 2px 0 var(--gold-bright); background: linear-gradient(90deg, rgba(212, 173, 98, 0.09), transparent 55%); }
+.ledger-rows > li.is-fresh .ledger-key { padding-left: 12px; color: var(--gold-bright); }
+.ledger-rows > li.is-fresh .ledger-key::after { content: " ◆"; font-size: 9px; vertical-align: 1px; }
 .ledger-rows > li.is-challenge .ledger-body { color: #f1bc9e; }
 /* 転機の重さは、見出しの前の菱形の色で示す。 */
 .turning-points .ledger-key { padding-left: 16px; }
@@ -119,7 +122,7 @@
 .result-truths > span small { grid-column: 2; font-size: var(--fs-2xs); }
 .result-truths > span .strip-truth { grid-row: 1 / 3; }
 .result-truths > span.is-filled { color: var(--gold-bright); }
-.result-truths > span.is-fresh { color: var(--safe); font-weight: 700; }
+.result-truths > span.is-fresh { color: var(--gold-bright); font-weight: 700; }
 .ledger-meter { display: block; height: 3px; margin: 6px 0 4px; background: var(--line-soft); }
 .ledger-meter i { display: block; height: 100%; background: linear-gradient(90deg, #916031, var(--gold-bright)); box-shadow: 0 0 8px rgba(237, 187, 98, 0.5); }
 
@@ -130,7 +133,7 @@
 /* 次の遠征への示唆 */
 .run-advice .ledger-rows > li { grid-template-columns: 40px minmax(0, 1fr) auto; }
 .advice-icon { width: 34px; height: 34px; padding: 0; border-radius: var(--r-control); background-color: rgba(212, 173, 98, 0.1); }
-.advice-adopt { min-height: 40px; }
+.advice-adopt { min-height: 44px; }
 .advice-adopt:disabled { cursor: default; opacity: 0.6; }
 
 /* 灯守の判断 */
@@ -192,6 +195,11 @@
   .run-advice .ledger-rows > li > .ledger-body { grid-column: 2; }
   .advice-adopt { grid-column: 2; justify-self: start; }
   .result-truths { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+  /* 章の道は全幅に広げ、数は見出しの行へ上げる。 */
+  .result-progress > li > .ledger-key { grid-column: 1; grid-row: 1; }
+  .result-progress > li > .ledger-body { grid-column: 1 / -1; grid-row: 2; }
+  .result-progress > li > .ledger-value { grid-column: 2; grid-row: 1; }
+  .result-progress .candle-chapters strong { font-size: 10px; }
   .result-panel .end-milestone { padding-inline: 8px; }
 }
 

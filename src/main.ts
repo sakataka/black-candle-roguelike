@@ -472,7 +472,7 @@ function installEvents(): void {
       }
       // 選択済みの探索者カードか、ボタン以外にフォーカスがある時の Enter は出発にする。
       const active = document.activeElement;
-      if (event.key === "Enter" && (!(active instanceof HTMLButtonElement) || active.matches(".delver-tile.is-selected"))) {
+      if (event.key === "Enter" && !(active instanceof HTMLElement && active.closest("summary")) && (!(active instanceof HTMLButtonElement) || active.matches(".delver-tile.is-selected"))) {
         event.preventDefault();
         departButton.click();
         return;
@@ -598,6 +598,7 @@ function renderCandidateSelection(): void {
   setText("#recruit-capacity", campaign.roster.length >= rosterLimit
     ? "遠征団は満員。志願者は遠征できるが、生還しても加入しない（古参は全員残る）。"
     : "生還すると遠征団に加わる。");
+  requireElement<HTMLElement>("#truth-legend").hidden = playableRoles().every((role) => campaign.roleTruths.includes(roleTruthFor(role.id)));
   const indexOffset = campaign.roster.length;
   const recruits = recruitIdentities();
   candidateList.replaceChildren(...playableRoles().map((role, index) => {
@@ -679,7 +680,7 @@ function candidateCard(options: {
   body.className = "delver-tile-body";
   body.innerHTML = `
     <strong>${options.name}</strong>
-    <span class="delver-tile-meta">${escapeHtml(options.meta)}<span class="tag temperament-tag temperament-${options.temperament}">${temperamentLabel(options.temperament)}</span></span>
+    <span class="delver-tile-meta"><span class="delver-tile-role">${escapeHtml(options.meta)}</span><span class="tag temperament-tag temperament-${options.temperament}">${temperamentLabel(options.temperament)}</span></span>
     <span class="mini-stats" aria-label="HP ${options.stats.hp + foundation.maxHp}、攻撃 ${options.stats.attack + foundation.attack}、防御 ${options.stats.defense}"><span>HP<b>${options.stats.hp + foundation.maxHp}</b></span><span>攻<b>${options.stats.attack + foundation.attack}</b></span><span>防<b>${options.stats.defense}</b></span></span>
   `;
   const marks = document.createElement("span");
@@ -802,7 +803,7 @@ function renderInstitute(): void {
     button.dataset.facilityId = facilityId;
     button.className = "facility-card";
     button.disabled = cost === null || campaign.shards < cost;
-    button.innerHTML = `<span class="facility-icon" aria-hidden="true"></span><strong>${escapeHtml(facility.label)} <em>Lv${level}/${facility.costs.length}</em></strong><small>${escapeHtml(facility.description)}</small><span class="tag">${cost === null ? "最大" : `強化 · 灯片${cost}`}</span>`;
+    button.innerHTML = `<span class="facility-icon" aria-hidden="true"></span><strong>${escapeHtml(facility.label)} <em>Lv${level}/${facility.costs.length}</em></strong><small>${escapeHtml(facility.description)}</small><span class="facility-cost">${cost === null ? "最大" : `強化 · 灯片${cost}`}</span>`;
     applySprite(button.querySelector<HTMLElement>(".facility-icon") as HTMLElement, assetForContent(`facility.${facilityId}`), 44);
     return button;
   }));
@@ -1322,7 +1323,7 @@ function renderAbilityPicker(): void {
   const entries = Object.entries(definitions);
   const locked = entries.filter(([abilityId]) => !unlocked.has(abilityId));
   setText("#ability-count", `${loadout.length}/${slots}`);
-  setText("#ability-unlocked", `${locked.length}/${entries.length}`);
+  setText("#ability-unlocked", `${locked.length}件`);
   const cards = entries.filter(([abilityId]) => unlocked.has(abilityId)).map(([abilityId, ability]) => {
     const active = loadout.includes(abilityId);
     const button = document.createElement("button");
@@ -1415,7 +1416,7 @@ function renderRoadmap(): void {
     </section>
     <section class="progress-help" aria-label="進め方">
       <h4>進め方</h4>
-      <p>${escapeHtml(progress.nextChapter?.hint ?? "結末を選ぶと新しい周期へ。真相と鍛錬は引き継がれる。")}</p>
+      ${progress.nextChapter ? "" : "<p>結末を選ぶと新しい周期へ。真相と鍛錬は引き継がれる。</p>"}
       <p>帰還・敗北で得た灯片も鍛錬に積み重なる。第十層を踏破すると覚醒への印が灯る。</p>
     </section>`;
 }
