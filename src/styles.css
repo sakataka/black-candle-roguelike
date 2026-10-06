@@ -1088,11 +1088,12 @@ html[data-biome="furnace"] .depth-chip { border-color: #c7855c; }
 html[data-biome="black-candle"] .depth-chip { border-color: #9a82bd; }
 
 .decision-stakes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 2px 0 10px; }
-.stake { display: grid; gap: 3px; padding: 8px 10px; border: 1px solid var(--line-soft); border-radius: var(--r-panel); background: rgba(0, 0, 0, 0.25); }
+.stake { display: grid; gap: 3px; padding: 6px 12px; border-left: 2px solid var(--line-strong); background: linear-gradient(90deg, rgba(255, 255, 255, 0.03), transparent 80%); }
 .stake > span { font-size: var(--fs-2xs); font-weight: 800; letter-spacing: 0.1em; }
 .stake p { margin: 0; color: var(--ink-soft); font-size: var(--fs-xs); line-height: 1.6; }
 .stake b { color: var(--gold-bright); font-size: var(--fs-sm); }
-.stake-return { border-color: rgba(140, 191, 150, 0.3); }
+.stake-return { border-left-color: var(--safe); }
+.stake-continue { border-left-color: var(--gold); }
 .stake-return > span { color: var(--safe); }
 .stake-continue > span { color: var(--gold); }
 .stake-loss { color: #d69a90 !important; }

@@ -8,7 +8,7 @@ import { observerShellMarkup } from "./ui/shell";
 import { applySprite, spriteStyle } from "./ui/sprites";
 import { escapeHtml, requireElement, setText } from "./ui/dom";
 import { bossTrialDefinition, journeyProgress } from "./game/core/journey";
-import { candleRoadMarkup, growthMarkup, progressStripMarkup, resultProgressMarkup } from "./ui/progress";
+import { candleRoadMarkup, growthMarkup, progressStripMarkup, resultProgressMarkup, truthMark } from "./ui/progress";
 import "@fontsource/shippori-mincho-b1/500.css";
 import "@fontsource/shippori-mincho-b1/600.css";
 import "@fontsource/shippori-mincho-b1/800.css";
@@ -517,6 +517,8 @@ function resumeObserving(): void {
 function selectDelver(next: NonNullable<typeof selectedDelver>): void {
   selectedDelver = next;
   renderCandidateSelection();
+  // スマホの横に流れる一覧では、番号キーで選んだ札が画面の外にあることがある。
+  candidateDialog.querySelector(".delver-tile.is-selected")?.scrollIntoView({ block: "nearest", inline: "nearest" });
 }
 
 function departSelected(): void {
@@ -598,7 +600,10 @@ function renderCandidateSelection(): void {
   setText("#recruit-capacity", campaign.roster.length >= rosterLimit
     ? "遠征団は満員。志願者は遠征できるが、生還しても加入しない（古参は全員残る）。"
     : "生還すると遠征団に加わる。");
-  requireElement<HTMLElement>("#truth-legend").hidden = playableRoles().every((role) => campaign.roleTruths.includes(roleTruthFor(role.id)));
+  const openTruths = ROLE_TRUTH_IDS.filter((truth) => !campaign.roleTruths.includes(truth));
+  const legend = requireElement<HTMLElement>("#truth-legend");
+  legend.hidden = openTruths.length === 0;
+  legend.innerHTML = `${openTruths.map((truth) => `<i aria-hidden="true">${truthMark(truth)}</i>`).join("")}印の職業は真相を持ち帰れる`;
   const indexOffset = campaign.roster.length;
   const recruits = recruitIdentities();
   candidateList.replaceChildren(...playableRoles().map((role, index) => {
@@ -685,7 +690,7 @@ function candidateCard(options: {
   `;
   const marks = document.createElement("span");
   marks.className = "delver-tile-marks";
-  marks.innerHTML = `${options.shortcut <= 4 ? `<kbd>${options.shortcut}</kbd>` : ""}${truthOpen ? '<i class="mark-truth" title="真相を持ち帰れる職業">◇<span class="sr-only">真相を持ち帰れる</span></i>' : ""}${scars ? `<i class="mark-scar" title="古傷 ${scars}">傷${scars > 1 ? scars : ""}<span class="sr-only">古傷あり</span></i>` : ""}`;
+  marks.innerHTML = `${options.shortcut <= 4 ? `<kbd>${options.shortcut}</kbd>` : ""}${truthOpen ? `<i class="mark-truth" title="真相「${escapeHtml(roleTruthLabel(roleTruthFor(options.roleId)))}」を持ち帰れる">${truthMark(roleTruthFor(options.roleId))}<span class="sr-only">真相を持ち帰れる</span></i>` : ""}${scars ? `<i class="mark-scar" title="古傷 ${scars}">傷${scars > 1 ? scars : ""}<span class="sr-only">古傷あり</span></i>` : ""}`;
   button.append(portrait, body, marks);
   return button;
 }
@@ -1689,7 +1694,7 @@ function renderEnd(): void {
     ["生還", shards.survival], ["持ち帰り", shards.carried], ["任務", shards.mission], ["真相", shards.truth],
   ];
   const maxRow = Math.max(1, ...rows.map(([, value]) => value));
-  shardBreakdown.innerHTML = rows.map(([label, value]) => `<div class="${value === 0 ? "is-zero" : ""}"><dt>${label}</dt><dd><b>+${value}</b></dd><i aria-hidden="true" style="width:${Math.round(value / maxRow * 100)}%"></i></div>`).join("");
+  shardBreakdown.innerHTML = rows.map(([label, value]) => `<div class="${value === 0 ? "is-zero" : ""}"><dt>${label}</dt><dd><b>+${value}</b><i aria-hidden="true" style="width:${Math.round(value / maxRow * 100)}%"></i></dd></div>`).join("");
   const keepPercent = getGameConfig().campaign.shards.keepPercentOnLoss;
   setText("#shard-note", [
     `鍛錬の累計に灯片+${shards.total}。${journeyProgress(campaign).shardsToNextRank ? `次の鍛錬まで${journeyProgress(campaign).shardsToNextRank}。` : "鍛錬は最大。"}`,

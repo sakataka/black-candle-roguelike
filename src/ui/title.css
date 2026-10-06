@@ -439,7 +439,7 @@
 .title-save.is-active .title-save-main { background: linear-gradient(180deg, #f6d88e, #d2a456 55%, #b8873d) !important; color: #1b130a !important; font-family: var(--display); font-weight: 800; letter-spacing: 0.16em; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.5), inset 0 1px rgba(255, 255, 255, 0.45); }
 .title-save-delete { color: var(--muted) !important; }
 .title-save-delete.is-confirming { border-color: var(--danger) !important; color: var(--danger) !important; }
-.title-save-new { width: 100%; border-style: dashed; color: var(--gold); }
+.title-save-new { width: 100%; border-color: rgba(212, 173, 98, 0.38); color: var(--gold); }
 .title-save-new:disabled { color: var(--faint); cursor: not-allowed; }
 .title-saves button:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
 @media (hover: hover) and (pointer: fine) {

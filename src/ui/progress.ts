@@ -7,6 +7,11 @@ import type { CampaignState, RoleTruthId } from "../game/types";
 
 const chapterNames = ["帰還路", "最初の真相", "三つの真相", "黒燭核", "結末"];
 const truthMarks = ["剣", "弓", "祈"];
+
+/** 真相ごとの印。帯・詳細・探索者の札で同じ字を使う。 */
+export function truthMark(truth: RoleTruthId): string {
+  return truthMarks[ROLE_TRUTH_IDS.indexOf(truth)] ?? "◇";
+}
 function bossPortrait(): string {
   const asset = assetForContent("monster.black-candle-warden");
   if (!asset) return "";
@@ -113,7 +118,7 @@ export function resultProgressMarkup(campaign: CampaignState, before: CampaignSt
   const filled = journey.shardsToNextRank ? perRank - journey.shardsToNextRank : perRank;
   const trialCleared = previous ? journey.trialsCleared > previous.trialsCleared : false;
   const trialText = journey.trial
-    ? `${escapeHtmlAttribute(journey.nextTrial?.label ?? "覚醒")}に挑戦中。第6階・第10層の守り手が覚醒し、第10層の踏破で突破。`
+    ? `${escapeHtmlAttribute(journey.nextTrial?.label ?? "覚醒")}に挑戦中。第六階・第十層の守り手が覚醒し、第十層の踏破で突破する。`
     : journey.nextTrial ? `あと${journey.victoriesToTrial}回の踏破で${escapeHtmlAttribute(journey.nextTrial.label)}` : "すべての覚醒を突破した";
   return `<ul class="ledger-rows result-progress">
     <li class="${fresh.size ? "is-fresh" : ""}"><span class="ledger-key">章</span><div class="ledger-body">${chapterRibbonMarkup(campaign, fresh)}</div><b class="ledger-value">${done}/${progress.roadmap.length}</b></li>

@@ -254,7 +254,8 @@
 .candidate-group strong { font-size: var(--fs-sm); letter-spacing: 0.06em; }
 .candidate-group small { color: var(--muted); font-size: var(--fs-xs); }
 .truth-legend { display: inline-flex; align-items: center; gap: 6px; margin-left: auto; }
-.truth-legend i { display: grid; place-items: center; width: 20px; height: 20px; border: 1px solid rgba(240, 204, 123, 0.5); border-radius: var(--r-tag); color: var(--gold-bright); font-size: 11px; font-style: normal; }
+.truth-legend i { display: grid; place-items: center; width: 20px; height: 20px; border: 1px solid rgba(240, 204, 123, 0.5); border-radius: var(--r-tag); color: var(--gold-bright); font: normal 11px/1 var(--serif); }
+.truth-legend i + i { margin-left: -2px; }
 @media (hover: none) {
   .kbd-hint, .delver-tile-marks kbd { display: none; }
 }
@@ -323,7 +324,7 @@
 .delver-tile-marks { position: absolute; z-index: 2; top: 6px; right: 6px; left: 6px; display: flex; justify-content: space-between; pointer-events: none; }
 .delver-tile-marks kbd { order: 2; margin-left: auto; background: rgba(8, 7, 6, 0.7); }
 .delver-tile-marks i { display: grid; place-items: center; min-width: 20px; height: 20px; padding: 0 4px; border: 1px solid; border-radius: var(--r-tag); background: rgba(8, 7, 6, 0.7); font-size: 11px; font-style: normal; line-height: 1; }
-.mark-truth { border-color: rgba(240, 204, 123, 0.5) !important; color: var(--gold-bright); }
+.mark-truth { border-color: rgba(240, 204, 123, 0.5) !important; color: var(--gold-bright); font-family: var(--serif); }
 .mark-scar { margin-left: 4px; border-color: rgba(220, 123, 110, 0.5) !important; color: #eba99f; }
 
 .mini-stats { display: flex; flex-wrap: wrap; gap: 4px 12px; color: var(--muted); font-size: var(--fs-2xs); }
@@ -470,13 +471,11 @@
 .facility-card strong em { margin-left: 4px; color: var(--gold); font-size: var(--fs-2xs); font-style: normal; }
 .facility-card small { grid-column: 2; color: var(--muted); font-size: var(--fs-2xs); line-height: 1.6; }
 .facility-cost { grid-column: 3; grid-row: 1 / 3; display: flex; align-items: center; gap: 8px; color: var(--ember); font-size: var(--fs-2xs); font-weight: 700; white-space: nowrap; }
-.facility-cost::after { content: ""; width: 6px; height: 6px; border: solid currentColor; border-width: 1.5px 1.5px 0 0; transform: rotate(45deg); transition: transform 160ms ease; }
 .facility-card:disabled { cursor: not-allowed; }
 .facility-card:disabled .facility-cost { color: var(--faint); }
-.facility-card:disabled .facility-cost::after { display: none; }
 @media (hover: hover) and (pointer: fine) {
   .facility-card:hover:not(:disabled) { background: linear-gradient(90deg, transparent, rgba(212, 173, 98, 0.08), transparent); }
-  .facility-card:hover:not(:disabled) .facility-cost::after { transform: translateX(3px) rotate(45deg); }
+  .facility-card:hover:not(:disabled) .facility-cost { color: var(--gold-bright); text-decoration: underline; text-underline-offset: 3px; }
 }
 .institute-infirmary { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding-top: 4px; }
 .institute-infirmary:empty { display: none; }
@@ -666,7 +665,7 @@
   .depart-who small { font-size: 11px; }
   .depart-plan { grid-column: 1 / -1; gap: 3px 12px; padding-left: 0; border-left: 0; font-size: 11px; }
   .depart-plan b { font-size: 11px; }
-  .depart-plan > span > small { font-size: 10px; }
+  .depart-plan > span > small { font-size: 11px; }
   .depart-note { grid-column: 1 / -1; }
   .prepare-footer .primary-button { grid-column: 2; grid-row: 1; min-width: 0; min-height: 48px; padding-inline: 10px; font-size: 14px; letter-spacing: 0.04em; }
 }

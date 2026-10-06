@@ -140,7 +140,7 @@ export const observerShellMarkup = `
               <div class="delver-roster">
                 <div class="candidate-group"><strong>遠征団</strong><small id="veteran-capacity"></small></div>
                 <div id="veteran-list" class="candidate-list"></div>
-                <div class="candidate-group"><strong>新たな志願者</strong><small id="recruit-capacity"></small><small id="truth-legend" class="truth-legend"><i aria-hidden="true">◇</i>真相を持ち帰れる職業</small></div>
+                <div class="candidate-group"><strong>新たな志願者</strong><small id="recruit-capacity"></small><small id="truth-legend" class="truth-legend"></small></div>
                 <div id="candidate-list" class="candidate-list"></div>
               </div>
               <article id="delver-detail" class="delver-detail" aria-label="選んだ探索者"></article>

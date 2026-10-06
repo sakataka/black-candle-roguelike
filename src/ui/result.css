@@ -78,8 +78,8 @@
 .end-stats .is-missed dd > b { color: var(--faint); }
 .end-stats .is-shards dd > b { color: var(--gold-bright); font-family: var(--latin); font-size: 1.75rem; }
 /* 内訳は値の大きさを欄の下辺の金の線で示す。 */
-.score-breakdown > div > i { position: absolute; left: 0; bottom: -1px; height: 2px; background: linear-gradient(90deg, #80673d, var(--gold)); }
-.score-breakdown > div.is-zero { opacity: 0.45; }
+.score-breakdown dd > i { position: absolute; left: 0; bottom: -1px; height: 2px; background: linear-gradient(90deg, #80673d, var(--gold)); }
+.score-breakdown > div.is-zero :is(dt, dd > b) { color: var(--faint); }
 
 .result-notes { display: grid; gap: 8px; }
 .result-notes:empty { display: none; }
@@ -105,8 +105,8 @@
 .ledger-value { justify-self: end; color: var(--ink); font-family: var(--latin); font-size: 1.15rem; font-weight: 600; font-variant-numeric: lining-nums tabular-nums; white-space: nowrap; }
 .ledger-value small { margin-left: 6px; color: var(--gold-bright); font-family: var(--serif); font-size: var(--fs-2xs); }
 /* この遠征で動いた行は、進捗の色（金）の左罫と◆で示す。 */
-.ledger-rows > li.is-fresh { box-shadow: inset 2px 0 var(--gold-bright); background: linear-gradient(90deg, rgba(212, 173, 98, 0.09), transparent 55%); }
-.ledger-rows > li.is-fresh .ledger-key { padding-left: 12px; color: var(--gold-bright); }
+.ledger-rows > li.is-fresh { padding-left: 12px; box-shadow: inset 2px 0 var(--gold-bright); background: linear-gradient(90deg, rgba(212, 173, 98, 0.09), transparent 55%); }
+.ledger-rows > li.is-fresh .ledger-key { color: var(--gold-bright); }
 .ledger-rows > li.is-fresh .ledger-key::after { content: " ◆"; font-size: 9px; vertical-align: 1px; }
 .ledger-rows > li.is-challenge .ledger-body { color: #f1bc9e; }
 /* 転機の重さは、見出しの前の菱形の色で示す。 */
@@ -200,6 +200,10 @@
   .result-progress > li > .ledger-body { grid-column: 1 / -1; grid-row: 2; }
   .result-progress > li > .ledger-value { grid-column: 2; grid-row: 1; }
   .result-progress .candle-chapters strong { font-size: 10px; }
+  /* 判断の行は短い階の印を左の細い列に残す。 */
+  .decision-history .ledger-rows > li { grid-template-columns: 2.6em minmax(0, 1fr) auto; }
+  .decision-history .ledger-rows > li > .ledger-key { grid-column: 1; }
+  .decision-history .ledger-rows > li > .ledger-body { grid-column: 2; }
   .result-panel .end-milestone { padding-inline: 8px; }
 }
 
