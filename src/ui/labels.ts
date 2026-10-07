@@ -59,3 +59,11 @@ export function tacticLabels(tactics: string[]): string[] {
   const definitions = getGameConfig().tactics.definitions;
   return tactics.map((id) => definitions[id]?.label ?? id);
 }
+
+export function toKanjiNumber(value: number): string {
+  const digits = ["〇", "一", "二", "三", "四", "五", "六", "七", "八", "九"];
+  if (value < 10) return digits[value];
+  if (value === 10) return "十";
+  if (value < 20) return `十${digits[value - 10]}`;
+  return String(value);
+}

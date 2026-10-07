@@ -1743,11 +1743,7 @@ function activateMappingPickup(state: GameState, contentId: string): GameState {
   const player = getPlayer(state);
   const consumable = getGameConfig().consumables[contentId];
   if (consumable?.revealFloor) {
-    for (const tile of state.tiles) {
-      if (tile.kind !== "wall") {
-        tile.explored = true;
-      }
-    }
+    revealFloor(state);
     state.messages = pushMessage(state, `拾った${getContentName(contentId)}がすぐに燃え、この階の通路が頭に刻まれた。`, "loot");
     state = applyScoutMappingGoal(state);
     return state;
@@ -1766,10 +1762,7 @@ function dropItemAtPlayer(state: GameState, contentId: string): GameState {
     return state;
   }
 
-  entry.quantity -= 1;
-  if (entry.quantity <= 0) {
-    player.inventory = player.inventory?.filter((itemEntry) => itemEntry.quantity > 0);
-  }
+  consumeInventoryEntry(player, entry);
   const dropped = item(`${contentId}.dropped.${state.turn}`, contentId, { ...player.pos }, state.floor, rngForFloor(state.seed + state.turn, state.floor));
   if (equipmentSlot(contentId)) {
     dropped.plus = entry.plus;
@@ -1806,10 +1799,7 @@ function useItem(state: GameState, contentId: string, targetId?: string): GameSt
     const healAmount = Math.round(consumable.heal * (100 + tacticPerk(state, "healPercent") + (playerTraits(state, player)?.healPercent ?? 0)) / 100);
     const healed = Math.min(healAmount, player.stats.maxHp - player.stats.hp);
     player.stats.hp += healed;
-    entry.quantity -= 1;
-    if (entry.quantity <= 0) {
-      player.inventory = player.inventory?.filter((itemEntry) => itemEntry.quantity > 0);
-    }
+    consumeInventoryEntry(player, entry);
     state.messages = pushMessage(state, `${getContentName(contentId)}でHPが${healed}回復した。`, "loot");
     return state;
   }
@@ -1833,15 +1823,8 @@ function useItem(state: GameState, contentId: string, targetId?: string): GameSt
   }
 
   if (consumable?.revealFloor) {
-    for (const tile of state.tiles) {
-      if (tile.kind !== "wall") {
-        tile.explored = true;
-      }
-    }
-    entry.quantity -= 1;
-    if (entry.quantity <= 0) {
-      player.inventory = player.inventory?.filter((itemEntry) => itemEntry.quantity > 0);
-    }
+    revealFloor(state);
+    consumeInventoryEntry(player, entry);
     state.messages = pushMessage(state, "地脈図が燃え、現在階の通路が頭に刻まれた。", "loot");
     state = applyScoutMappingGoal(state);
     return state;
@@ -1919,10 +1902,7 @@ function useItem(state: GameState, contentId: string, targetId?: string): GameSt
     const damage = consumable.rangedDamage + Math.floor(state.floor / 2);
     target.stats.hp -= damage;
     recordStrike(state, player, target, true);
-    entry.quantity -= 1;
-    if (entry.quantity <= 0) {
-      player.inventory = player.inventory?.filter((itemEntry) => itemEntry.quantity > 0);
-    }
+    consumeInventoryEntry(player, entry);
     state.messages = pushMessage(state, `${getContentName(contentId)}を投げ、${getContentName(target.contentId)}に${damage}ダメージを与えた。`, "combat");
     if (target.stats.hp <= 0) {
       state = defeatMonster(state, target);
@@ -2627,6 +2607,12 @@ function consumeInventoryEntry(player: Entity, entry: NonNullable<Entity["invent
   entry.quantity -= 1;
   if (entry.quantity <= 0) {
     player.inventory = player.inventory?.filter((itemEntry) => itemEntry.quantity > 0);
+  }
+}
+
+function revealFloor(state: GameState): void {
+  for (const tile of state.tiles) {
+    if (tile.kind !== "wall") tile.explored = true;
   }
 }
 
