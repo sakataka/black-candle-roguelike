@@ -1,4 +1,5 @@
 import { chebyshev, samePoint } from "./spatial";
+import { roleSkill } from "./skills";
 import type { Entity, GameState, Point } from "../types";
 
 /**
@@ -12,6 +13,7 @@ export type VisualEvent =
   | { kind: "strike"; attackerId: string; defenderId: string; from: Point; to: Point; ranged: boolean }
   | { kind: "pickup"; contentId: string; pos: Point }
   | { kind: "levelUp"; pos: Point; level: number }
+  | { kind: "relocate"; entityId: string; motion: "dash" | "blink" }
   | { kind: "statusFx"; effect: "ward-aura" | "venom-impact" | "frost-bind" | "repulsion-gust"; pos: Point }
   | { kind: "floorChanged"; floor: number };
 
@@ -44,7 +46,12 @@ export function deriveVisualEvents(before: GameState, after: GameState): VisualE
         if (effect && condition.turns > oldTurns) events.push({ kind: "statusFx", effect, pos: { ...current.pos } });
       }
       // 押し戻された敵と、突進・影渡りで一気に動いた探索者。
-      if ((current.kind === "monster" || current.kind === "player") && chebyshev(previous.pos, current.pos) > 1) events.push({ kind: "statusFx", effect: "repulsion-gust", pos: { ...previous.pos } });
+      if ((current.kind === "monster" || current.kind === "player") && chebyshev(previous.pos, current.pos) > 1) {
+        const shadowstep = current.kind === "player" && roleSkill(current.contentId)?.id === "shadowstep"
+          && (current.skillCooldown ?? 0) > (previous.skillCooldown ?? 0);
+        events.push({ kind: "relocate", entityId: current.id, motion: shadowstep ? "blink" : "dash" });
+        events.push({ kind: "statusFx", effect: "repulsion-gust", pos: { ...previous.pos } });
+      }
     }
     if (delta < 0) {
       events.push({ kind: "damage", entityId: current.id, pos: { ...current.pos }, amount: -delta, isPlayer: current.id === after.playerId });

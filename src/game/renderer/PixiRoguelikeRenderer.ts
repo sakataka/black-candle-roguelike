@@ -42,6 +42,7 @@ type EntityView = {
   to: Point;
   moveStart: number;
   moveDuration: number;
+  motion: "walk" | "dash" | "blink";
   flashUntil: number;
   lunge: { dx: number; dy: number; start: number } | null;
   dazed: boolean;
@@ -62,15 +63,15 @@ type Mote = {
 };
 
 /** 階層ごとの空気。灯の色は共通の蝋燭色、漂う粒の色と動きで領域の違いを出す。 */
-const BIOME_ATMOSPHERE: Record<BiomeTheme, { mote: number; rise: number; drift: number; glow: number; brightness: number; size: number }> = {
+const BIOME_ATMOSPHERE: Record<BiomeTheme, { mote: number; rise: number; drift: number; brightness: number; size: number }> = {
   // 黒石: 灯に浮かぶ細かな埃。
-  blackstone: { mote: 0xd9b27a, rise: 6, drift: 5, glow: 0xffb871, brightness: 0.85, size: 1 },
+  blackstone: { mote: 0xd9b27a, rise: 6, drift: 5, brightness: 0.85, size: 1 },
   // 墓所: ゆっくり漂う青白い胞子。
-  crypt: { mote: 0x9fe0cf, rise: 3, drift: 8, glow: 0xffc98a, brightness: 1, size: 1.15 },
+  crypt: { mote: 0x9fe0cf, rise: 3, drift: 8, brightness: 1, size: 1.15 },
   // 炉心: 床から昇る火の粉。
-  furnace: { mote: 0xff8a3d, rise: 24, drift: 7, glow: 0xffa45c, brightness: 1.25, size: 1.2 },
+  furnace: { mote: 0xff8a3d, rise: 24, drift: 7, brightness: 1.25, size: 1.2 },
   // 黒燭中枢: 紫の灰。
-  "black-candle": { mote: 0xb79bff, rise: 5, drift: 10, glow: 0xffc27e, brightness: 1.1, size: 1.15 },
+  "black-candle": { mote: 0xb79bff, rise: 5, drift: 10, brightness: 1.1, size: 1.15 },
 };
 
 const MOTE_COUNT = 54;
@@ -100,7 +101,6 @@ export class PixiRoguelikeRenderer {
   private readonly moteLayer = new Container();
   private readonly motes: Mote[] = [];
   private lightSprite: Sprite | null = null;
-  private glowSprite: Sprite | null = null;
   private dotTexture: Texture = Texture.EMPTY;
   private shadeTexture: Texture = Texture.EMPTY;
   /** 探索済み記憶の暗がり。1マス1画素の濃さを拡大してぼかし、視界の縁をなめらかに沈める。 */
@@ -184,10 +184,7 @@ export class PixiRoguelikeRenderer {
     });
     this.lightSprite = new Sprite(this.makeLightTexture());
     this.lightSprite.anchor.set(0.5);
-    this.glowSprite = new Sprite(this.makeGlowTexture());
-    this.glowSprite.anchor.set(0.5);
-    this.glowSprite.blendMode = "add";
-    this.overlayLayer.addChild(this.lightSprite, this.glowSprite, this.flashOverlay, this.fadeOverlay);
+    this.overlayLayer.addChild(this.lightSprite, this.flashOverlay, this.fadeOverlay);
     this.app.ticker.add((ticker) => this.update(ticker.deltaMS));
     this.ready = true;
   }
@@ -427,10 +424,14 @@ export class PixiRoguelikeRenderer {
         if (texture && view.sprite.texture !== texture) view.sprite.texture = texture;
         if (!samePoint(view.to, entity.pos)) {
           const jump = Math.max(Math.abs(view.to.x - entity.pos.x), Math.abs(view.to.y - entity.pos.y));
-          view.from = snap || jump > 1 ? { ...entity.pos } : this.currentTilePos(view);
+          const relocation = events.find((event) => event.kind === "relocate" && event.entityId === entity.id);
+          const instant = snap || this.reducedMotion || jump > 1 && !relocation;
+          view.from = instant ? { ...entity.pos } : this.currentTilePos(view);
           view.to = { ...entity.pos };
           view.moveStart = this.clock;
-          view.moveDuration = snap || jump > 1 ? 0 : moveDuration;
+          view.moveDuration = instant ? 0 : moveDuration;
+          view.motion = relocation?.kind === "relocate" ? relocation.motion : "walk";
+          view.lunge = null;
         }
       }
       if (entity.kind === "monster" && entity.stats && view.hpBar) {
@@ -518,6 +519,7 @@ export class PixiRoguelikeRenderer {
       to: { ...entity.pos },
       moveStart: this.clock,
       moveDuration: 0,
+      motion: "walk",
       flashUntil: 0,
       lunge: null,
       dazed: false,
@@ -680,9 +682,16 @@ export class PixiRoguelikeRenderer {
     this.paintMemoryShade(this.reducedMotion ? MEMORY_SHADE_FADE_MS : deltaMs);
     for (const view of this.views.values()) {
       const progress = view.moveDuration <= 0 ? 1 : clamp((this.clock - view.moveStart) / view.moveDuration, 0, 1);
-      const eased = 1 - (1 - progress) ** 3;
+      const eased = view.motion === "dash" ? progress : 1 - (1 - progress) ** 3;
       let x = view.from.x + (view.to.x - view.from.x) * eased;
       let y = view.from.y + (view.to.y - view.from.y) * eased;
+      // 影渡りは壁を横切って歩かせず、出発点で消えて到着点に現れる。
+      if (view.motion === "blink" && progress < 1) {
+        const point = progress < 0.5 ? view.from : view.to;
+        x = point.x;
+        y = point.y;
+        view.root.alpha = Math.abs(1 - progress * 2);
+      } else view.root.alpha = 1;
       if (view.lunge) {
         const lungeProgress = (this.clock - view.lunge.start) / 180;
         if (lungeProgress >= 1) {
@@ -765,15 +774,6 @@ export class PixiRoguelikeRenderer {
       this.lightSprite.y = playerView.root.y + TILE_SIZE / 2 + this.world.y;
       this.lightSprite.scale.set((0.72 + this.currentLight * 0.4) * (1 + flame * 0.008));
     }
-    if (this.glowSprite && playerView) {
-      const atmosphere = BIOME_ATMOSPHERE[this.biome];
-      this.glowSprite.tint = atmosphere.glow;
-      this.glowSprite.x = playerView.root.x + TILE_SIZE / 2 + this.world.x;
-      this.glowSprite.y = playerView.root.y + TILE_SIZE * 0.42 + this.world.y;
-      this.glowSprite.scale.set((0.95 + this.currentLight * 0.55) * (1 + flame * 0.012));
-      // 加算光は床を白く飛ばしやすいので控えめにし、揺らぎも明るさの数%に留める。
-      this.glowSprite.alpha = (0.11 + this.currentLight * 0.13) * (1 + flame * 0.04);
-    }
     this.updateMotes(deltaMs, playerView);
 
     this.flashOverlay.clear();
@@ -816,7 +816,7 @@ export class PixiRoguelikeRenderer {
       mote.sprite.tint = atmosphere.mote;
       mote.sprite.x = mote.x;
       mote.sprite.y = mote.y;
-      mote.sprite.alpha = clamp(lit * lifeFade * twinkle * (0.55 + this.currentLight * 0.45) * atmosphere.brightness, 0, 0.6);
+      mote.sprite.alpha = clamp(lit * lifeFade * twinkle * (0.55 + this.currentLight * 0.45) * atmosphere.brightness * 0.35, 0, 0.2);
     }
   }
 
@@ -1109,28 +1109,13 @@ export class PixiRoguelikeRenderer {
     edge.fill({ color: "#8b8271", alpha: 0.48 });
   }
 
-  /** 蝋燭の暖かい照り返し。加算合成で、探索者の周りの石だけをわずかに温める。 */
-  private makeGlowTexture(): Texture {
-    return makeCanvasTexture(512, (context, size) => {
-      const center = size / 2;
-      const gradient = context.createRadialGradient(center, center, 0, center, center, center);
-      gradient.addColorStop(0, "rgba(255,255,255,0.62)");
-      gradient.addColorStop(0.18, "rgba(255,255,255,0.32)");
-      gradient.addColorStop(0.45, "rgba(255,255,255,0.1)");
-      gradient.addColorStop(0.75, "rgba(255,255,255,0.025)");
-      gradient.addColorStop(1, "rgba(255,255,255,0)");
-      context.fillStyle = gradient;
-      context.fillRect(0, 0, size, size);
-    });
-  }
-
   private makeTile(fill: string): Texture {
     const graphic = new Graphics();
     graphic.rect(0, 0, TILE_SIZE, TILE_SIZE).fill(fill);
     return this.app.renderer.generateTexture(graphic);
   }
 
-  /** 探索者を中心に、灯の届く範囲だけを温かく残す光の覆い。 */
+  /** 素材の色はそのまま残し、灯の届く範囲の外側だけを沈める。 */
   private makeLightTexture(): Texture {
     const size = 2048;
     const canvas = document.createElement("canvas");
@@ -1141,8 +1126,8 @@ export class PixiRoguelikeRenderer {
     const center = size / 2;
     const gradient = context.createRadialGradient(center, center, 0, center, center, center);
     // 視界半径（約9マス）の内側はほぼ素通しにし、外側だけを沈める。
-    gradient.addColorStop(0, "rgba(255, 190, 110, 0.08)");
-    gradient.addColorStop(0.2, "rgba(255, 170, 90, 0.03)");
+    gradient.addColorStop(0, "rgba(0, 0, 0, 0)");
+    gradient.addColorStop(0.2, "rgba(0, 0, 0, 0)");
     gradient.addColorStop(0.34, "rgba(10, 7, 5, 0.04)");
     gradient.addColorStop(0.52, "rgba(6, 4, 3, 0.22)");
     gradient.addColorStop(0.72, "rgba(3, 2, 2, 0.5)");

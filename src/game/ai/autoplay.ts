@@ -676,7 +676,7 @@ function stepTowardKnownReachable(observation: GameObservation, target: Point, o
 function stepTowardAdjacentTarget(observation: GameObservation, target: Point): GameAction | null {
   const candidates = [...walkKnownPaths(observation)]
     .filter(({ point, distance: pathDistance }) => distance(point, target) <= 1 && pathDistance > 0);
-  const neighbor = nearest(candidates.map((path) => ({ ...path, pos: path.point })), observation.player.pos);
+  const neighbor = candidates.sort((a, b) => a.distance - b.distance)[0];
   return neighbor ? actionFromStep(observation.player.pos, neighbor.firstStep) : null;
 }
 
@@ -762,9 +762,10 @@ function avoidImmediateOscillation(observation: GameObservation, action: GameAct
     y: observation.player.pos.y + direction.delta.y,
   };
   const lockedTarget = frontierTargets.get(runScope(observation));
-  if (lockedTarget) {
-    const currentDistance = pathDistanceFrom(observation, observation.player.pos, lockedTarget, { allowHostileBlockers: true });
-    const nextDistance = pathDistanceFrom(observation, destination, lockedTarget, { allowHostileBlockers: true });
+  const target = !observation.bossAlive ? observation.exploration.reachableStairs ?? lockedTarget : lockedTarget;
+  if (target) {
+    const currentDistance = pathDistanceFrom(observation, observation.player.pos, target, { allowHostileBlockers: true });
+    const nextDistance = pathDistanceFrom(observation, destination, target, { allowHostileBlockers: true });
     if (currentDistance !== null && nextDistance !== null && nextDistance < currentDistance) {
       return action;
     }
@@ -978,6 +979,13 @@ function stepOntoAdjacentKnownTrap(observation: GameObservation): GameAction | n
 
 function stepTowardReachableFrontier(observation: GameObservation, options: PathOptions = {}): GameAction | null {
   const start = observation.player.pos;
+  const scope = runScope(observation);
+  const locked = frontierTargets.get(scope);
+  if (locked && !samePoint(start, locked) && hasUnseenNeighbor(observation, locked) && !isStaleFrontier(observation, locked)) {
+    const step = stepTowardKnownReachableWeighted(observation, locked, options);
+    if (step) return step;
+  }
+  frontierTargets.delete(scope);
   const reachableFrontiers: Array<{ target: Point; firstStep: Point; action: GameAction; pathDistance: number }> = [];
   for (const path of walkKnownPaths(observation, start, options)) {
     if (path.distance > 0 && hasUnseenNeighbor(observation, path.point) && !isStaleFrontier(observation, path.point)) {
@@ -986,14 +994,18 @@ function stepTowardReachableFrontier(observation: GameObservation, options: Path
     }
   }
 
-  const bestRoute = reachableFrontiers.sort((a, b) => routeScore(observation, a) - routeScore(observation, b))[0];
+  // 既知の通路を戻る必要があっても、まず実際の歩数を優先する。
+  // 訪問回数は同じ距離の候補を選ぶ時だけ使い、遠回りで往復を避けない。
+  const bestRoute = reachableFrontiers.sort((a, b) => a.pathDistance - b.pathDistance || routeScore(observation, a) - routeScore(observation, b))[0];
   if (bestRoute) {
+    frontierTargets.set(scope, bestRoute.target);
     return bestRoute.action;
   }
 
   for (const frontier of observation.exploration.reachableFrontiers.filter((point) => !isStaleFrontier(observation, point))) {
     const action = stepTowardKnownReachableWeighted(observation, frontier, options);
     if (action) {
+      frontierTargets.set(scope, { x: frontier.x, y: frontier.y });
       return action;
     }
   }
@@ -1001,12 +1013,7 @@ function stepTowardReachableFrontier(observation: GameObservation, options: Path
 }
 
 function stepTowardNearestUnseen(observation: GameObservation, options: PathOptions = {}): GameAction | null {
-  for (const path of walkKnownPaths(observation, observation.player.pos, options)) {
-    if (path.distance > 0 && hasUnseenNeighbor(observation, path.point) && !isStaleFrontier(observation, path.point)) {
-      return actionFromStep(observation.player.pos, path.firstStep);
-    }
-  }
-  return null;
+  return stepTowardReachableFrontier(observation, options);
 }
 
 function stepTowardDistantKnownArea(observation: GameObservation, options: PathOptions = {}): GameAction | null {
@@ -1145,7 +1152,7 @@ function stepOntoAdjacentRiskPanel(observation: GameObservation, hp: number, hpR
   if (hp <= estimatedWorstHit + 1) {
     return null;
   }
-  const panel = observation.knownEntities.find((entity) => entity.kind === "trap" && distance(entity.pos, observation.player.pos) === 1);
+  const panel = observation.knownEntities.find((entity) => entity.kind === "trap" && entity.contentId === "trap.risk-panel" && distance(entity.pos, observation.player.pos) === 1);
   if (!panel) {
     return null;
   }
