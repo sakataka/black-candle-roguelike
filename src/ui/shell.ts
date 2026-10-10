@@ -8,6 +8,7 @@ export const observerShellMarkup = `
       </div>
       <div class="topbar-run">
         <div class="depth-chip"><span id="biome-kicker">地下1階</span><strong id="biome-title">黒石迷宮</strong></div>
+        <details class="observer-progress"><summary>遠征の進捗</summary><div class="observer-progress-body">
         <div class="route-track" id="route-track" aria-label="道のり">
           <div class="route-track-label"><span>道のり</span><strong id="route-next">-</strong></div>
           <ol id="route-nodes" class="route-nodes"></ol>
@@ -18,6 +19,7 @@ export const observerShellMarkup = `
           <strong><b id="forecast-return">+0</b><small>帰還なら</small></strong>
           <strong class="is-loss"><b id="forecast-lost">+0</b><small>倒れれば</small></strong>
         </div>
+        </div></details>
         <div class="turn-meter" id="turn-meter" title="灯芯が尽きると黒燭との接続が切れ、探索者は未帰還になる。">
           <div class="turn-meter-label"><span id="turn-meter-label">灯芯</span><strong id="run-turn">残り0手</strong></div>
           <div class="turn-meter-track"><i id="turn-meter-fill"></i></div>
@@ -37,6 +39,7 @@ export const observerShellMarkup = `
     </header>
 
     <section class="stage" aria-label="黒燭越しの迷宮">
+      <div class="map-vitals" aria-label="探索者の現在のHP"><strong id="map-vitals-name"></strong><span>HP <b id="map-vitals-hp"></b></span><div class="map-vitals-track" aria-hidden="true"><i id="map-vitals-fill"></i></div></div>
       <div class="map-stage" id="map-stage">
         <div id="pixi-root" class="pixi-root"></div>
         <div class="boss-health" id="boss-health" aria-label="視界内の守り手のHP" hidden></div>
@@ -133,8 +136,15 @@ export const observerShellMarkup = `
         <div id="next-goal" class="progress-overview"></div>
       </details>
       <div class="prepare-body">
+        <nav class="prepare-nav" aria-label="遠征の支度">
+          <button type="button" data-prepare-page="delver" aria-controls="prepare-delver"><small>01</small><strong>探索者</strong><span>誰を送り出すか</span></button>
+          <button type="button" data-prepare-page="mission" aria-controls="prepare-mission"><small>02</small><strong>任務</strong><span>旅の目的を選ぶ</span></button>
+          <button type="button" data-prepare-page="tactics" aria-controls="prepare-tactics"><small>03</small><strong>作戦</strong><span>判断の癖を決める</span></button>
+          <button type="button" data-prepare-page="ability" aria-controls="prepare-ability"><small>04</small><strong>アビリティ</strong><span>心得を携える</span></button>
+          <button type="button" data-prepare-page="institute" aria-controls="prepare-institute"><small>05</small><strong>灰灯院</strong><span>施設と遠征録</span></button>
+        </nav>
         <div class="prepare-main">
-          <section class="prepare-step prepare-step-delver" aria-labelledby="step-delver">
+          <section id="prepare-delver" data-prepare-section="delver" class="prepare-step prepare-step-delver" aria-labelledby="step-delver">
             <div class="step-heading"><span class="step-no" aria-hidden="true">I</span><h3 id="step-delver">探索者</h3><small>生還した古参は位階が上がって強くなる。瀕死で帰ると古傷を負い、倒れた者は戻らない。<span class="kbd-hint">番号キー 1〜4 でも選べる。</span></small></div>
             <div class="delver-layout">
               <div class="delver-roster">
@@ -146,15 +156,15 @@ export const observerShellMarkup = `
               <article id="delver-detail" class="delver-detail" aria-label="選んだ探索者"></article>
             </div>
           </section>
-          <section class="prepare-step" aria-labelledby="step-mission">
+          <section id="prepare-mission" data-prepare-section="mission" class="prepare-step" aria-labelledby="step-mission">
             <div class="step-heading"><span class="step-no" aria-hidden="true">II</span><h3 id="step-mission">今回の目標</h3><small>探索者は任務に沿って帰還か続行かを決める。報酬は生きて帰った時に受け取る。</small></div>
             <div id="mission-list" class="mission-list"></div>
           </section>
-          <section class="prepare-step" aria-labelledby="step-tactics">
+          <section id="prepare-tactics" data-prepare-section="tactics" class="prepare-step" aria-labelledby="step-tactics">
             <div class="step-heading"><span class="step-no" aria-hidden="true">III</span><h3 id="step-tactics">作戦カード</h3><em id="tactic-count">0/2</em><small>探索者の判断の癖。3階・6階の節目でも組み替えられる。</small></div>
             <div id="tactic-list" class="tactic-list"></div>
           </section>
-          <section class="prepare-step" aria-labelledby="step-ability">
+          <section id="prepare-ability" data-prepare-section="ability" class="prepare-step" aria-labelledby="step-ability">
             <div class="step-heading"><span class="step-no" aria-hidden="true">IV</span><h3 id="step-ability">アビリティ</h3><em id="ability-count">0/2</em><small>常に効く心得。職業の踏破や黒燭への道の節目で解放され、どの職業にも付けられる。枠は修練場で増える。</small></div>
             <div id="ability-list" class="tactic-list"></div>
             <details class="ability-locked">
@@ -163,7 +173,15 @@ export const observerShellMarkup = `
             </details>
           </section>
         </div>
-        <aside class="prepare-side" aria-label="灰灯院">
+        <aside class="prepare-brief" aria-label="選択中の任務">
+          <p class="eyebrow">今回の任務</p>
+          <h3 id="prepare-mission-name"></h3>
+          <p id="prepare-mission-target"></p>
+          <div class="prepare-brief-art" aria-hidden="true"></div>
+          <p id="prepare-mission-reward"></p>
+          <button id="prepare-edit-mission" class="secondary-button" type="button">任務を選び直す</button>
+        </aside>
+        <aside id="prepare-institute" data-prepare-section="institute" class="prepare-side" aria-label="灰灯院">
           <section class="side-section">
             <div class="side-heading"><h3>施設</h3><small>灯片で強化すると、以後の遠征すべてに効く。</small></div>
             <div id="institute-facilities" class="institute-facilities"></div>

@@ -644,18 +644,18 @@ export class PixiRoguelikeRenderer {
     }
     if (this.bubble) this.bubble.destroy({ children: true });
     const palette: Record<RenderIntent["tone"], string> = {
-      combat: "#e08a6a",
-      survival: "#9fd0a8",
-      loot: "#f0cc7b",
-      explore: "#d8cfbd",
-      descend: "#a9c2e8",
+      combat: "#ffafbd",
+      survival: "#ffffff",
+      loot: "#ffffff",
+      explore: "#f7f5ef",
+      descend: "#ffffff",
     };
     const bubble = new Container();
     const label = new Text({
       text: intent.text,
       style: {
         fill: palette[intent.tone],
-        fontFamily: "Shippori Mincho B1, Hiragino Mincho ProN, serif",
+        fontFamily: "Hiragino Sans, sans-serif",
         fontSize: 16,
         fontWeight: "700",
         letterSpacing: 1.5,
@@ -664,8 +664,8 @@ export class PixiRoguelikeRenderer {
     label.anchor.set(0.5);
     const width = label.width + 28;
     const background = new Graphics();
-    // 細い金の罫と小さな菱形で、吹き出しを札のように見せる。
-    background.rect(-width / 2, -15, width, 30).fill({ color: "#0d0a08", alpha: 0.84 });
+    // マップを隠しすぎない黒い台詞札。赤黒白のメニューと同じ書体で読む。
+    background.rect(-width / 2, -15, width, 30).fill({ color: "#090909", alpha: 0.94 });
     background.moveTo(-width / 2, -15).lineTo(width / 2, -15).stroke({ color: palette[intent.tone], width: 1, alpha: 0.55 });
     background.moveTo(-width / 2, 15).lineTo(width / 2, 15).stroke({ color: palette[intent.tone], width: 1, alpha: 0.55 });
     background.poly([-width / 2 - 5, 0, -width / 2, -5, -width / 2 + 5, 0, -width / 2, 5]).fill({ color: palette[intent.tone], alpha: 0.8 });

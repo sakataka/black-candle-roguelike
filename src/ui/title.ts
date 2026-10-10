@@ -38,13 +38,13 @@ export type TitleSaveActions = {
   remove: (slotId: string) => SaveSlotSummary[];
 };
 
-const KEYART_PATH = "assets/art/title-keyart.jpg";
+const KEYART_PATH = "assets/art/pop-candle-keyart.png";
 /** キーアート上の炎の位置（画像に対する比率）。火の粉と光の中心に使う。 */
 const FLAME = { x: 0.544, y: 0.385 };
 const KANJI_DIGITS = ["〇", "一", "二", "三", "四", "五", "六", "七", "八", "九", "十"];
 
 /**
- * 起動時のタイトル。キーアートの蝋燭に火の粉と揺らぎを重ね、灯を掲げると支度の画面へ溶ける。
+ * 起動時のタイトル。版画の蝋燭を掲げ、支度の画面へ短く切り替える。
  * 設定やレンダラーの準備より先に出し、遠征録は届いた時点で書き込む。
  * 灯を掲げても `ready` が済むまでは退場せず、準備途中の下の画面を見せない。
  * 解決するのは退場演出が始まった時点で、下の画面はその間に入場演出を始められる。
@@ -64,9 +64,6 @@ export function showTitle(ledger: Promise<TitleLedger>, ready: Promise<unknown>,
         <span class="title-flame-glow"></span>
       </div>
     </div>
-    <canvas class="title-embers" aria-hidden="true"></canvas>
-    <div class="title-veil" aria-hidden="true"></div>
-    <div class="title-pointer-light" aria-hidden="true"></div>
     <div class="title-content">
       <p class="title-eyebrow"><span>灰灯院遠征記</span><i aria-hidden="true"></i><span data-cycle></span></p>
       <h1 id="title-logo" class="title-logo" aria-label="黒燭の迷宮">
@@ -89,7 +86,7 @@ export function showTitle(ledger: Promise<TitleLedger>, ready: Promise<unknown>,
   document.body.append(root);
   const button = root.querySelector<HTMLButtonElement>(".title-cta");
   const stopEmbers = reducedMotion ? () => undefined : runEmbers(root);
-  const stopPointer = reducedMotion ? () => undefined : trackPointer(root);
+  const stopPointer = reducedMotion || !root.querySelector(".title-pointer-light") ? () => undefined : trackPointer(root);
   const image = root.querySelector("img");
   const imageLoaded = new Promise<void>((resolve) => {
     if (image && !image.complete) {
@@ -175,7 +172,7 @@ export function showTitle(ledger: Promise<TitleLedger>, ready: Promise<unknown>,
         stopEmbers();
         stopPointer();
         root.remove();
-      }, reducedMotion ? 200 : 1500);
+      }, reducedMotion ? 0 : 300);
     };
     // タイトルの間は下の画面のキー操作（番号キーやEnterでの出発）に届かせない。
     const onKey = (event: KeyboardEvent) => {

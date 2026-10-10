@@ -3,14 +3,14 @@
   --fs-2xs: 0.75rem;
   --fs-xs: 0.8125rem;
   --fs-sm: 0.875rem;
-  --faint: #a29783;
-  --line-soft: rgba(232, 215, 181, 0.1);
-  --surface-choice: rgba(232, 215, 181, 0.025);
-  --surface-selected: rgba(212, 173, 98, 0.1);
-  --rule-emphasis: rgba(212, 173, 98, 0.32);
+  --faint: #989898;
+  --line-soft: rgba(216, 216, 216, 0.1);
+  --surface-choice: rgba(216, 216, 216, 0.025);
+  --surface-selected: rgba(176, 176, 176, 0.1);
+  --rule-emphasis: rgba(176, 176, 176, 0.32);
 }
 
-::selection { color: #fff2d2; background: #695030; }
+::selection { color: #f2f2f2; background: #535353; }
 /* 見出しや短い題は文節で折り返し、「真 / 相」のように語の途中で切らない。 */
 :is(h1, h2, h3, h4, .milestone-title, .mission-name, .landmark strong, .objective strong) { word-break: auto-phrase; }
 button:disabled { cursor: not-allowed; }
@@ -20,7 +20,7 @@ button, summary { scroll-margin-block: 24px; }
 button:focus-visible, summary:focus-visible {
   outline: 2px solid var(--focus-ring);
   outline-offset: 4px;
-  box-shadow: 0 0 0 6px #0c0b0a;
+  box-shadow: 0 0 0 6px #0b0b0b;
 }
 .secondary-button { min-height: 44px; }
 .secondary-button:disabled { color: var(--muted); border-color: var(--line-soft); background: #ffffff03; }
@@ -114,7 +114,7 @@ button:focus-visible, summary:focus-visible {
   scroll-padding-block: 16px;
   padding: 16px;
   border-top-color: var(--line-strong);
-  box-shadow: 0 -12px 30px #0008;
+  box-shadow: 0 -12px 30px #00000088;
 }
 .realtime-choice h2 { margin: 6px 0; font-family: var(--display); font-size: 22px; font-weight: 700; line-height: 1.5; letter-spacing: 0.08em; }
 .realtime-choice .modal-lead { font-size: 13px; line-height: 1.7; }

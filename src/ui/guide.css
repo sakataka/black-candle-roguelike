@@ -6,16 +6,16 @@
   height: min(860px, calc(100dvh - 32px));
   max-height: none;
   padding: 0;
-  border: 1px solid rgba(212, 173, 98, 0.35);
+  border: 1px solid rgba(176, 176, 176, 0.35);
   border-radius: var(--r-panel);
   background:
-    radial-gradient(ellipse 80% 30% at 50% 0, rgba(190, 112, 48, 0.14), transparent 70%),
-    linear-gradient(180deg, #1a1510, #110e0b);
+    radial-gradient(ellipse 80% 30% at 50% 0, rgba(124, 124, 124, 0.14), transparent 70%),
+    linear-gradient(180deg, #161616, #0e0e0e);
   color: var(--ink);
   box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.6), 0 40px 120px rgba(0, 0, 0, 0.8);
   overflow: hidden;
 }
-.guide-dialog::backdrop { background: rgba(5, 4, 3, 0.72); backdrop-filter: blur(2px); }
+.guide-dialog::backdrop { background: rgba(4, 4, 4, 0.72); backdrop-filter: blur(2px); }
 .guide-dialog[open] { animation: panel-enter 220ms var(--ease-out) both; }
 
 .guide-panel { display: grid; grid-template-rows: auto auto minmax(0, 1fr); height: 100%; }
@@ -172,7 +172,7 @@
   .guide-dialog { width: 100vw; height: 100dvh; border: 0; border-radius: 0; }
   .guide-header { padding: 16px 16px 10px; }
   /* 項目の列は横に続くので、右端を闇へ溶かして続きがあることを示す。 */
-  .guide-tabs { padding: 0 32px 0 8px; mask-image: linear-gradient(to right, #000 calc(100% - 32px), transparent); }
+  .guide-tabs { padding: 0 32px 0 8px; mask-image: linear-gradient(to right, #000000 calc(100% - 32px), transparent); }
   .guide-tab { padding: 10px 10px; }
   .guide-body { padding: 16px 16px 32px; }
   #guide-panel-rules { display: block; }

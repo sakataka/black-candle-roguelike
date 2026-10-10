@@ -12,9 +12,9 @@
   height: 260px;
   border-radius: var(--r-panel) var(--r-panel) 0 0;
   pointer-events: none;
-  background: radial-gradient(ellipse 60% 100% at 50% 0, rgba(240, 190, 100, 0.22), transparent 70%);
+  background: radial-gradient(ellipse 60% 100% at 50% 0, rgba(194, 194, 194, 0.22), transparent 70%);
 }
-.result-panel[data-tone="danger"]::before { background: radial-gradient(ellipse 60% 100% at 50% 0, rgba(200, 60, 40, 0.26), transparent 70%); }
+.result-panel[data-tone="danger"]::before { background: radial-gradient(ellipse 60% 100% at 50% 0, rgba(88, 88, 88, 0.26), transparent 70%); }
 
 .result-hero { position: relative; display: grid; justify-items: center; text-align: center; }
 .result-hero .eyebrow { font-family: var(--display); font-weight: 600; letter-spacing: 0.32em; text-indent: 0.32em; }
@@ -22,14 +22,14 @@
 .result-panel[data-tone="safe"] .result-hero .eyebrow { color: var(--safe); }
 .result-hero h2 { display: grid; justify-items: center; gap: 6px; font-family: var(--display); font-weight: 800; letter-spacing: 0.08em; }
 .result-panel .end-status {
-  color: #f6e8c8;
+  color: #e9e9e9;
   font-size: clamp(3rem, 8vw, 5.25rem);
   line-height: 1.05;
   letter-spacing: 0.3em;
   text-indent: 0.3em;
-  text-shadow: 0 0 40px rgba(255, 180, 90, 0.3), 0 3px 0 #000;
+  text-shadow: 0 0 40px rgba(189, 189, 189, 0.3), 0 3px 0 #000000;
 }
-.result-panel[data-tone="danger"] .end-status { color: #f1c7bc; text-shadow: 0 0 40px rgba(220, 70, 50, 0.35), 0 3px 0 #000; }
+.result-panel[data-tone="danger"] .end-status { color: #cfcfcf; text-shadow: 0 0 40px rgba(100, 100, 100, 0.35), 0 3px 0 #000000; }
 .result-panel .end-name { color: var(--ink-soft); font-size: 1.125rem; font-weight: 600; letter-spacing: 0.4em; text-indent: 0.4em; }
 .result-hero .modal-lead { margin-inline: auto; text-wrap: pretty; }
 
@@ -78,7 +78,7 @@
 .end-stats .is-missed dd > b { color: var(--faint); }
 .end-stats .is-shards dd > b { color: var(--gold-bright); font-family: var(--latin); font-size: 1.75rem; }
 /* 内訳は値の大きさを欄の下辺の金の線で示す。 */
-.score-breakdown dd > i { position: absolute; left: 0; bottom: -1px; height: 2px; background: linear-gradient(90deg, #80673d, var(--gold)); }
+.score-breakdown dd > i { position: absolute; left: 0; bottom: -1px; height: 2px; background: linear-gradient(90deg, #696969, var(--gold)); }
 .score-breakdown > div.is-zero :is(dt, dd > b) { color: var(--faint); }
 
 .result-notes { display: grid; gap: 8px; }
@@ -105,14 +105,14 @@
 .ledger-value { justify-self: end; color: var(--ink); font-family: var(--latin); font-size: 1.15rem; font-weight: 600; font-variant-numeric: lining-nums tabular-nums; white-space: nowrap; }
 .ledger-value small { margin-left: 6px; color: var(--gold-bright); font-family: var(--serif); font-size: var(--fs-2xs); }
 /* この遠征で動いた行は、進捗の色（金）の左罫と◆で示す。 */
-.ledger-rows > li.is-fresh { padding-left: 12px; box-shadow: inset 2px 0 var(--gold-bright); background: linear-gradient(90deg, rgba(212, 173, 98, 0.09), transparent 55%); }
+.ledger-rows > li.is-fresh { padding-left: 12px; box-shadow: inset 2px 0 var(--gold-bright); background: linear-gradient(90deg, rgba(176, 176, 176, 0.09), transparent 55%); }
 .ledger-rows > li.is-fresh .ledger-key { color: var(--gold-bright); }
 .ledger-rows > li.is-fresh .ledger-key::after { content: " ◆"; font-size: 9px; vertical-align: 1px; }
-.ledger-rows > li.is-challenge .ledger-body { color: #f1bc9e; }
+.ledger-rows > li.is-challenge .ledger-body { color: #c5c5c5; }
 /* 転機の重さは、見出しの前の菱形の色で示す。 */
 .turning-points .ledger-key { padding-left: 16px; }
-.turning-points .ledger-key::before { content: ""; position: absolute; top: 8px; left: 2px; width: 6px; height: 6px; background: #6b6252; transform: rotate(45deg); }
-.turning-points .tone-danger .ledger-key::before { background: var(--danger); box-shadow: 0 0 6px rgba(220, 123, 110, 0.6); }
+.turning-points .ledger-key::before { content: ""; position: absolute; top: 8px; left: 2px; width: 6px; height: 6px; background: #636363; transform: rotate(45deg); }
+.turning-points .tone-danger .ledger-key::before { background: var(--danger); box-shadow: 0 0 6px rgba(143, 143, 143, 0.6); }
 .turning-points .tone-warning .ledger-key::before { background: var(--warning); }
 
 /* 黒燭への道の行 */
@@ -124,20 +124,20 @@
 .result-truths > span.is-filled { color: var(--gold-bright); }
 .result-truths > span.is-fresh { color: var(--gold-bright); font-weight: 700; }
 .ledger-meter { display: block; height: 3px; margin: 6px 0 4px; background: var(--line-soft); }
-.ledger-meter i { display: block; height: 100%; background: linear-gradient(90deg, #916031, var(--gold-bright)); box-shadow: 0 0 8px rgba(237, 187, 98, 0.5); }
+.ledger-meter i { display: block; height: 100%; background: linear-gradient(90deg, #676767, var(--gold-bright)); box-shadow: 0 0 8px rgba(191, 191, 191, 0.5); }
 
-.callout { display: grid; gap: 2px; margin: 0; padding: 10px 14px; border-left: 2px solid var(--gold); background: linear-gradient(90deg, rgba(212, 173, 98, 0.1), transparent 80%); color: var(--ink-soft); font-size: var(--fs-xs); line-height: 1.7; }
+.callout { display: grid; gap: 2px; margin: 0; padding: 10px 14px; border-left: 2px solid var(--gold); background: linear-gradient(90deg, rgba(176, 176, 176, 0.1), transparent 80%); color: var(--ink-soft); font-size: var(--fs-xs); line-height: 1.7; }
 .callout span { color: var(--gold); font-size: var(--fs-2xs); letter-spacing: 0.12em; }
 .callout strong { color: var(--gold-bright); font-family: var(--display); font-size: var(--fs-md); font-weight: 700; letter-spacing: 0.06em; }
 
 /* 次の遠征への示唆 */
 .run-advice .ledger-rows > li { grid-template-columns: 40px minmax(0, 1fr) auto; }
-.advice-icon { width: 34px; height: 34px; padding: 0; border-radius: var(--r-control); background-color: rgba(212, 173, 98, 0.1); }
+.advice-icon { width: 34px; height: 34px; padding: 0; border-radius: var(--r-control); background-color: rgba(176, 176, 176, 0.1); }
 .advice-adopt { min-height: 44px; }
 .advice-adopt:disabled { cursor: default; opacity: 0.6; }
 
 /* 灯守の判断 */
-.lantern-summary.is-wasteful { color: #e3b27a; }
+.lantern-summary.is-wasteful { color: #b8b8b8; }
 
 /* ---------- 遠征の軌跡（HPの推移） ---------- */
 
@@ -146,20 +146,20 @@
 .insight-legend { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 5px; }
 .insight-legend .key { display: inline-block; width: 8px; height: 8px; margin-left: 6px; }
 .insight-legend .key-decision { background: var(--gold); transform: rotate(45deg) scale(0.8); }
-.insight-legend .key-lantern { border-radius: 50%; background: #f0a24f; }
+.insight-legend .key-lantern { border-radius: 50%; background: #adadad; }
 .insight-plot { position: relative; }
 .insight-plot svg { display: block; width: 100%; height: 132px; overflow: visible; }
 .insight-plot .floor-band { fill: rgba(255, 255, 255, 0.02); stroke: rgba(0, 0, 0, 0.6); stroke-width: 2; }
 .insight-plot .floor-band.is-even { fill: rgba(255, 255, 255, 0.045); }
-.insight-plot .floor-label { fill: #948b7b; font-size: 10px; }
-.insight-plot .hp-guide { stroke: rgba(220, 123, 110, 0.45); stroke-dasharray: 3 4; stroke-width: 1; vector-effect: non-scaling-stroke; }
-.insight-plot .hp-line { fill: none; stroke: #9ccaa5; stroke-width: 2; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+.insight-plot .floor-label { fill: #8c8c8c; font-size: 10px; }
+.insight-plot .hp-guide { stroke: rgba(143, 143, 143, 0.45); stroke-dasharray: 3 4; stroke-width: 1; vector-effect: non-scaling-stroke; }
+.insight-plot .hp-line { fill: none; stroke: #bebebe; stroke-width: 2; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
 .insight-plot .marker-decision { fill: var(--gold); }
-.insight-plot .marker-lantern { fill: #f0a24f; stroke: #17130f; stroke-width: 2; }
-.insight-plot .marker-death line { stroke: #d3604f; stroke-width: 2; vector-effect: non-scaling-stroke; }
-.insight-plot .marker-death text { fill: #ee8b7c; font-size: 11px; text-anchor: middle; }
-.insight-plot .hover-line { stroke: rgba(240, 204, 123, 0.6); stroke-width: 1; vector-effect: non-scaling-stroke; }
-.insight-tooltip { position: absolute; top: -6px; display: grid; min-width: 90px; padding: 5px 8px; border: 1px solid var(--line); border-radius: var(--r-control); background: #0f0c0a; pointer-events: none; }
+.insight-plot .marker-lantern { fill: #adadad; stroke: #141414; stroke-width: 2; }
+.insight-plot .marker-death line { stroke: #777777; stroke-width: 2; vector-effect: non-scaling-stroke; }
+.insight-plot .marker-death text { fill: #9f9f9f; font-size: 11px; text-anchor: middle; }
+.insight-plot .hover-line { stroke: rgba(206, 206, 206, 0.6); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.insight-tooltip { position: absolute; top: -6px; display: grid; min-width: 90px; padding: 5px 8px; border: 1px solid var(--line); border-radius: var(--r-control); background: #0c0c0c; pointer-events: none; }
 .insight-tooltip strong { font-size: var(--fs-2xs); }
 .insight-tooltip span { color: var(--muted); font-size: var(--fs-2xs); }
 
@@ -211,7 +211,7 @@
 
 .end-milestone {
   --accent: var(--gold-bright);
-  --accent-glow: rgba(240, 190, 110, 0.35);
+  --accent-glow: rgba(195, 195, 195, 0.35);
   position: relative;
   display: grid;
   justify-items: center;
@@ -219,27 +219,27 @@
   width: min(520px, 100%);
   margin: 26px auto 0;
   padding: 26px 24px 20px;
-  border: 1px solid rgba(212, 173, 98, 0.3);
+  border: 1px solid rgba(176, 176, 176, 0.3);
   border-radius: 120px 120px 4px 4px / 60px 60px 4px 4px;
   background:
     radial-gradient(70% 60% at 50% 0%, var(--accent-glow), transparent 70%),
-    linear-gradient(180deg, rgba(30, 24, 17, 0.9), rgba(12, 10, 8, 0.95));
-  box-shadow: inset 0 0 0 4px rgba(0, 0, 0, 0.45), inset 0 0 0 5px rgba(212, 173, 98, 0.12), 0 20px 50px rgba(0, 0, 0, 0.45);
+    linear-gradient(180deg, rgba(25, 25, 25, 0.9), rgba(10, 10, 10, 0.95));
+  box-shadow: inset 0 0 0 4px rgba(0, 0, 0, 0.45), inset 0 0 0 5px rgba(176, 176, 176, 0.12), 0 20px 50px rgba(0, 0, 0, 0.45);
   text-align: center;
 }
 .end-milestone[data-kind="fallen"] {
-  --accent: #c9c1b4;
-  --accent-glow: rgba(150, 140, 130, 0.14);
-  border-color: rgba(190, 180, 165, 0.26);
+  --accent: #c2c2c2;
+  --accent-glow: rgba(141, 141, 141, 0.14);
+  border-color: rgba(181, 181, 181, 0.26);
   background:
     radial-gradient(70% 60% at 50% 0%, var(--accent-glow), transparent 70%),
     repeating-linear-gradient(115deg, rgba(255, 255, 255, 0.012) 0 2px, transparent 2px 7px),
-    linear-gradient(180deg, #1c1b1a, #0d0c0c);
+    linear-gradient(180deg, #1b1b1b, #0c0c0c);
 }
-.end-milestone[data-kind="scarred"] { --accent: #efb2a3; --accent-glow: rgba(210, 80, 60, 0.2); }
-.end-milestone[data-kind="ending"] { --accent: #e9d7ff; --accent-glow: rgba(170, 130, 255, 0.24); }
-.end-milestone[data-kind="keeper"] { --accent: #ffe2a6; --accent-glow: rgba(255, 180, 90, 0.42); }
-.end-milestone[data-kind="ability"] { --accent: #f3d58c; --accent-glow: rgba(240, 190, 90, 0.34); }
+.end-milestone[data-kind="scarred"] { --accent: #bebebe; --accent-glow: rgba(106, 106, 106, 0.2); }
+.end-milestone[data-kind="ending"] { --accent: #dedede; --accent-glow: rgba(148, 148, 148, 0.24); }
+.end-milestone[data-kind="keeper"] { --accent: #e4e4e4; --accent-glow: rgba(189, 189, 189, 0.42); }
+.end-milestone[data-kind="ability"] { --accent: #d6d6d6; --accent-glow: rgba(193, 193, 193, 0.34); }
 
 .milestone-kicker {
   margin: 4px 0 0;
@@ -252,7 +252,7 @@
   opacity: 0.85;
 }
 .milestone-title {
-  color: #f3e7cf;
+  color: #e8e8e8;
   font-family: var(--display);
   font-size: clamp(1.25rem, 3.4vw, 1.75rem);
   font-weight: 700;
@@ -260,7 +260,7 @@
   letter-spacing: 0.1em;
   text-wrap: balance;
 }
-.end-milestone[data-kind="fallen"] .milestone-title { color: #ddd6cc; }
+.end-milestone[data-kind="fallen"] .milestone-title { color: #d7d7d7; }
 .milestone-detail { display: grid; justify-items: center; gap: 6px; margin: 0; color: var(--muted); font-size: var(--fs-sm); line-height: 1.7; text-wrap: pretty; }
 .milestone-truth { margin: 6px 0 0; color: var(--gold); font-family: var(--display); font-size: var(--fs-sm); letter-spacing: 0.14em; }
 .milestone-truth i { margin-right: 8px; font-style: normal; }
@@ -274,8 +274,8 @@
   width: 10px;
   height: 14px;
   border-radius: 2px 2px 1px 1px;
-  background: linear-gradient(90deg, #120e0b, #2a221b 50%, #0d0a08);
-  box-shadow: 0 0 0 1px rgba(212, 173, 98, 0.18);
+  background: linear-gradient(90deg, #0f0f0f, #232323 50%, #0a0a0a);
+  box-shadow: 0 0 0 1px rgba(176, 176, 176, 0.18);
   transform: translateX(-50%);
 }
 .milestone-flame {
@@ -285,7 +285,7 @@
   width: 9px;
   height: 17px;
   border-radius: 50% 50% 50% 50% / 62% 62% 38% 38%;
-  background: radial-gradient(ellipse at 50% 72%, #fff6d6 0%, var(--accent) 34%, rgba(240, 120, 40, 0.7) 70%, transparent 100%);
+  background: radial-gradient(ellipse at 50% 72%, #f6f6f6 0%, var(--accent) 34%, rgba(140, 140, 140, 0.7) 70%, transparent 100%);
   filter: drop-shadow(0 0 8px var(--accent-glow)) drop-shadow(0 0 3px var(--accent));
   transform: translateX(-50%);
   transform-origin: 50% 100%;
@@ -301,7 +301,7 @@
   width: 6px;
   height: 22px;
   border-radius: 50%;
-  background: linear-gradient(0deg, rgba(200, 195, 185, 0.5), transparent);
+  background: linear-gradient(0deg, rgba(195, 195, 195, 0.5), transparent);
   filter: blur(2px);
   transform-origin: 50% 100%;
   animation: milestone-smoke 3.2s ease-out infinite;
@@ -314,7 +314,7 @@
 
 .milestone-ranks { display: inline-flex; gap: 6px; font-size: 1.25rem; letter-spacing: 0; }
 .milestone-ranks i { color: rgba(255, 255, 255, 0.12); font-style: normal; }
-.milestone-ranks i.is-lit { color: var(--gold-bright); text-shadow: 0 0 12px rgba(240, 190, 100, 0.65); }
+.milestone-ranks i.is-lit { color: var(--gold-bright); text-shadow: 0 0 12px rgba(194, 194, 194, 0.65); }
 
 .milestone-cycle { display: inline-flex; align-items: baseline; gap: 18px; }
 .milestone-cycle s { color: var(--faint); font-size: 0.7em; text-decoration-thickness: 1px; text-decoration-color: var(--accent); }
@@ -344,8 +344,8 @@
 }
 @keyframes milestone-wound {
   0% { text-shadow: 0 0 0 transparent; }
-  30% { text-shadow: 0 0 22px rgba(230, 70, 50, 0.9); color: #ffd1c6; }
-  100% { text-shadow: 0 0 8px rgba(200, 60, 40, 0.35); }
+  30% { text-shadow: 0 0 22px rgba(103, 103, 103, 0.9); color: #dadada; }
+  100% { text-shadow: 0 0 8px rgba(88, 88, 88, 0.35); }
 }
 @keyframes milestone-snuff {
   0% { opacity: 1; transform: translateX(-50%) scale(1); }

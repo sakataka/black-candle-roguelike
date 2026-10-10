@@ -12,7 +12,7 @@
   z-index: 100;
   inset: 0;
   overflow: hidden;
-  background: #030202;
+  background: #020202;
   color: var(--ink);
   cursor: default;
   isolation: isolate;
@@ -30,8 +30,8 @@
   /* 横長では炎を画面の右寄り(62%)に置き、左の闇を文字の余白にする。 */
   left: calc(62vw - var(--art-w) * 0.544);
   width: var(--art-w);
-  -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 14%);
-  mask-image: linear-gradient(90deg, transparent 0%, #000 14%);
+  -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000000 14%);
+  mask-image: linear-gradient(90deg, transparent 0%, #000000 14%);
   height: var(--art-h);
   opacity: 0;
   transform: translate3d(calc(var(--tilt-x) * -18px), calc(-50% + var(--tilt-y) * -12px), 0) scale(1.08);
@@ -66,14 +66,14 @@
 .title-flame-glow {
   width: 9%;
   aspect-ratio: 0.8;
-  background: radial-gradient(closest-side, rgba(255, 214, 140, 0.55), rgba(255, 160, 70, 0.18) 55%, transparent);
+  background: radial-gradient(closest-side, rgba(217, 217, 217, 0.55), rgba(174, 174, 174, 0.18) 55%, transparent);
   animation: title-flicker 3.1s steps(1, end) infinite, title-breathe 5.3s ease-in-out infinite;
 }
 
 .title-flame-halo {
   width: 46%;
   aspect-ratio: 1.15;
-  background: radial-gradient(closest-side, rgba(255, 170, 90, 0.16), rgba(200, 110, 40, 0.06) 45%, transparent 75%);
+  background: radial-gradient(closest-side, rgba(182, 182, 182, 0.16), rgba(124, 124, 124, 0.06) 45%, transparent 75%);
   animation: title-breathe 6.7s ease-in-out infinite reverse;
 }
 
@@ -107,8 +107,8 @@
   inset: 0;
   pointer-events: none;
   background:
-    linear-gradient(90deg, rgba(3, 2, 2, 0.94) 0%, rgba(3, 2, 2, 0.72) 26%, rgba(3, 2, 2, 0.12) 52%, transparent 70%),
-    linear-gradient(0deg, rgba(3, 2, 2, 0.85) 0%, transparent 28%),
+    linear-gradient(90deg, rgba(2, 2, 2, 0.94) 0%, rgba(2, 2, 2, 0.72) 26%, rgba(2, 2, 2, 0.12) 52%, transparent 70%),
+    linear-gradient(0deg, rgba(2, 2, 2, 0.85) 0%, transparent 28%),
     radial-gradient(ellipse 120% 90% at 55% 45%, transparent 55%, rgba(0, 0, 0, 0.6) 100%);
 }
 
@@ -117,7 +117,7 @@
   inset: 0;
   opacity: 0;
   pointer-events: none;
-  background: radial-gradient(circle 22rem at var(--px) var(--py), rgba(255, 196, 128, 0.075), transparent 70%);
+  background: radial-gradient(circle 22rem at var(--px) var(--py), rgba(204, 204, 204, 0.075), transparent 70%);
   mix-blend-mode: screen;
   transition: opacity 1.2s ease;
 }
@@ -160,14 +160,14 @@
   display: flex;
   align-items: baseline;
   margin: 0;
-  color: #f3e7cf;
+  color: #e8e8e8;
   font-family: var(--display);
   font-size: clamp(3.6rem, 8.2vw, 8.75rem);
   font-weight: 800;
   line-height: 1;
   letter-spacing: 0.04em;
   white-space: nowrap;
-  text-shadow: 0 0 42px rgba(255, 170, 90, 0.18), 0 2px 0 rgba(0, 0, 0, 0.6);
+  text-shadow: 0 0 42px rgba(182, 182, 182, 0.18), 0 2px 0 rgba(0, 0, 0, 0.6);
 }
 
 .title-logo span {
@@ -192,7 +192,7 @@
 
 .title-latin {
   margin: clamp(10px, 1.6vh, 16px) 0 0 0.3em;
-  color: rgba(226, 205, 165, 0.7);
+  color: rgba(207, 207, 207, 0.7);
   font-family: var(--latin);
   font-size: clamp(1rem, 1.45vw, 1.375rem);
   font-style: italic;
@@ -206,7 +206,7 @@
   width: min(320px, 70%);
   height: 1px;
   margin: clamp(22px, 3.4vh, 36px) 0 clamp(18px, 2.8vh, 28px) 0.3em;
-  background: linear-gradient(90deg, var(--gold), rgba(212, 173, 98, 0.15) 70%, transparent);
+  background: linear-gradient(90deg, var(--gold), rgba(176, 176, 176, 0.15) 70%, transparent);
   transform: scaleX(0);
   transform-origin: left center;
   transition: transform 1.6s var(--ease-out) 1.6s;
@@ -232,10 +232,10 @@
   gap: 16px;
   margin-left: 0.3em;
   padding: 16px 22px 16px 18px;
-  border: 1px solid rgba(240, 204, 123, 0.38);
+  border: 1px solid rgba(206, 206, 206, 0.38);
   border-radius: var(--r-tag);
-  background: linear-gradient(180deg, rgba(40, 30, 18, 0.72), rgba(16, 12, 8, 0.72));
-  color: #f6e6c2;
+  background: linear-gradient(180deg, rgba(31, 31, 31, 0.72), rgba(13, 13, 13, 0.72));
+  color: #e7e7e7;
   font-family: var(--display);
   font-size: 1.125rem;
   font-weight: 600;
@@ -268,8 +268,8 @@
 
 .title-cta kbd {
   margin-left: 6px;
-  border-color: rgba(240, 204, 123, 0.28);
-  color: rgba(240, 204, 123, 0.75);
+  border-color: rgba(206, 206, 206, 0.28);
+  color: rgba(206, 206, 206, 0.75);
   letter-spacing: 0.04em;
 }
 
@@ -285,8 +285,8 @@
   left: 50%;
   width: 2px;
   height: 7px;
-  background: #1a120a;
-  box-shadow: 0 0 0 1px rgba(240, 204, 123, 0.25);
+  background: #131313;
+  box-shadow: 0 0 0 1px rgba(206, 206, 206, 0.25);
   transform: translateX(-50%);
 }
 .title-cta-wick i {
@@ -296,8 +296,8 @@
   width: 9px;
   height: 15px;
   border-radius: 50% 50% 50% 50% / 62% 62% 38% 38%;
-  background: radial-gradient(ellipse at 50% 72%, #fff6d6 0%, #ffd27a 32%, #f08a2c 68%, rgba(240, 120, 40, 0) 100%);
-  filter: drop-shadow(0 0 6px rgba(255, 170, 80, 0.85));
+  background: radial-gradient(ellipse at 50% 72%, #f6f6f6 0%, #d5d5d5 32%, #999999 68%, rgba(140, 140, 140, 0) 100%);
+  filter: drop-shadow(0 0 6px rgba(182, 182, 182, 0.85));
   transform: translateX(-50%) scale(0.86);
   transform-origin: 50% 100%;
   animation: title-wick 1.9s ease-in-out infinite;
@@ -330,7 +330,7 @@
   display: flex;
   justify-content: space-between;
   margin: 0;
-  color: rgba(165, 156, 138, 0.55);
+  color: rgba(157, 157, 157, 0.55);
   font-family: var(--latin);
   font-size: 0.875rem;
   font-style: italic;
@@ -358,17 +358,17 @@
 
 @media (hover: hover) and (pointer: fine) {
   .title-cta:hover {
-    border-color: rgba(240, 204, 123, 0.75);
-    background-color: rgba(60, 42, 20, 0.5);
-    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.6), 0 0 42px rgba(240, 160, 70, 0.22), 0 18px 48px rgba(0, 0, 0, 0.5);
+    border-color: rgba(206, 206, 206, 0.75);
+    background-color: rgba(44, 44, 44, 0.5);
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.6), 0 0 42px rgba(171, 171, 171, 0.22), 0 18px 48px rgba(0, 0, 0, 0.5);
   }
   .title-cta:hover::before { top: -7px; left: -7px; }
   .title-cta:hover::after { right: -7px; bottom: -7px; }
 }
 .title-cta:focus-visible {
   outline: none;
-  border-color: rgba(240, 204, 123, 0.85);
-  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.6), 0 0 0 4px rgba(240, 204, 123, 0.16), 0 0 42px rgba(240, 160, 70, 0.22), 0 18px 48px rgba(0, 0, 0, 0.5);
+  border-color: rgba(206, 206, 206, 0.85);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.6), 0 0 0 4px rgba(206, 206, 206, 0.16), 0 0 42px rgba(171, 171, 171, 0.22), 0 18px 48px rgba(0, 0, 0, 0.5);
 }
 
 /* ---------- 記録を選ぶ ---------- */
@@ -380,7 +380,7 @@
   margin: 18px 0 0 0.3em;
   padding: 4px 0;
   border: 0;
-  border-bottom: 1px solid rgba(212, 173, 98, 0.3);
+  border-bottom: 1px solid rgba(176, 176, 176, 0.3);
   background: none;
   color: var(--muted);
   font-size: 0.8125rem;
@@ -405,9 +405,9 @@
   max-height: calc(100svh - 48px);
   overflow-y: auto;
   padding: 18px;
-  border: 1px solid rgba(212, 173, 98, 0.32);
+  border: 1px solid rgba(176, 176, 176, 0.32);
   border-radius: var(--r-control);
-  background: linear-gradient(180deg, rgba(22, 17, 11, 0.96), rgba(10, 8, 6, 0.97));
+  background: linear-gradient(180deg, rgba(18, 18, 18, 0.96), rgba(8, 8, 8, 0.97));
   box-shadow: 0 24px 64px rgba(0, 0, 0, 0.65);
   transform: translateY(-50%);
   animation: saves-in 320ms var(--ease-out) both;
@@ -420,7 +420,7 @@
 .title-saves-close { grid-column: 2; grid-row: 1 / 3; align-self: start; width: 32px; height: 32px; border: 1px solid var(--line); border-radius: var(--r-control); background: none; color: var(--muted); font-size: 1rem; cursor: pointer; }
 .title-save-list { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
 .title-save { display: grid; gap: 7px; padding: 11px 12px; border: 1px solid var(--line-soft); border-radius: var(--r-control); background: rgba(255, 255, 255, 0.02); }
-.title-save.is-active { border-color: rgba(240, 204, 123, 0.5); background: rgba(212, 173, 98, 0.07); }
+.title-save.is-active { border-color: rgba(206, 206, 206, 0.5); background: rgba(176, 176, 176, 0.07); }
 .title-save-head { display: flex; align-items: baseline; gap: 10px; }
 .title-save-head strong { color: var(--ink); font-family: var(--display); font-size: 1rem; letter-spacing: 0.14em; }
 .title-save-head em { color: var(--gold); font-size: 0.75rem; font-style: normal; }
@@ -428,22 +428,22 @@
 .title-save-badge { padding: 0 7px; border: 1px solid var(--gold); border-radius: var(--r-tag); color: var(--gold-bright); font-size: 0.625rem; font-weight: 800; letter-spacing: 0.1em; }
 .title-save-road { display: flex; align-items: center; gap: 10px; color: var(--ink-soft); font-size: 0.75rem; }
 .title-save-steps { display: flex; gap: 3px; }
-.title-save-steps i { width: 14px; height: 4px; border-radius: 0; background: #2c251b; }
+.title-save-steps i { width: 14px; height: 4px; border-radius: 0; background: #262626; }
 .title-save-steps i.is-done { background: var(--gold); }
 .title-save-stats { display: flex; flex-wrap: wrap; gap: 2px 14px; color: var(--muted); font-size: 0.6875rem; }
 .title-save-stats b { color: var(--ink-soft); font-size: 0.8125rem; }
 .title-save-actions { display: flex; gap: 8px; }
 .title-save-actions button, .title-save-new { min-height: 36px; padding: 6px 12px; border: 1px solid var(--line); border-radius: var(--r-control); background: rgba(0, 0, 0, 0.25); color: var(--ink-soft); font-size: 0.8125rem; cursor: pointer; }
-.title-save-main { flex: 1; border-color: rgba(240, 204, 123, 0.45) !important; color: var(--gold-bright) !important; }
+.title-save-main { flex: 1; border-color: rgba(206, 206, 206, 0.45) !important; color: var(--gold-bright) !important; }
 /* 使用中の記録で続ける札は、支度・結果の主ボタンと同じ金の札と明朝にそろえる。 */
-.title-save.is-active .title-save-main { background: linear-gradient(180deg, #f6d88e, #d2a456 55%, #b8873d) !important; color: #1b130a !important; font-family: var(--display); font-weight: 800; letter-spacing: 0.16em; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.5), inset 0 1px rgba(255, 255, 255, 0.45); }
+.title-save.is-active .title-save-main { background: linear-gradient(180deg, #d9d9d9, #a8a8a8 55%, #8c8c8c) !important; color: #141414 !important; font-family: var(--display); font-weight: 800; letter-spacing: 0.16em; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.5), inset 0 1px rgba(255, 255, 255, 0.45); }
 .title-save-delete { color: var(--muted) !important; }
 .title-save-delete.is-confirming { border-color: var(--danger) !important; color: var(--danger) !important; }
-.title-save-new { width: 100%; border-color: rgba(212, 173, 98, 0.38); color: var(--gold); }
+.title-save-new { width: 100%; border-color: rgba(176, 176, 176, 0.38); color: var(--gold); }
 .title-save-new:disabled { color: var(--faint); cursor: not-allowed; }
 .title-saves button:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
 @media (hover: hover) and (pointer: fine) {
-  .title-save-actions button:hover:not(:disabled), .title-save-new:hover:not(:disabled), .title-saves-close:hover { border-color: rgba(240, 204, 123, 0.7); color: var(--ink); }
+  .title-save-actions button:hover:not(:disabled), .title-save-new:hover:not(:disabled), .title-saves-close:hover { border-color: rgba(206, 206, 206, 0.7); color: var(--ink); }
 }
 /* 一覧を開いている間は、本文を少し沈めて一覧に目を向けさせる。 */
 .title-screen.is-choosing .title-content { opacity: 0.35; transition: opacity 300ms ease; }
@@ -463,7 +463,7 @@
   animation: none;
   transform: translate(-50%, -50%) scale(5.5);
   opacity: 1;
-  background: radial-gradient(closest-side, rgba(255, 214, 150, 0.9), rgba(255, 160, 80, 0.35) 45%, transparent 75%);
+  background: radial-gradient(closest-side, rgba(218, 218, 218, 0.9), rgba(174, 174, 174, 0.35) 45%, transparent 75%);
   transition: transform 1.1s cubic-bezier(0.7, 0, 0.84, 0), opacity 600ms ease;
 }
 .title-screen.is-leaving .title-art-frame {
@@ -499,7 +499,7 @@
   .title-screen.is-leaving .title-content { transform: translateY(-12px); }
   .title-veil {
     background:
-      linear-gradient(0deg, rgba(3, 2, 2, 0.98) 0%, rgba(3, 2, 2, 0.86) 38%, rgba(3, 2, 2, 0.2) 62%, transparent 78%),
+      linear-gradient(0deg, rgba(2, 2, 2, 0.98) 0%, rgba(2, 2, 2, 0.86) 38%, rgba(2, 2, 2, 0.2) 62%, transparent 78%),
       radial-gradient(ellipse 140% 80% at 50% 30%, transparent 50%, rgba(0, 0, 0, 0.55) 100%);
   }
   .title-logo { font-size: clamp(3.2rem, 16vw, 5.5rem); }

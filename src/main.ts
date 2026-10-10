@@ -6,15 +6,11 @@ import { defenseBonus, pieceName, weaponBonus } from "./game/core/inventory";
 import { roleSkill } from "./game/core/skills";
 import { renderRunInsights } from "./ui/runInsights";
 import { observerShellMarkup } from "./ui/shell";
+import { installPreparationNavigation } from "./ui/preparationNavigation";
 import { applySprite, spriteStyle } from "./ui/sprites";
 import { escapeHtml, requireElement, setText } from "./ui/dom";
 import { bossTrialDefinition, journeyProgress } from "./game/core/journey";
 import { candleRoadMarkup, growthMarkup, progressStripMarkup, resultProgressMarkup, truthMark } from "./ui/progress";
-import "@fontsource/shippori-mincho-b1/500.css";
-import "@fontsource/shippori-mincho-b1/600.css";
-import "@fontsource/shippori-mincho-b1/800.css";
-import "@fontsource/cormorant-garamond/500-italic.css";
-import "@fontsource/cormorant-garamond/600.css";
 import "./styles.css";
 import { showTitle, type SaveSlotSummary, type TitleLedger } from "./ui/title";
 import "./ui/interface.css";
@@ -96,6 +92,7 @@ import type {
   RunReview,
   Veteran,
 } from "./game/types";
+import "./ui/pop.css";
 
 /** 使用中の記録。記録ごとに遠征録と作戦の記憶を分けて保存する。 */
 let saveIndex = loadSaveIndex();
@@ -122,7 +119,7 @@ declare global {
 
 const app = document.querySelector<HTMLDivElement>("#app");
 // CSS変数内の相対URLは外部CSSの配信位置が基準になるため、ページ基準で確定する。
-const keyartUrl = new URL(`${import.meta.env.BASE_URL}assets/art/title-keyart.jpg`, document.baseURI).href;
+const keyartUrl = new URL(`${import.meta.env.BASE_URL}assets/art/pop-candle-keyart.png`, document.baseURI).href;
 document.documentElement.style.setProperty("--keyart", `url("${keyartUrl}")`);
 if (!app) throw new Error("Missing #app root");
 app.inert = true;
@@ -161,6 +158,7 @@ const observerShell = requireElement<HTMLElement>(".observer-shell");
 const pixiRoot = requireElement<HTMLDivElement>("#pixi-root");
 const mapStage = requireElement<HTMLDivElement>("#map-stage");
 const candidateDialog = requireElement<HTMLElement>("#candidate-dialog");
+const refreshPreparationNavigation = installPreparationNavigation(candidateDialog);
 const missionList = requireElement<HTMLDivElement>("#mission-list");
 const candidateList = requireElement<HTMLDivElement>("#candidate-list");
 const veteranList = requireElement<HTMLDivElement>("#veteran-list");
@@ -472,7 +470,7 @@ function installEvents(): void {
     }
     if (!["1", "2", "3", "4"].includes(event.key)) return;
     const index = Number(event.key) - 1;
-    const visibleButtons = !candidateDialog.hidden
+    const visibleButtons = !candidateDialog.hidden && candidateDialog.dataset.currentPreparePage === "delver"
       ? candidateDialog.querySelectorAll<HTMLButtonElement>("button[data-veteran-id], button[data-role-id]")
       : !decisionDialog.hidden
         ? decisionOptions.querySelectorAll<HTMLButtonElement>("button[data-option-id]:not(:disabled)")
@@ -509,8 +507,15 @@ function resumeObserving(): void {
 function selectDelver(next: NonNullable<typeof selectedDelver>): void {
   selectedDelver = next;
   renderCandidateSelection();
-  // スマホの横に流れる一覧では、番号キーで選んだ札が画面の外にあることがある。
-  candidateDialog.querySelector(".delver-tile.is-selected")?.scrollIntoView({ block: "nearest", inline: "nearest" });
+  // 候補だけを横に送る。画面全体をスクロールさせず、選んだ探索者の姿を保つ。
+  const selected = candidateDialog.querySelector<HTMLElement>(".delver-tile.is-selected");
+  const list = selected?.parentElement;
+  if (selected && list) {
+    const card = selected.getBoundingClientRect();
+    const viewport = list.getBoundingClientRect();
+    if (card.left < viewport.left) list.scrollLeft -= viewport.left - card.left;
+    else if (card.right > viewport.right) list.scrollLeft += card.right - viewport.right;
+  }
 }
 
 function departSelected(): void {
@@ -616,6 +621,7 @@ function renderCandidateSelection(): void {
   renderDepartSummary(delver);
   renderRoadmap();
   renderArchive();
+  refreshPreparationNavigation();
   restoreFocus(candidateDialog, focusKey);
 }
 
@@ -716,12 +722,12 @@ function renderDelverDetail(delver: ReturnType<typeof resolveSelectedDelver>): v
         <div><dt>攻撃</dt><dd>${stats.attack + foundation.attack}</dd></div>
         <div><dt>防御</dt><dd>${stats.defense}</dd></div>
       </dl>
-      <ul class="delver-traits">
+      <details class="delver-traits-disclosure"><summary>気質・得意・武器と技</summary><ul class="delver-traits">
         <li><span>気質</span>${escapeHtml(temperamentDescription(temperament))}</li>
         ${role ? `<li><span>得意</span>${escapeHtml(role.traits.focus)}</li><li><span>武器と技</span>得意武器: ${escapeHtml(weaponTypeLabels(role.traits.weaponMastery?.types))} · 技: ${escapeHtml(roleSkill(role.id)?.config.label ?? "なし")}</li>` : ""}
         ${campaign.roleTruths.includes(truth) ? "" : `<li class="is-truth"><span>真相</span>第六階の守り手を倒して生きて帰れば、真相「${escapeHtml(roleTruthLabel(truth))}」を記録できる</li>`}
         ${veteran?.scars.map((id) => `<li class="is-scar"><span>古傷</span><b>${escapeHtml(scarDefinitions[id]?.label ?? id)}</b> ${escapeHtml(scarDefinitions[id]?.description ?? "")}</li>`).join("") ?? ""}
-      </ul>
+      </ul></details>
     </div>
   `;
   applySprite(panel.querySelector<HTMLElement>(".delver-figure") as HTMLElement, assetForContent(delver.roleId), 112);
@@ -1138,6 +1144,9 @@ function renderVitals(observation: ReturnType<typeof observeGame>): void {
   const maxHp = player.stats?.maxHp ?? 1;
   const ratio = Math.max(0, Math.min(1, hp / maxHp));
   setText("#vitals-hp-value", `${Math.max(0, hp)} / ${maxHp}`);
+  setText("#map-vitals-name", state.runIdentity.name);
+  setText("#map-vitals-hp", `${Math.max(0, hp)} / ${maxHp}`);
+  requireElement<HTMLElement>("#map-vitals-fill").style.width = `${ratio * 100}%`;
   const fill = requireElement<HTMLElement>("#vitals-hp-fill");
   fill.style.width = `${ratio * 100}%`;
   requireElement<HTMLElement>("#vitals-hp-trail").style.width = `${ratio * 100}%`;
