@@ -6,10 +6,11 @@
   "packageManager": "bun@1.4.3",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build",
+    "build": "bun run typecheck && vite build",
     "test": "bun test",
     "simulate:ai": "bun run src/game/sim/headless.ts",
-    "simulate:batch": "bun run src/game/sim/batch.ts"
+    "simulate:batch": "bun run src/game/sim/batch.ts",
+    "typecheck": "bun --check --threads=4"
   },
   "dependencies": {
     "@fontsource/cormorant-garamond": "^5.3.0",
