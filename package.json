@@ -10,7 +10,7 @@
     "test": "bun test",
     "simulate:ai": "bun run src/game/sim/headless.ts",
     "simulate:batch": "bun run src/game/sim/batch.ts",
-    "typecheck": "bun --check --threads=4"
+    "typecheck": "bun check --threads=4"
   },
   "dependencies": {
     "@fontsource/cormorant-garamond": "^5.3.0",
