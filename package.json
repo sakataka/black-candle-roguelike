@@ -5,8 +5,8 @@
   "type": "module",
   "packageManager": "bun@1.4.3",
   "scripts": {
-    "dev": "vite",
-    "build": "bun run typecheck && vite build",
+    "dev": "bun --hot scripts/dev-frontend.ts",
+    "build": "bun run typecheck && bun run scripts/build-frontend.ts",
     "test": "bun test",
     "simulate:ai": "bun run src/game/sim/headless.ts",
     "simulate:batch": "bun run src/game/sim/batch.ts",
@@ -19,7 +19,7 @@
     "rot-js": "^2.2.1"
   },
   "devDependencies": {
-    "typescript": "^7.0.2",
-    "vite": "^8.3.2"
+    "@types/bun": "^1.4.2",
+    "typescript": "^7.0.2"
   }
 }

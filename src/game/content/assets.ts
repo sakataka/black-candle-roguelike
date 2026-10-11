@@ -159,5 +159,5 @@ export function assetForContent(contentId: string): AssetDefinition | null {
 }
 
 export function publicAssetPath(path: string): string {
-  return path.startsWith("/") ? `${import.meta.env.BASE_URL}${path.slice(1)}` : path;
+  return path.startsWith("/") ? `./${path.slice(1)}` : path;
 }

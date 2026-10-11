@@ -119,7 +119,7 @@ declare global {
 
 const app = document.querySelector<HTMLDivElement>("#app");
 // CSS変数内の相対URLは外部CSSの配信位置が基準になるため、ページ基準で確定する。
-const keyartUrl = new URL(`${import.meta.env.BASE_URL}assets/art/pop-candle-keyart.png`, document.baseURI).href;
+const keyartUrl = new URL("./assets/art/pop-candle-keyart.png", document.baseURI).href;
 document.documentElement.style.setProperty("--keyart", `url("${keyartUrl}")`);
 if (!app) throw new Error("Missing #app root");
 app.inert = true;
@@ -1808,7 +1808,7 @@ function syncModalAccessibility(): void {
 }
 
 function installDebugBridge(): void {
-  if (!import.meta.env.DEV) return;
+  if (process.env.NODE_ENV === "production") return;
   window.__rogueDebug = {
     loadState: (snapshot) => {
       stopAutoplay();

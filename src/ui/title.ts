@@ -59,7 +59,7 @@ export function showTitle(ledger: Promise<TitleLedger>, ready: Promise<unknown>,
   root.innerHTML = `
     <div class="title-art" aria-hidden="true">
       <div class="title-art-frame">
-        <img src="${import.meta.env.BASE_URL}${KEYART_PATH}" alt="" decoding="async" fetchpriority="high" />
+        <img src="./${KEYART_PATH}" alt="" decoding="async" fetchpriority="high" />
         <span class="title-flame-halo"></span>
         <span class="title-flame-glow"></span>
       </div>

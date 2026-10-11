@@ -13,7 +13,7 @@ export function getGameConfig(): GameConfig {
   return activeGameConfig;
 }
 
-export async function loadBrowserGameConfig(path = `${import.meta.env.BASE_URL}config/game-balance.json`): Promise<GameConfig> {
+export async function loadBrowserGameConfig(path = "./config/game-balance.json"): Promise<GameConfig> {
   const response = await fetch(`${path}?v=${Date.now()}`, { cache: "no-store" });
   if (!response.ok) {
     throw new Error(`Failed to load game config: ${response.status} ${response.statusText}`);

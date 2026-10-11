@@ -18,7 +18,7 @@ function bossPortrait(): string {
   const { columns, rows, index } = asset.sheet!;
   const x = columns === 1 ? 0 : (index % columns) / (columns - 1) * 100;
   const y = rows === 1 ? 0 : Math.floor(index / columns) / (rows - 1) * 100;
-  return `<i style="background-image:url('${import.meta.env.BASE_URL}${asset.path.replace(/^\//, "")}');background-size:${columns * 100}% ${rows * 100}%;background-position:${x}% ${y}%"></i>`;
+  return `<i style="background-image:url('./${asset.path.replace(/^\//, "")}');background-size:${columns * 100}% ${rows * 100}%;background-position:${x}% ${y}%"></i>`;
 }
 
 /** 五つの章を一列に並べた道。済んだ章は◆、次の章は縁を明るくする。 */
